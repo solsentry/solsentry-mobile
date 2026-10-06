@@ -70,7 +70,10 @@ export function withValidation<G extends CheckGuard>(g: G): G {
       assertAnalysis(a)
       return a
     },
-    checkLookalike: g.checkLookalike.bind(g),
+    checkLookalike: (d: string, c: string[]) =>
+      g.checkLookalike(d, c).catch((e) => {
+        throw explainQuota(e)
+      }),
     getOperator: async (w: string) => {
       const o = await g.getOperator(w).catch((e) => {
         throw explainQuota(e)
@@ -197,12 +200,21 @@ export async function screenRecipient(
   const g = withValidation(guardIn)
   try {
     const known = contacts.filter((c) => c && c !== recipient)
+    // The vendored check swallows a lookalike error into a bare CHECK_FAILED; keep it to show the reason.
+    let lookalikeError: unknown
     const wrapped = {
       analyzeProgram: (a: string) => g.analyzeProgram(a),
-      checkLookalike: async (d: string, c: string[]) =>
-        normalizeLookalike(await (g as unknown as LookalikeSource).checkLookalike(d, c), d),
+      checkLookalike: async (d: string, c: string[]) => {
+        try {
+          return normalizeLookalike(await (g as unknown as LookalikeSource).checkLookalike(d, c), d)
+        } catch (e) {
+          lookalikeError = e
+          throw e
+        }
+      },
     } as Parameters<typeof checkRecipient>[2]
     let v = await checkRecipient(recipient, { ...POLICY, contacts: known }, wrapped)
+    if (lookalikeError !== undefined) return failedClosed(lookalikeError, 'Lookalike check')
     if (v.reasons.includes('LOOKALIKE')) {
       v = { ...v, decision: 'block', explanation: lookalikeExplanation(recipient, v.lookalike?.findings[0]?.contact) }
     } else if (v.decision !== 'block' && v.lookalike?.findings.length) {

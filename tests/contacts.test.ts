@@ -120,6 +120,13 @@ describe('lookalike through screenRecipient', () => {
     }
   })
 
+  it('lookalike 429 says quota, still a block', async () => {
+    const e = Object.assign(new Error('SolSentry API 429'), { status: 429 })
+    const v = await screenRecipient(FAKE, guard(e), [REAL])
+    expect(v.decision).toBe('block')
+    expect(v.explanation).toContain('free daily quota')
+  })
+
   it('lookalike API failure fails closed', async () => {
     const v = await screenRecipient(FAKE, guard(new Error('503')), [REAL])
     expect(v.decision).toBe('block')
