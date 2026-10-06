@@ -143,6 +143,23 @@ export async function runRecipientCheck(recipient: string): Promise<RecipientVer
   return screenRecipient(recipient, guard)
 }
 
+export const RPC_TIMEOUT_MS = 10_000
+
+/** fetch that gives up after `ms`: a hung public RPC becomes an error (-> Block), not a frozen screen. */
+export function fetchWithTimeout(base: typeof fetch, ms: number = RPC_TIMEOUT_MS): typeof fetch {
+  return ((input: RequestInfo | URL, init?: RequestInit) => {
+    const ctrl = new AbortController()
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const timeout = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => {
+        ctrl.abort()
+        reject(new Error(`RPC request timed out after ${Math.round(ms / 1000)} s`))
+      }, ms)
+    })
+    return Promise.race([base(input, { ...init, signal: ctrl.signal }), timeout]).finally(() => clearTimeout(timer))
+  }) as typeof fetch
+}
+
 export async function screenSender(
   sender: string,
   g: CheckGuard,
@@ -157,7 +174,10 @@ export async function screenSender(
 
 export async function runSenderCheck(sender: string): Promise<SenderVerdict> {
   try {
-    return await screenSender(sender, guard, { rpcUrl: RPC_URL })
+    return await screenSender(sender, guard, {
+      rpcUrl: RPC_URL,
+      fetch: fetchWithTimeout((u, i) => globalThis.fetch(u, i)),
+    })
   } catch (err) {
     return failedClosed(err, 'Source-of-funds check')
   }
