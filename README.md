@@ -19,6 +19,7 @@ Package id `app.solsentry.guard`. Built with Expo / React Native and Solana Mobi
 - **Scan to pay (Solana Pay).** "Scan QR" reads a Solana Pay transfer request (`solana:<recipient>?amount=…&label=…&message=…&memo=…&reference=…`) or a plain address QR, fills the form, shows the label and message, and runs the recipient check right away. The amount still goes through the same SOL parser, and the verdict is bound to that address and must be fresh. `reference` keys and the `memo` are added to the transfer as the spec requires. SPL token requests are checked but not sent ("SPL token payments not supported yet"); transaction requests (`solana:https://…`) are refused.
 - **Names.** The recipient field accepts `name.skr` (Seeker ID, AllDomains: one PDA derivation and one `getAccountInfo` on mainnet) and `name.sns` / `name.sol` (SNS REST proxy `sdk-proxy-v2.sns.id`, `/safe-resolve`). The resolved address is shown in full and is what gets checked and paid; the name is resolved again when you tap Send (before the wallet opens) and the send is refused if it changed. A name that cannot be resolved is a Block with the reason. Note: SNS stopped resolving `.sol` at slot 452,825,395 (registry migration), so `.sol` currently comes back as Block until SNS re-enables it.
 - **Where did my money come from?** After you connect a wallet, the app looks up the wallet's first funder (one hop back, via Solana RPC), screens both the wallet and that funder, and shows the verdict.
+- **Seeker Genesis Token.** For your own connected wallet only (never for a recipient), the app shows whether that wallet holds a Seeker Genesis Token, with its mint, following Solana Mobile's check: a Token-2022 account with a non-zero balance whose mint has both the SGT metadata pointer and SGT group membership (`GT22s89n…`). If the mainnet RPC lookup fails it says "could not check", never "no token".
 - **History.** Addresses you checked, kept on the device (AsyncStorage), each with its verdict, date and a "Re-check" button. Re-check before you pay the same address again: signals change.
 
 ## How it works
@@ -38,6 +39,7 @@ Config lives in `src/config.ts`: `CLUSTER` (default `mainnet-beta`), `RPC_URL` (
 - **One check at a time.** A QR scanned while another check is still running fills the form but is not checked; tap Check. Sending always needs a current verdict for the exact address.
 - **Source of funds is one hop.** Only the wallet's first funder is looked up; long histories (more than 5,000 signatures) and wallets without a plain funding transfer come back as "not determined".
 - The public Solana RPC is rate limited. If it refuses the source-of-funds lookup, the check fails closed.
+- **The Seeker badge is about the wallet, not the phone.** It shows the connected wallet was activated on a Seeker, not that this device is one, and it is checked in the app, not on a server. Device attestation is a next step.
 - SOL transfers only in this version (Solana Pay SPL token requests are checked, not sent). The Mobile Wallet Adapter path was not exercised end to end in CI: it needs a wallet app on a device.
 
 ## Build

@@ -4,11 +4,12 @@ import { useLocalSearchParams, useRouter } from 'expo-router'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { NAME_RPC_URL, SNS_PROXY_URL, solscanTx, VERDICT_MAX_AGE_MS } from '@/src/config'
+import { NAME_RPC_URL, SGT_RPC_URL, SNS_PROXY_URL, solscanTx, VERDICT_MAX_AGE_MS } from '@/src/config'
 import type { RecipientVerdict, SenderVerdict } from '@/src/guard/checks'
 import { runRecipientCheck, runSenderCheck } from '@/src/guard/service'
 import type { ResolveDeps } from '@/src/pay/names'
 import { nameBlockVerdict, resolveRecipientInput } from '@/src/pay/recipient'
+import { fetchSgt, SGT_INFO_TEXT, sgtBadgeText, type SgtResult } from '@/src/seeker/sgt'
 import { parseScanned, unsupportedReason, type SolanaPayRequest } from '@/src/pay/solana-pay'
 import { useHistory } from '@/src/state/history'
 import { useWalletState } from '@/src/state/wallet'
@@ -66,6 +67,23 @@ export default function CheckAndSend() {
   const [sent, setSent] = useState<{ signature: string } | null>(null)
   const [senderVerdict, setSenderVerdict] = useState<SenderVerdict | null>(null)
   const [senderAt, setSenderAt] = useState(0)
+  /** Seeker Genesis Token of the connected wallet only (never shown for a recipient). */
+  const [sgt, setSgt] = useState<{ address: string; result: SgtResult | null } | null>(null)
+  const sgtRun = useRef(0)
+  const walletAddress = wallet.session?.address ?? null
+
+  async function lookupSgt(owner: string) {
+    const run = ++sgtRun.current
+    setSgt({ address: owner, result: null })
+    const result = await fetchSgt(owner, SGT_RPC_URL)
+    // A newer lookup (or another wallet) wins; never show one wallet's result for another.
+    if (run === sgtRun.current) setSgt({ address: owner, result })
+  }
+
+  useEffect(() => {
+    if (walletAddress) void lookupSgt(walletAddress)
+    else setSgt(null)
+  }, [walletAddress])
 
   useEffect(() => {
     if (params.address && params.address !== address) {
@@ -386,6 +404,19 @@ export default function CheckAndSend() {
           {wallet.session ? (
             <>
               <Text style={styles.mono}>Connected: {short(wallet.session.address)}</Text>
+              {sgt?.address === wallet.session.address && (
+                <View style={styles.sgtBox}>
+                  <Text style={styles.sgtLine}>
+                    {sgt.result ? sgtBadgeText(sgt.result) : 'Seeker Genesis Token: checking…'}
+                    {sgt.result?.status === 'unknown' && (
+                      <Text style={styles.sgtRetry} onPress={() => lookupSgt(sgt.address)} accessibilityRole="button">
+                        {'  '}Retry
+                      </Text>
+                    )}
+                  </Text>
+                  <Text style={styles.hint}>{SGT_INFO_TEXT}</Text>
+                </View>
+              )}
               <Button
                 variant="secondary"
                 title="Where did my money come from?"
@@ -424,6 +455,9 @@ const styles = StyleSheet.create({
     color: theme.text,
   },
   hint: { color: theme.muted, fontSize: 13 },
+  sgtBox: { gap: 2 },
+  sgtLine: { color: theme.text, fontSize: 14, fontWeight: '600' },
+  sgtRetry: { color: theme.accent, fontWeight: '700' },
   error: { color: theme.stop, fontSize: 14, lineHeight: 20 },
   stopped: { color: theme.stop, fontSize: 15, fontWeight: '700' },
   reviewRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
