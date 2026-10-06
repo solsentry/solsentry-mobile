@@ -93,13 +93,47 @@ export function applyOperatorScreen(v: RecipientVerdict, operator: OperatorProfi
   return v
 }
 
+/**
+ * The API answers "safe" for a mint or a program ID, but SOL sent to either is lost (mint) or
+ * the transfer fails (program). A recipient that is not a wallet is never plain Allow.
+ * Only raises severity: an existing block stays as it is, a warn only goes up to block.
+ */
+export function applyKindScreen(v: RecipientVerdict): RecipientVerdict {
+  const kind = v.analysis?.kind
+  if (typeof kind !== 'string' || kind === '' || kind === 'wallet' || v.decision === 'block') return v
+  const reasons = [...v.reasons, 'NOT_A_WALLET']
+  if (kind === 'mint') {
+    return {
+      ...v,
+      decision: 'block',
+      reasons,
+      explanation: 'Blocked: this address is a token mint, not a wallet. SOL sent to a token mint is lost.',
+    }
+  }
+  if (kind === 'program') {
+    return {
+      ...v,
+      decision: 'block',
+      reasons,
+      explanation: 'Blocked: this address is a program, not a wallet. A transfer to a program does not reach a person.',
+    }
+  }
+  if (v.decision === 'warn') return { ...v, reasons }
+  return {
+    ...v,
+    decision: 'warn',
+    reasons,
+    explanation: `Warning: this address is not a plain wallet (${kind}). Check it before sending.`,
+  }
+}
+
 export async function screenRecipient(recipient: string, guardIn: CheckGuard): Promise<RecipientVerdict> {
   const g = withValidation(guardIn)
   try {
     const v = await checkRecipient(recipient, POLICY, g)
     if (v.decision === 'block' && v.reasons.includes('CHECK_FAILED')) return v
     const operator = await g.getOperator(recipient)
-    return applyOperatorScreen(v, operator)
+    return applyKindScreen(applyOperatorScreen(v, operator))
   } catch (err) {
     return failedClosed(err, 'Recipient check')
   }
