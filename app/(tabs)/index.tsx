@@ -63,7 +63,7 @@ export default function CheckAndSend() {
   const lastPay = useRef('')
   const [checkedAt, setCheckedAt] = useState(0)
   const [reviewed, setReviewed] = useState(false)
-  const [busy, setBusy] = useState<null | 'check' | 'send' | 'connect' | 'sender'>(null)
+  const [busy, setBusy] = useState<null | 'check' | 'send' | 'connect' | 'sender' | 'disconnect'>(null)
   const [error, setErrorState] = useState<UserError | null>(null)
   const [showDetail, setShowDetail] = useState(false)
   const setError = (message: string | null) => {
@@ -94,6 +94,8 @@ export default function CheckAndSend() {
   useEffect(() => {
     if (walletAddress) void lookupSgt(walletAddress)
     else setSgt(null)
+    // A sender verdict belongs to the wallet it was run for.
+    setSenderVerdict(null)
   }, [walletAddress])
 
   useEffect(() => {
@@ -273,6 +275,18 @@ export default function CheckAndSend() {
 
   const onConnect = () => once(doConnect)
   const onSenderCheck = () => once(doSenderCheck)
+  const onDisconnect = () => once(doDisconnect)
+
+  async function doDisconnect() {
+    setError(null)
+    setBusy('disconnect')
+    try {
+      // Local session and token are gone before the wallet answers; a failed revoke changes nothing here.
+      await wallet.disconnect()
+    } finally {
+      setBusy(null)
+    }
+  }
 
   async function doConnect() {
     setError(null)
@@ -462,6 +476,13 @@ export default function CheckAndSend() {
               {senderUi && senderVerdict && (
                 <VerdictCard state={senderUi} checkedAt={senderAt} extra={fundingLine(senderVerdict)} />
               )}
+              <Button
+                variant="secondary"
+                title="Disconnect"
+                onPress={onDisconnect}
+                busy={busy === 'disconnect'}
+                disabled={busy !== null}
+              />
             </>
           ) : (
             <Button variant="secondary" title="Connect wallet" onPress={onConnect} busy={busy === 'connect'} disabled={busy !== null} />

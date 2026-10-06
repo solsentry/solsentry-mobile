@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useContext, useMemo, useState } from 'react'
-import { connectWallet, type WalletSession } from '../wallet/mwa'
+import { clearWalletContactsCache } from '../guard/contacts'
+import { connectWallet, disconnect as disconnectMwa, type WalletSession } from '../wallet/mwa'
 
 interface WalletApi {
   session: WalletSession | null
@@ -7,6 +8,8 @@ interface WalletApi {
   setSession: (s: WalletSession | null) => void
   /** The wallet rejected the stored auth token: keep the address, ask for a fresh authorization next time. */
   forgetToken: () => void
+  /** Clear the session and auth token now; then ask the wallet to revoke the token (best effort). */
+  disconnect: () => Promise<void>
 }
 
 const Ctx = createContext<WalletApi | null>(null)
@@ -19,7 +22,16 @@ export function WalletStateProvider({ children }: { children: React.ReactNode })
     setSession(s)
     return s
   }, [session?.authToken, forgetToken])
-  const value = useMemo(() => ({ session, connect, setSession, forgetToken }), [session, connect, forgetToken])
+  const disconnect = useCallback(async () => {
+    await disconnectMwa(session, () => {
+      setSession(null)
+      clearWalletContactsCache()
+    })
+  }, [session])
+  const value = useMemo(
+    () => ({ session, connect, setSession, forgetToken, disconnect }),
+    [session, connect, forgetToken, disconnect],
+  )
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }
 

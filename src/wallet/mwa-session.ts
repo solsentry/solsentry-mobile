@@ -124,3 +124,23 @@ export async function withAuthorizedWallet<T>(
     throw e
   }
 }
+
+/**
+ * Forget the wallet: local state is cleared FIRST (synchronously, via `clearLocal`), then the
+ * wallet is asked to revoke the token. The revoke is best effort: no token, a closed wallet or
+ * an error still leaves the app disconnected. Never throws; returns whether the wallet confirmed.
+ */
+export async function disconnectWallet(
+  transact: Transact,
+  session: WalletSession | null,
+  clearLocal: () => void,
+): Promise<boolean> {
+  clearLocal()
+  if (!session?.authToken) return false
+  try {
+    await transact((wallet) => wallet.deauthorize({ auth_token: session.authToken }))
+    return true
+  } catch {
+    return false
+  }
+}

@@ -3,7 +3,7 @@ import { transact } from '@solana-mobile/mobile-wallet-adapter-protocol-web3js'
 import { RPC_URL, VERDICT_MAX_AGE_MS } from '../config'
 import { buildSolTransferInstructions, type PayExtras } from '../pay/transfer'
 import { assertVerdictFresh } from './mwa-math'
-import { withAuthorizedWallet, type AuthCallbacks, type WalletSession } from './mwa-session'
+import { disconnectWallet, withAuthorizedWallet, type AuthCallbacks, type WalletSession } from './mwa-session'
 
 export { parseSolToLamports } from './mwa-math'
 export type { WalletSession } from './mwa-session'
@@ -14,6 +14,11 @@ export type { WalletSession } from './mwa-session'
  */
 export async function connectWallet(authToken?: string, cb?: AuthCallbacks): Promise<WalletSession> {
   return await withAuthorizedWallet(transact, authToken, async (_wallet, session) => session, cb)
+}
+
+/** Clear local state now, then ask the wallet to revoke the token (best effort, never throws). */
+export async function disconnect(session: WalletSession | null, clearLocal: () => void): Promise<boolean> {
+  return await disconnectWallet(transact, session, clearLocal)
 }
 
 export interface SendResult {
