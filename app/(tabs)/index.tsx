@@ -30,7 +30,12 @@ import {
   addPending,
   applyRecovery,
   CHECKED_HISTORY_LABEL,
+  LOAD_FAILED_LOCK_NOTICE,
   LOAD_FAILED_NOTICE,
+  applyLoad,
+  loadGateAllowsSend,
+  releaseLoadGate,
+  type LoadGate,
   loadPending,
   lockedFor,
   markDeclined,
@@ -110,7 +115,7 @@ export default function CheckAndSend() {
   const lastPay = useRef('')
   const [checkedAt, setCheckedAt] = useState(0)
   const [reviewed, setReviewed] = useState(false)
-  const [busy, setBusy] = useState<null | 'check' | 'send' | 'recheck' | 'connect' | 'sender' | 'disconnect'>(null)
+  const [busy, setBusy] = useState<null | 'check' | 'send' | 'recheck' | 'connect' | 'sender' | 'disconnect' | 'reload'>(null)
   const [error, setErrorState] = useState<UserError | null>(null)
   const [showDetail, setShowDetail] = useState(false)
   const setError = (message: string | null) => {
@@ -130,8 +135,18 @@ export default function CheckAndSend() {
    */
   const pendingRef = useRef<PendingMap>({})
   const [pending, setPendingState] = useState<PendingMap>({})
-  /** Send stays disabled until the stored locks are read (no race with a fast tap after launch). */
-  const [pendingReady, setPendingReady] = useState(false)
+  /**
+   * Send stays disabled until the stored locks are read (no race with a fast tap after launch).
+   * A failed read fails closed: Send stays off for every recipient until a retry reads them or the
+   * user confirms they checked the wallet history.
+   */
+  const loadGateRef = useRef<LoadGate>('loading')
+  const [loadGate, setLoadGateState] = useState<LoadGate>('loading')
+  const setLoadGate = (g: LoadGate) => {
+    loadGateRef.current = g
+    setLoadGateState(g)
+  }
+  const pendingReady = loadGateAllowsSend(loadGate)
   const [storageWarning, setStorageWarning] = useState<string | null>(null)
   /** Key of the record whose send or network check is running now (its box is hidden meanwhile). */
   const [checkingKey, setCheckingKey] = useState<string | null>(null)
@@ -154,13 +169,16 @@ export default function CheckAndSend() {
     }
   }
 
+  async function reloadPending() {
+    const res = await loadPending(AsyncStorage, Date.now())
+    const next = applyLoad(pendingRef.current, loadGateRef.current, res)
+    setPendingMemory(next.map)
+    setLoadGate(next.gate)
+  }
+
   useEffect(() => {
-    void loadPending(AsyncStorage, Date.now()).then(({ map, ok }) => {
-      // Records written in this session win over what was stored.
-      setPendingMemory({ ...map, ...pendingRef.current })
-      if (!ok) setStorageWarning(LOAD_FAILED_NOTICE)
-      setPendingReady(true)
-    })
+    void reloadPending()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   const [senderVerdict, setSenderVerdict] = useState<SenderVerdict | null>(null)
   const [senderAt, setSenderAt] = useState(0)
@@ -321,7 +339,7 @@ export default function CheckAndSend() {
       setError((e as Error).message)
       return
     }
-    if (!pendingReady) return
+    if (!loadGateAllowsSend(loadGateRef.current)) return
     const lock = lockedFor(pendingRef.current, checkedTarget, lamports, Date.now())
     if (lock) {
       setError(pendingMessage(lock))
@@ -426,6 +444,20 @@ export default function CheckAndSend() {
       await updatePending((m) => removePending(m, r.recipient, r.lamports))
       setError(null)
     })
+
+  /** Load-failed box: read the stored locks again. */
+  const onRetryLoad = () =>
+    once(async () => {
+      setBusy('reload')
+      try {
+        await reloadPending()
+      } finally {
+        setBusy(null)
+      }
+    })
+
+  /** Load-failed box: the user checked the wallet history themselves; Send is allowed again. */
+  const onReleaseLoad = () => setLoadGate(releaseLoadGate(loadGateRef.current))
 
   const onConnect = () => once(doConnect)
   const onSenderCheck = () => once(doSenderCheck)
@@ -574,6 +606,21 @@ export default function CheckAndSend() {
               />
             </View>
           ))}
+
+          {loadGate === 'failed' && (
+            <View style={styles.pendingBox}>
+              <Text style={styles.stopped}>{LOAD_FAILED_NOTICE}</Text>
+              <Text style={styles.payText}>{LOAD_FAILED_LOCK_NOTICE}</Text>
+              <Button
+                variant="secondary"
+                title="Retry"
+                onPress={onRetryLoad}
+                busy={busy === 'reload'}
+                disabled={busy !== null}
+              />
+              <Button variant="secondary" title={CHECKED_HISTORY_LABEL} onPress={onReleaseLoad} disabled={busy !== null} />
+            </View>
+          )}
 
           {(storageWarning || unsaved) && (
             <Text style={styles.stopped}>{storageWarning ?? SAVE_FAILED_NOTICE}</Text>

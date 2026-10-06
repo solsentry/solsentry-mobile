@@ -20,6 +20,11 @@ export const SAVE_FAILED_NOTICE =
 export const LOAD_FAILED_NOTICE =
   "Couldn't read the saved send status on this device — don't resend before checking your wallet history"
 export const CHECKED_HISTORY_LABEL = 'I checked my wallet history'
+/** Where an unreadable stored value is copied before it is treated as a failed load (never lost). */
+export const PENDING_BACKUP_KEY = `${PENDING_STORAGE_KEY}/unreadable-backup`
+export const LOAD_FAILED_LOCK_NOTICE =
+  'Sending is paused until the saved send status is read. Tap "Retry", or check your wallet history for a ' +
+  `send that may still be processing and then tap "${CHECKED_HISTORY_LABEL}".`
 
 export type PendingStatus =
   /** No answer yet (wallet timed out / session dropped, or the check hit its time cap). */
@@ -190,13 +195,57 @@ export interface KeyValueStore {
   setItem: (key: string, value: string) => Promise<void>
 }
 
-/** ok=false: storage could not be read (or held garbage); the caller must warn, not assume "no pending send". */
-export async function loadPending(kv: KeyValueStore, now: number): Promise<{ map: PendingMap; ok: boolean }> {
+export interface LoadResult {
+  map: PendingMap
+  ok: boolean
+}
+
+/**
+ * ok=false: storage could not be read (or held garbage); the caller must fail closed, not assume
+ * "no pending send". Garbage is first copied to PENDING_BACKUP_KEY (best effort), since the next
+ * save overwrites the main key.
+ */
+export async function loadPending(kv: KeyValueStore, now: number): Promise<LoadResult> {
+  let raw: string | null
   try {
-    return { map: parsePending(await kv.getItem(PENDING_STORAGE_KEY), now), ok: true }
+    raw = await kv.getItem(PENDING_STORAGE_KEY)
   } catch {
     return { map: {}, ok: false }
   }
+  try {
+    return { map: parsePending(raw, now), ok: true }
+  } catch {
+    try {
+      if (raw !== null) await kv.setItem(PENDING_BACKUP_KEY, raw)
+    } catch {
+      // Backup failed too: still a failed load (fail closed).
+    }
+    return { map: {}, ok: false }
+  }
+}
+
+/**
+ * Whether the stored locks are known. 'failed': the load failed, so Send is off for EVERY
+ * recipient until a retry succeeds ('ready') or the user confirms they checked the wallet history
+ * ('released').
+ */
+export type LoadGate = 'loading' | 'ready' | 'failed' | 'released'
+
+export function loadGateAllowsSend(gate: LoadGate): boolean {
+  return gate === 'ready' || gate === 'released'
+}
+
+/** Fold a (re)load into the in-memory locks. Records written in this session win over stored ones. */
+export function applyLoad(current: PendingMap, gate: LoadGate, res: LoadResult): { map: PendingMap; gate: LoadGate } {
+  return {
+    map: { ...res.map, ...current },
+    gate: res.ok ? 'ready' : gate === 'released' ? 'released' : 'failed',
+  }
+}
+
+/** "I checked my wallet history" on the load-failed box. */
+export function releaseLoadGate(gate: LoadGate): LoadGate {
+  return gate === 'failed' ? 'released' : gate
 }
 
 /** Throws when the save fails; the caller keeps its in-memory lock and warns. */

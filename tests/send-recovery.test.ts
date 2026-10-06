@@ -3,8 +3,12 @@ import { describe, expect, it } from 'vitest'
 import type { Transact } from '../src/wallet/mwa-session'
 import {
   addPending,
+  applyLoad,
   applyRecovery,
+  loadGateAllowsSend,
   loadPending,
+  PENDING_BACKUP_KEY,
+  releaseLoadGate,
   lockedFor,
   PENDING_STORAGE_KEY,
   CHECKED_HISTORY_LABEL,
@@ -423,6 +427,74 @@ describe('pending-send lock', () => {
       pastHorizon: true,
     })
     expect((await loadPending(kv, T0 + PENDING_TTL_MS + 1)).map).toEqual({})
+  })
+
+  it('a load that throws fails closed: Send is off for every recipient until release', async () => {
+    const kv: KeyValueStore = {
+      getItem: async () => {
+        throw new Error('AsyncStorage read failed')
+      },
+      setItem: async () => {},
+    }
+    const res = await loadPending(kv, T0)
+    expect(res).toEqual({ map: {}, ok: false })
+    expect(loadGateAllowsSend('loading')).toBe(false)
+    const after = applyLoad({}, 'loading', res)
+    expect(after.gate).toBe('failed')
+    expect(loadGateAllowsSend(after.gate)).toBe(false)
+    // A retry that fails again stays closed.
+    expect(applyLoad(after.map, after.gate, res).gate).toBe('failed')
+    // "I checked my wallet history" opens it.
+    const released = releaseLoadGate(after.gate)
+    expect(released).toBe('released')
+    expect(loadGateAllowsSend(released)).toBe(true)
+    // Release never re-opens a gate that is still loading.
+    expect(releaseLoadGate('loading')).toBe('loading')
+  })
+
+  it('a retry that reads the storage opens Send with the stored locks applied', async () => {
+    const { kv } = memoryStore()
+    let broken = true
+    const flaky: KeyValueStore = {
+      getItem: async (k) => {
+        if (broken) throw new Error('AsyncStorage read failed')
+        return kv.getItem(k)
+      },
+      setItem: kv.setItem,
+    }
+    await savePending(kv, addPending({}, pending))
+    const failed = applyLoad({}, 'loading', await loadPending(flaky, T0 + 1))
+    expect(failed.gate).toBe('failed')
+    broken = false
+    const retried = applyLoad(failed.map, failed.gate, await loadPending(flaky, T0 + 1))
+    expect(retried.gate).toBe('ready')
+    expect(loadGateAllowsSend(retried.gate)).toBe(true)
+    expect(lockedFor(retried.map, RECIPIENT, LAMPORTS, T0 + 1)).toMatchObject({ restored: true, status: 'unconfirmed' })
+    expect(lockedFor(retried.map, RECIPIENT, LAMPORTS + 1n, T0 + 1)).toBeNull()
+  })
+
+  it('unreadable stored data is backed up before the load fails closed', async () => {
+    const { kv, data } = memoryStore()
+    data.set(PENDING_STORAGE_KEY, '{not json')
+    const res = await loadPending(kv, T0)
+    expect(res.ok).toBe(false)
+    expect(data.get(PENDING_BACKUP_KEY)).toBe('{not json')
+    expect(applyLoad({}, 'loading', res).gate).toBe('failed')
+    // A later save overwrites the main key; the backup stays.
+    await savePending(kv, {})
+    expect(data.get(PENDING_BACKUP_KEY)).toBe('{not json')
+    // Valid JSON of the wrong shape is unreadable too.
+    data.set(PENDING_STORAGE_KEY, '{"a":1}')
+    expect((await loadPending(kv, T0)).ok).toBe(false)
+    expect(data.get(PENDING_BACKUP_KEY)).toBe('{"a":1}')
+    // A failed backup write still fails closed.
+    const noWrite: KeyValueStore = {
+      getItem: async () => '{not json',
+      setItem: async () => {
+        throw new Error('disk full')
+      },
+    }
+    expect(await loadPending(noWrite, T0)).toEqual({ map: {}, ok: false })
   })
 
   it('"Not sent" keeps the pair locked with the not-seen text and a release time', () => {
