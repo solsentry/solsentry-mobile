@@ -40,7 +40,9 @@ describe('name parsing', () => {
     expect(parseName('a.alice.skr')).toBeNull() // .skr subdomains are a different derivation
     expect(parseName('alice_x.skr')).toBeNull()
     expect(parseName(OWNER)).toBeNull()
-    expect(parseName('alice.eth')).toBeNull()
+    expect(parseName('alice.eth')?.tld).toBe('eth') // parsed, then refused as a shadowed TLD (names-ans.test.ts)
+    expect(parseName('🔥.bonk')).toBeNull()
+    expect(parseName('1.5')).toBeNull()
   })
 })
 

@@ -18,7 +18,13 @@ export async function resolveRecipientInput(input: string, deps: ResolveDeps): P
     if (!r.ok) return { ok: false, error: `Could not resolve ${r.name}: ${r.error}`, isName: true }
     return { ok: true, address: r.address, name: { name: r.name, tld: r.tld, source: r.source } }
   }
-  if (looksLikeName(s)) return { ok: false, error: 'That name is not well formed.', isName: true }
+  if (looksLikeName(s)) {
+    return {
+      ok: false,
+      error: 'That name is not well formed, or uses characters this app does not resolve (only a-z, 0-9 and "-").',
+      isName: true,
+    }
+  }
   if (isPublicKey(s)) return { ok: true, address: s, name: null }
   return { ok: false, error: 'That is not a valid Solana address (base58, 32 bytes) or a name such as name.skr.', isName: false }
 }

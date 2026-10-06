@@ -11,16 +11,19 @@ import { fetchWithTimeout } from '../guard/service'
  *   `.sol` name only resolves when SNS and the new `.sol` registry agree. Since finalized slot
  *   452,825,395 SNS rejects `.sol` ("Unsupported TLD") until registry-backed `.sol` resolution
  *   ships; we surface that as a block with the reason, never fall back to the legacy path.
- * - `.skr` (Seeker ID, AllDomains ANS): one PDA derivation plus one getAccountInfo on mainnet,
- *   following Solana Mobile's seeker-domains skill
- *   (github.com/solana-mobile/solana-mobile-skills/tree/main/skills/seeker-domains).
+ * - `.skr` (Seeker ID) and every other AllDomains (ANS) TLD: PDA derivation plus account reads on
+ *   mainnet, following Solana Mobile's seeker-domains skill
+ *   (github.com/solana-mobile/solana-mobile-skills/tree/main/skills/seeker-domains). The derivation
+ *   is the same for every TLD; a TLD other than `.skr` is only accepted when its TLD house exists
+ *   on chain and binds to the derived TLD account (read in the same call as the name).
  *
  * Every function here returns a result object and never throws: a name that cannot be resolved
  * is a block with a reason (fail closed). Forward results are never cached: a name is
  * transferable, so it is re-resolved before every check and again right before sending.
  */
 
-export type NameTld = 'sol' | 'sns' | 'skr'
+/** "sol" / "sns" (SNS) or an AllDomains TLD such as "skr", "bonk", "superteam". */
+export type NameTld = string
 
 export interface ParsedName {
   /** Normalized full name, e.g. "alice.skr". */
@@ -31,13 +34,12 @@ export interface ParsedName {
 }
 
 export type NameResolution =
-  | { ok: true; name: string; tld: NameTld; address: string; source: string }
-  | { ok: false; name: string; error: string }
+  { ok: true; name: string; tld: NameTld; address: string; source: string } | { ok: false; name: string; error: string }
 
 export interface ResolveDeps {
   /** Raw fetch; every call is wrapped in fetchWithTimeout, which also bounds the body read. */
   fetch: typeof fetch
-  /** Mainnet RPC: .skr names live on mainnet whatever cluster the app targets. */
+  /** Mainnet RPC: AllDomains names live on mainnet whatever cluster the app targets. */
   rpcUrl: string
   snsProxyUrl?: string
   timeoutMs?: number
@@ -47,25 +49,45 @@ export interface ResolveDeps {
 export const SNS_PROXY_URL = 'https://sdk-proxy-v2.sns.id'
 export const NAME_TIMEOUT_MS = 8_000
 
+const SNS_TLDS = new Set(['sol', 'sns'])
 const SNS_LABEL = /^[^\s./?#%\\]+$/u
-const SKR_LABEL = /^[a-z0-9-]{1,63}$/
+/** ASCII only: emoji / unicode labels exist on chain but have no normalization rule we can trust. */
+const ANS_LABEL = /^[a-z0-9-]{1,63}$/
+const TLD_RE = /^[a-z][a-z0-9-]{0,31}$/
+
+/**
+ * AllDomains TLDs that shadow another naming system. A name there is a valid AllDomains name,
+ * but someone typing it expects the other system's owner (ENS, a web domain), so a payment would
+ * go to whoever registered the look-alike on Solana. Refused before any RPC call.
+ */
+export const ANS_SHADOWED_TLDS: Readonly<Record<string, string>> = {
+  eth: 'an ENS name',
+  btc: 'a Bitcoin name',
+  com: 'a web domain',
+  io: 'a web domain',
+  id: 'a web domain',
+  xyz: 'a web domain',
+  gg: 'a web domain',
+  trade: 'a web domain',
+}
 
 /** Is this input a name we try to resolve (rather than a base58 address)? */
 export function parseName(input: string): ParsedName | null {
   const s = input.trim().toLowerCase()
-  const m = /^(.+)\.(sol|sns|skr)$/.exec(s)
-  if (!m) return null
-  const label = m[1]
-  const tld = m[2] as NameTld
-  if (tld === 'skr') return SKR_LABEL.test(label) ? { name: s, tld, label } : null
+  const dot = s.lastIndexOf('.')
+  if (dot <= 0) return null
+  const label = s.slice(0, dot)
+  const tld = s.slice(dot + 1)
+  if (!TLD_RE.test(tld)) return null
+  if (!SNS_TLDS.has(tld)) return ANS_LABEL.test(label) ? { name: s, tld, label } : null
   const parts = label.split('.')
   if (parts.length > 2 || !parts.every((p) => SNS_LABEL.test(p))) return null
   return { name: s, tld, label }
 }
 
-/** True when the input ends in a name suffix but is not a well-formed name. */
+/** True when the input ends in a name-like suffix but is not a well-formed name. */
 export function looksLikeName(input: string): boolean {
-  return /\.(sol|sns|skr)$/i.test(input.trim())
+  return /\.[^\s.]+$/u.test(input.trim())
 }
 
 function isAddress(s: unknown): s is string {
@@ -112,10 +134,10 @@ async function resolveSns(n: ParsedName, deps: ResolveDeps): Promise<NameResolut
   return { ok: false, name: n.name, error: `SNS lookup failed (${msg}).` }
 }
 
-// ---------------------------------------------------------------- .skr (AllDomains ANS)
+// ---------------------------------------------------------------- AllDomains ANS (.skr, .bonk, ...)
 
 export const ANS_PROGRAM = new PublicKey('ALTNSZ46uaAUU7XUV6awvdorLGqAsPwa9shm7h4uP2FK')
-const TLD_HOUSE_PROGRAM = new PublicKey('TLDHkysf5pCnKsVA4gXpNvmy7psXLPEu4LAdDJthT9S')
+export const TLD_HOUSE_PROGRAM = new PublicKey('TLDHkysf5pCnKsVA4gXpNvmy7psXLPEu4LAdDJthT9S')
 const NAME_HOUSE_PROGRAM = new PublicKey('NH3uX6FtVE2fNREAioP7hm5RaozotZxeL6khU1EHx51')
 /** Derived from hash("ANS"); a test re-derives it as a self-check of the hashing and seed order. */
 export const ROOT_ANS = new PublicKey('3mX9b4AZaQehNoQGfckVcmgmA6bkBoFcbLj9RMmMyNcU')
@@ -123,6 +145,9 @@ const HASH_PREFIX = 'ALT Name Service'
 const HEADER_SIZE = 200
 const OWNER_OFFSET = 40
 const EXPIRES_AT_OFFSET = 104
+/** TldHouse layout (onsol-labs/tld-parser): 8 discriminator, 2 x 32 keys, parent (32), then the TLD as u32 len + NUL-padded utf8. */
+const TLD_HOUSE_PARENT_OFFSET = 72
+const TLD_HOUSE_TLD_OFFSET = 104
 const ZERO_32 = new Uint8Array(32)
 
 const pda = (program: PublicKey, seeds: Uint8Array[]) => PublicKey.findProgramAddressSync(seeds, program)[0]
@@ -132,12 +157,24 @@ export function deriveAnsAccount(name: string, parent?: PublicKey): PublicKey {
   return pda(ANS_PROGRAM, [hashed, ZERO_32, parent ? parent.toBytes() : ZERO_32])
 }
 
-export function deriveSkrNameAccount(label: string): PublicKey {
-  return deriveAnsAccount(label, deriveAnsAccount('.skr', ROOT_ANS))
+/** The TLD's own name account (parent of every name in it), e.g. ".bonk" under the ANS root. */
+export function deriveTldAccount(tld: string): PublicKey {
+  return deriveAnsAccount(`.${tld}`, ROOT_ANS)
 }
 
-function deriveSkrNftRecord(nameAccount: PublicKey): PublicKey {
-  const tldHouse = pda(TLD_HOUSE_PROGRAM, [utf8ToBytes('tld_house'), utf8ToBytes('.skr')])
+export function deriveTldHouse(tld: string): PublicKey {
+  return pda(TLD_HOUSE_PROGRAM, [utf8ToBytes('tld_house'), utf8ToBytes(`.${tld}`)])
+}
+
+export function deriveNameAccount(label: string, tld: string): PublicKey {
+  return deriveAnsAccount(label, deriveTldAccount(tld))
+}
+
+export function deriveSkrNameAccount(label: string): PublicKey {
+  return deriveNameAccount(label, 'skr')
+}
+
+function deriveNftRecord(nameAccount: PublicKey, tldHouse: PublicKey): PublicKey {
   const nameHouse = pda(NAME_HOUSE_PROGRAM, [utf8ToBytes('name_house'), tldHouse.toBytes()])
   return pda(NAME_HOUSE_PROGRAM, [utf8ToBytes('nft_record'), nameHouse.toBytes(), nameAccount.toBytes()])
 }
@@ -149,29 +186,44 @@ function base64ToBytes(b64: string): Uint8Array {
   return out
 }
 
-async function resolveSkr(n: ParsedName, deps: ResolveDeps): Promise<NameResolution> {
-  const nameAccount = deriveSkrNameAccount(n.label)
-  const body = JSON.stringify({
-    jsonrpc: '2.0',
-    id: 1,
-    method: 'getAccountInfo',
-    params: [nameAccount.toBase58(), { encoding: 'base64', commitment: 'confirmed' }],
-  })
-  const res = await boundedFetch(deps, '.skr name lookup')(deps.rpcUrl, {
+function sameBytes(a: Uint8Array, b: Uint8Array): boolean {
+  return a.length === b.length && a.every((x, i) => x === b[i])
+}
+
+type RpcAccount = { owner?: string; data?: [string, string] } | null
+
+/** One JSON-RPC call; a transport, HTTP or RPC error comes back as `{ error }`. */
+async function rpcCall(
+  deps: ResolveDeps,
+  what: string,
+  method: string,
+  params: unknown[],
+): Promise<{ result: unknown } | { error: string }> {
+  const body = JSON.stringify({ jsonrpc: '2.0', id: 1, method, params })
+  const res = await boundedFetch(deps, what)(deps.rpcUrl, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body,
   })
-  if (!res.ok) return { ok: false, name: n.name, error: `Solana RPC refused the name lookup (HTTP ${res.status}).` }
-  const json = (await res.json()) as {
-    error?: { message?: string }
-    result?: { value?: { owner?: string; data?: [string, string] } | null }
-  }
-  if (json?.error) return { ok: false, name: n.name, error: `Solana RPC error: ${json.error.message ?? 'unknown'}.` }
-  const value = json?.result?.value
+  if (!res.ok) return { error: `Solana RPC refused the name lookup (HTTP ${res.status}).` }
+  const json = (await res.json()) as { error?: { message?: string }; result?: unknown }
+  if (json?.error) return { error: `Solana RPC error: ${json.error.message ?? 'unknown'}.` }
+  return { result: json?.result }
+}
+
+/** Decode a name account into its owner, or the reason it cannot be paid. */
+function ownerFromNameAccount(
+  n: ParsedName,
+  value: RpcAccount | undefined,
+  nameAccount: PublicKey,
+  tldHouse: PublicKey,
+  deps: ResolveDeps,
+): NameResolution {
   if (value === null) return { ok: false, name: n.name, error: `${n.name} is not registered.` }
-  if (!value || !Array.isArray(value.data)) return { ok: false, name: n.name, error: 'Solana RPC returned an unexpected response.' }
-  if (value.owner !== ANS_PROGRAM.toBase58()) return { ok: false, name: n.name, error: 'The name account is not owned by the AllDomains program.' }
+  if (!value || !Array.isArray(value.data))
+    return { ok: false, name: n.name, error: 'Solana RPC returned an unexpected response.' }
+  if (value.owner !== ANS_PROGRAM.toBase58())
+    return { ok: false, name: n.name, error: 'The name account is not owned by the AllDomains program.' }
   const data = base64ToBytes(value.data[0])
   if (data.length < HEADER_SIZE) return { ok: false, name: n.name, error: 'The name account is malformed.' }
 
@@ -181,12 +233,73 @@ async function resolveSkr(n: ParsedName, deps: ResolveDeps): Promise<NameResolut
   if (expiresAt !== 0 && expiresAt * 1000 < now) return { ok: false, name: n.name, error: `${n.name} has expired.` }
 
   const owner = new PublicKey(data.subarray(OWNER_OFFSET, OWNER_OFFSET + 32))
-  if (owner.equals(deriveSkrNftRecord(nameAccount))) {
-    // The real owner is whoever holds the domain NFT; resolving that needs three more RPC
-    // reads and a supply check. No Seeker-issued .skr name is tokenized today, so refuse.
+  if (owner.equals(deriveNftRecord(nameAccount, tldHouse))) {
+    // The real owner is whoever holds the domain NFT; resolving that needs three more RPC reads
+    // and a supply check, and the holder can be a marketplace escrow. Refuse instead.
     return { ok: false, name: n.name, error: `${n.name} is a tokenized domain; this app does not resolve those yet.` }
   }
-  return { ok: true, name: n.name, tld: 'skr', address: owner.toBase58(), source: 'AllDomains (.skr)' }
+  return { ok: true, name: n.name, tld: n.tld, address: owner.toBase58(), source: `AllDomains (.${n.tld})` }
+}
+
+/** .skr: the TLD is pinned (measured on mainnet), so one getAccountInfo on the name account. */
+async function resolveSkr(n: ParsedName, deps: ResolveDeps): Promise<NameResolution> {
+  const nameAccount = deriveSkrNameAccount(n.label)
+  const r = await rpcCall(deps, '.skr name lookup', 'getAccountInfo', [
+    nameAccount.toBase58(),
+    { encoding: 'base64', commitment: 'confirmed' },
+  ])
+  if ('error' in r) return { ok: false, name: n.name, error: r.error }
+  const value = (r.result as { value?: RpcAccount } | undefined)?.value
+  return ownerFromNameAccount(n, value, nameAccount, deriveTldHouse('skr'), deps)
+}
+
+/** Is `house` the on-chain TldHouse for `.tld`, bound to the derived TLD account `tldAccount`? */
+function tldHouseMatches(house: RpcAccount | undefined, tld: string, tldAccount: PublicKey): boolean {
+  if (!house || !Array.isArray(house.data) || house.owner !== TLD_HOUSE_PROGRAM.toBase58()) return false
+  const d = base64ToBytes(house.data[0])
+  if (d.length < TLD_HOUSE_TLD_OFFSET + 4) return false
+  const len = new DataView(d.buffer, d.byteOffset, d.byteLength).getUint32(TLD_HOUSE_TLD_OFFSET, true)
+  // Stored NUL-padded (live .bonk: len 10, ".bonk" + 5 zero bytes); tld-parser strips the padding too.
+  let end = Math.min(TLD_HOUSE_TLD_OFFSET + 4 + len, d.length)
+  while (end > TLD_HOUSE_TLD_OFFSET + 4 && d[end - 1] === 0) end--
+  const name = d.subarray(TLD_HOUSE_TLD_OFFSET + 4, end)
+  return (
+    sameBytes(name, utf8ToBytes(`.${tld}`)) &&
+    sameBytes(d.subarray(TLD_HOUSE_PARENT_OFFSET, TLD_HOUSE_PARENT_OFFSET + 32), tldAccount.toBytes())
+  )
+}
+
+/** Is `parent` the ANS account for the TLD, owned (header owner field) by its TldHouse? */
+function tldAccountMatches(parent: RpcAccount | undefined, tldHouse: PublicKey): boolean {
+  if (!parent || !Array.isArray(parent.data) || parent.owner !== ANS_PROGRAM.toBase58()) return false
+  const d = base64ToBytes(parent.data[0])
+  return d.length >= HEADER_SIZE && sameBytes(d.subarray(OWNER_OFFSET, OWNER_OFFSET + 32), tldHouse.toBytes())
+}
+
+/** Any other AllDomains TLD: TLD house, TLD account and name account in one getMultipleAccounts. */
+async function resolveAns(n: ParsedName, deps: ResolveDeps): Promise<NameResolution> {
+  const unsupported = { ok: false as const, name: n.name, error: `Name system not supported: .${n.tld}` }
+  const shadowed = ANS_SHADOWED_TLDS[n.tld]
+  if (shadowed) {
+    return { ...unsupported, error: `${unsupported.error} (an AllDomains .${n.tld} name is not ${shadowed}).` }
+  }
+  const tldHouse = deriveTldHouse(n.tld)
+  const tldAccount = deriveTldAccount(n.tld)
+  const nameAccount = deriveAnsAccount(n.label, tldAccount)
+  const r = await rpcCall(deps, 'Name lookup', 'getMultipleAccounts', [
+    [tldHouse.toBase58(), tldAccount.toBase58(), nameAccount.toBase58()],
+    { encoding: 'base64', commitment: 'confirmed' },
+  ])
+  if ('error' in r) return { ok: false, name: n.name, error: r.error }
+  const value = (r.result as { value?: unknown } | undefined)?.value
+  if (!Array.isArray(value) || value.length !== 3) {
+    return { ok: false, name: n.name, error: 'Solana RPC returned an unexpected response.' }
+  }
+  const [house, parent, name] = value as RpcAccount[]
+  if (!tldHouseMatches(house, n.tld, tldAccount) || !tldAccountMatches(parent, tldHouse)) {
+    return { ...unsupported, error: `${unsupported.error}.` }
+  }
+  return ownerFromNameAccount(n, name, nameAccount, tldHouse, deps)
 }
 
 // ---------------------------------------------------------------- entry point
@@ -194,9 +307,10 @@ async function resolveSkr(n: ParsedName, deps: ResolveDeps): Promise<NameResolut
 /** Resolve a name to an address. Never throws; any failure is `{ ok: false, error }`. */
 export async function resolveName(input: string, deps: ResolveDeps): Promise<NameResolution> {
   const n = parseName(input)
-  if (!n) return { ok: false, name: input.trim(), error: 'That is not a name this app can resolve (.sol, .sns or .skr).' }
+  if (!n) return { ok: false, name: input.trim(), error: 'That is not a name this app can resolve.' }
   try {
-    return n.tld === 'skr' ? await resolveSkr(n, deps) : await resolveSns(n, deps)
+    if (SNS_TLDS.has(n.tld)) return await resolveSns(n, deps)
+    return n.tld === 'skr' ? await resolveSkr(n, deps) : await resolveAns(n, deps)
   } catch (err) {
     return { ok: false, name: n.name, error: `Name lookup failed (${(err as Error)?.message ?? 'unknown error'}).` }
   }
