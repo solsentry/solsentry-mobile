@@ -1,6 +1,7 @@
 package app.solsentry.deviceattestation
 
 import android.os.Build
+import android.security.KeyStoreException
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.security.keystore.StrongBoxUnavailableException
@@ -9,6 +10,7 @@ import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 import java.security.KeyPairGenerator
 import java.security.KeyStore
+import java.security.ProviderException
 import java.security.spec.ECGenParameterSpec
 import java.util.UUID
 
@@ -39,19 +41,26 @@ class DeviceAttestationModule : Module() {
       "model" to Build.MODEL,
       "sdkInt" to Build.VERSION.SDK_INT,
     )
+    val idsSupported = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+    val noIdState = when {
+      !wantIds -> "not_requested"
+      !idsSupported -> "unsupported"
+      else -> "error"
+    }
     val challenge = try {
       Base64.decode(challengeB64, Base64.NO_WRAP)
     } catch (e: IllegalArgumentException) {
-      return failure("bad challenge: ${e.message}", "unsupported", claimed)
+      return failure("bad challenge: ${e.message}", noIdState, null, claimed)
     }
     if (challenge.isEmpty() || challenge.size > 128) {
-      return failure("challenge must be 1..128 bytes", "unsupported", claimed)
+      return failure("challenge must be 1..128 bytes", noIdState, null, claimed)
     }
 
-    val idsSupported = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
     val tryIds = wantIds && idsSupported
     val tryStrongBox = wantStrongBox && Build.VERSION.SDK_INT >= Build.VERSION_CODES.P
     var idsRefused = false
+    // Unrecognized failure on an attempt WITH IDs: kept verbatim so a field run shows what happened.
+    var idError: String? = null
 
     // StrongBox first (if asked), then TEE; at each level with IDs first (if asked), then without.
     val plan = mutableListOf<Attempt>()
@@ -60,38 +69,86 @@ class DeviceAttestationModule : Module() {
       plan.add(Attempt(sb, false))
     }
 
-    var lastError: String? = null
+    val errors = mutableListOf<String>()
     var strongBoxGone = false
     for (a in plan) {
       if (a.strongBox && strongBoxGone) continue
       if (a.ids && idsRefused) continue
       val alias = "solsentry_attest_" + UUID.randomUUID().toString()
+      val tag = (if (a.strongBox) "strongbox" else "tee") + (if (a.ids) "+ids" else "")
       try {
         val chain = generateAndReadChain(alias, challenge, a.strongBox, a.ids)
         val idState = when {
-          !idsSupported || !wantIds -> "unsupported"
+          !wantIds -> "not_requested"
+          !idsSupported -> "unsupported"
           a.ids -> "included"
-          else -> "refused"
+          idsRefused -> "refused"
+          else -> "error"
         }
-        return mapOf(
+        val out = mutableMapOf<String, Any?>(
           "chain" to chain,
           "strongBox" to a.strongBox,
           "idAttestation" to idState,
           "claimed" to claimed,
         )
+        if (idState == "error" && idError != null) out["idError"] = idError
+        return out
       } catch (e: StrongBoxUnavailableException) {
         strongBoxGone = true
-        lastError = "strongbox unavailable"
+        errors.add("$tag: strongbox unavailable")
       } catch (e: Exception) {
-        // With IDs requested, a failure is most often the device refusing ID attestation
-        // (ProviderException / CANNOT_ATTEST_IDS). Retry the same level without IDs.
-        if (a.ids) idsRefused = true
-        lastError = "${e.javaClass.simpleName}: ${e.message}"
+        val text = describe(e)
+        errors.add("$tag: $text")
+        if (a.ids) {
+          if (isIdAttestationRefusal(e)) idsRefused = true else idError = idError ?: "$tag: $text"
+        }
       } finally {
         deleteQuietly(alias)
       }
     }
-    return failure(lastError ?: "attestation failed", if (wantIds && idsSupported) "refused" else "unsupported", claimed)
+    val idState = when {
+      !wantIds -> "not_requested"
+      !idsSupported -> "unsupported"
+      idsRefused -> "refused"
+      else -> "error"
+    }
+    return failure(errors.joinToString(" | ").ifEmpty { "attestation failed" }, idState, idError, claimed)
+  }
+
+  /**
+   * True only for the device declining ID attestation: a SecurityException, a KeyStoreException
+   * with ERROR_ID_ATTESTATION_FAILURE (API 33+), or a ProviderException/KeyStoreException whose
+   * message names ID attestation (CANNOT_ATTEST_IDS). Anything else is reported as an error.
+   */
+  private fun isIdAttestationRefusal(e: Throwable): Boolean {
+    var t: Throwable? = e
+    var depth = 0
+    while (t != null && depth < 8) {
+      if (t is SecurityException) return true
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && t is KeyStoreException &&
+        t.numericErrorCode == KeyStoreException.ERROR_ID_ATTESTATION_FAILURE
+      ) return true
+      val keystoreEx = t is java.security.KeyStoreException ||
+        (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && t is KeyStoreException)
+      if (t is ProviderException || keystoreEx) {
+        val m = (t.message ?: "").lowercase()
+        if ("attest_ids" in m || "id attestation" in m || "device id" in m || "attest ids" in m) return true
+      }
+      t = t.cause
+      depth++
+    }
+    return false
+  }
+
+  /** Exception class + message for the whole cause chain, bounded. */
+  private fun describe(e: Throwable): String {
+    val parts = mutableListOf<String>()
+    var t: Throwable? = e
+    while (t != null && parts.size < 4) {
+      parts.add("${t.javaClass.simpleName}: ${t.message}")
+      t = t.cause
+    }
+    return parts.joinToString(" <- ").take(500)
   }
 
   private fun generateAndReadChain(alias: String, challenge: ByteArray, strongBox: Boolean, ids: Boolean): List<String> {
@@ -122,11 +179,15 @@ class DeviceAttestationModule : Module() {
     }
   }
 
-  private fun failure(error: String, idState: String, claimed: Map<String, Any?>): Map<String, Any?> = mapOf(
-    "chain" to emptyList<String>(),
-    "strongBox" to false,
-    "idAttestation" to idState,
-    "error" to error,
-    "claimed" to claimed,
-  )
+  private fun failure(error: String, idState: String, idError: String?, claimed: Map<String, Any?>): Map<String, Any?> {
+    val out = mutableMapOf<String, Any?>(
+      "chain" to emptyList<String>(),
+      "strongBox" to false,
+      "idAttestation" to idState,
+      "error" to error,
+      "claimed" to claimed,
+    )
+    if (idError != null) out["idError"] = idError
+    return out
+  }
 }

@@ -35,7 +35,12 @@ export interface VerifyResponse {
   os_patch_level?: number | null
 }
 
-export type IdAttestation = 'included' | 'refused' | 'unsupported'
+/**
+ * included: brand/model are in the attestation. refused: the device declined ID attestation.
+ * unsupported: Android < 12. not_requested: the caller did not ask. error: the attempt with IDs
+ * failed for a reason that is not a recognized refusal (details in the module's idError).
+ */
+export type IdAttestation = 'included' | 'refused' | 'unsupported' | 'not_requested' | 'error'
 
 export interface ClaimedDevice {
   manufacturer: string
@@ -44,9 +49,22 @@ export interface ClaimedDevice {
   sdkInt: number
 }
 
-/** What the HTTP call produced, before mapping. */
+/** GET /v1/device-attestation/challenge response body. */
+export interface ChallengeResponse {
+  /** base64 of 32 bytes, single use. */
+  challenge: string
+  /** seconds */
+  expires_in: number
+}
+
+/** What an HTTP call produced, before mapping. `body` is the parsed JSON when there was one. */
 export type ServerOutcome =
-  { kind: 'ok'; body: unknown } | { kind: 'http'; status: number } | { kind: 'network'; message: string }
+  | { kind: 'ok'; body: unknown }
+  | { kind: 'http'; status: number; body?: unknown }
+  | { kind: 'network'; message: string }
+
+/** Server reason for a challenge it did not issue or that has expired: retry, never "not genuine". */
+export const REASON_CHALLENGE_EXPIRED = 'challenge_unknown_or_expired'
 
 export type DeviceCheckStatus = 'verified' | 'not_verified' | 'could_not_verify' | 'unavailable'
 
@@ -63,6 +81,7 @@ export interface DeviceCheckView {
 export const TEXT = {
   unavailable: 'Device check unavailable right now.',
   couldNotVerify: 'Could not verify this device.',
+  challengeExpired: 'Could not verify (challenge expired, try again).',
   notVerified: 'Not verified: this phone did not prove a hardware-backed key.',
   genericGenuine: 'Genuine Android device with a hardware-backed key.',
   revocationUnchecked: ' (revocation list not checked)',
@@ -88,6 +107,18 @@ function isObj(v: unknown): v is Record<string, unknown> {
 
 function str(v: unknown): string | undefined {
   return typeof v === 'string' && v.trim() ? v.trim() : undefined
+}
+
+function reasonOf(body: unknown): string | undefined {
+  return isObj(body) ? str(body.reason) : undefined
+}
+
+/** The challenge to attest, or null when the answer is not a base64 string of exactly 32 bytes. */
+export function parseChallengeResponse(body: unknown): string | null {
+  if (!isObj(body)) return null
+  const c = body.challenge
+  if (typeof c !== 'string' || !/^[A-Za-z0-9+/]{42}[AEIMQUYcgkosw048]=$/.test(c)) return null
+  return c
 }
 
 /** Strict shape check: anything that is not this contract is "could not verify". */
@@ -118,6 +149,7 @@ function idLine(name: string | null, idAttestation: IdAttestation): string {
   if (name) return `Attested model: ${name}`
   if (idAttestation === 'refused') return 'Model: not attested (the device declined ID attestation)'
   if (idAttestation === 'unsupported') return 'Model: not attested (not supported on this device)'
+  if (idAttestation === 'error') return 'Model: not attested (ID attestation failed, see details)'
   return 'Model: not attested'
 }
 
@@ -145,14 +177,19 @@ function proveLines(r: VerifyResponse, idAttestation: IdAttestation): string[] {
 /** Main mapping: everything the Device check section shows. */
 export function toDeviceCheckView(
   outcome: ServerOutcome,
-  ctx: { claimed?: ClaimedDevice; idAttestation: IdAttestation },
+  ctx: { claimed?: ClaimedDevice; idAttestation: IdAttestation; idError?: string },
 ): DeviceCheckView {
   const claims = claimLines(ctx.claimed)
   const base = { claims, proves: [] as string[], notes: [TEXT.informational] as string[] }
+  if (ctx.idAttestation === 'error' && ctx.idError) base.notes.unshift(`ID attestation detail: ${ctx.idError}`)
 
   if (outcome.kind === 'http' && outcome.status === 404) {
     // Route switched off server-side: unavailable, never "not genuine".
     return { ...base, status: 'unavailable', headline: TEXT.unavailable }
+  }
+  if (outcome.kind !== 'network' && reasonOf(outcome.body) === REASON_CHALLENGE_EXPIRED) {
+    // Whatever the status or `valid`: a stale/unknown nonce says nothing about the device.
+    return { ...base, status: 'could_not_verify', headline: TEXT.challengeExpired }
   }
   if (outcome.kind !== 'ok') {
     return { ...base, status: 'could_not_verify', headline: TEXT.couldNotVerify }
@@ -190,14 +227,25 @@ export function toDeviceCheckView(
 }
 
 /** Module-level failure (no chain): never reaches the server. */
-export function moduleFailureView(claimed: ClaimedDevice | undefined, unavailable: boolean): DeviceCheckView {
+export function moduleFailureView(
+  claimed: ClaimedDevice | undefined,
+  unavailable: boolean,
+  detail?: string,
+): DeviceCheckView {
+  const notes: string[] = [TEXT.informational]
+  if (detail) notes.unshift(`Detail: ${detail}`)
   return {
     status: unavailable ? 'unavailable' : 'could_not_verify',
     headline: unavailable ? TEXT.unavailable : TEXT.couldNotVerify,
     claims: claimLines(claimed),
     proves: [],
-    notes: [TEXT.informational] as string[],
+    notes,
   }
+}
+
+/** The challenge GET failed (404 = route off, or any error): the check is unavailable, nothing more. */
+export function challengeFailureView(): DeviceCheckView {
+  return moduleFailureView(undefined, true)
 }
 
 export function bytesToBase64(bytes: Uint8Array): string {

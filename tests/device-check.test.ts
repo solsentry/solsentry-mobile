@@ -1,6 +1,8 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+import { deviceCheckFlow, type AttestResultLike } from '../src/device/attest'
 import {
   TEXT,
+  parseChallengeResponse,
   attestedName,
   bytesToBase64,
   moduleFailureView,
@@ -178,5 +180,134 @@ describe('helpers', () => {
       const b = new Uint8Array(n).map((_, i) => (i * 37 + 11) & 255)
       expect(bytesToBase64(b)).toBe(Buffer.from(b).toString('base64'))
     }
+  })
+})
+
+const CHALLENGE = Buffer.from(new Uint8Array(32).map((_, i) => i * 7)).toString('base64')
+
+describe('server nonce', () => {
+  it('parseChallengeResponse accepts exactly 32 bytes of base64', () => {
+    expect(parseChallengeResponse({ challenge: CHALLENGE, expires_in: 300 })).toBe(CHALLENGE)
+    expect(parseChallengeResponse({ challenge: Buffer.alloc(16).toString('base64') })).toBeNull()
+    expect(parseChallengeResponse({ challenge: Buffer.alloc(33).toString('base64') })).toBeNull()
+    expect(parseChallengeResponse({ challenge: 'not base64!' })).toBeNull()
+    expect(parseChallengeResponse(null)).toBeNull()
+  })
+
+  it('challenge_unknown_or_expired -> could not verify (try again), never not genuine', () => {
+    const outcomes = [
+      { kind: 'ok' as const, body: { valid: false, reason: 'challenge_unknown_or_expired' } },
+      { kind: 'http' as const, status: 400, body: { valid: false, reason: 'challenge_unknown_or_expired' } },
+      { kind: 'http' as const, status: 410, body: { reason: 'challenge_unknown_or_expired' } },
+    ]
+    for (const o of outcomes) {
+      const v = toDeviceCheckView(o, { claimed: CLAIMED, idAttestation: 'included' })
+      expect(v.status).toBe('could_not_verify')
+      expect(v.headline).toBe('Could not verify (challenge expired, try again).')
+      expect(all(v)).not.toMatch(/genuine|not verified/i)
+    }
+  })
+
+  it("idAttestation 'error' shows the native detail; 'not_requested' is plain", () => {
+    const v = toDeviceCheckView(
+      { kind: 'ok', body: ok() },
+      { claimed: CLAIMED, idAttestation: 'error', idError: 'tee+ids: ProviderException: boom' },
+    )
+    expect(v.proves).toContain('Model: not attested (ID attestation failed, see details)')
+    expect(v.notes[0]).toBe('ID attestation detail: tee+ids: ProviderException: boom')
+    const n = toDeviceCheckView({ kind: 'ok', body: ok() }, { claimed: CLAIMED, idAttestation: 'not_requested' })
+    expect(n.proves).toContain('Model: not attested')
+  })
+})
+
+function json(status: number, body: unknown): Response {
+  return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
+}
+
+const GOOD_ATTEST: AttestResultLike = {
+  chain: ['bGVhZg==', 'aW50'],
+  strongBox: false,
+  idAttestation: 'refused',
+  claimed: CLAIMED,
+}
+
+function deps(
+  routes: { challenge: () => Response | Promise<Response>; verify?: () => Response },
+  attest = GOOD_ATTEST,
+) {
+  const calls: { url: string; init?: RequestInit }[] = []
+  const fetchImpl = vi.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
+    calls.push({ url: String(url), init })
+    if (String(url).endsWith('/v1/device-attestation/challenge')) return routes.challenge()
+    if (String(url).endsWith('/v1/device-attestation/verify') && routes.verify) return routes.verify()
+    return json(404, { error: 'not found' })
+  }) as unknown as typeof fetch
+  const attestKey = vi.fn(async () => attest)
+  return { calls, attestKey, d: { fetch: fetchImpl, isAvailable: () => true, attestKey } }
+}
+
+describe('deviceCheckFlow (GET challenge -> attest -> POST verify)', () => {
+  it('happy path: attests the server nonce and posts {challenge, chain}', async () => {
+    const t = deps({
+      challenge: () => json(200, { challenge: CHALLENGE, expires_in: 300 }),
+      verify: () => json(200, ok()),
+    })
+    const v = await deviceCheckFlow(t.d)
+    expect(t.attestKey).toHaveBeenCalledWith(CHALLENGE, { strongBox: true, includeDeviceIds: true })
+    const post = t.calls[1]
+    expect(post.url).toBe('https://api.solsentry.app/v1/device-attestation/verify')
+    expect(post.init?.method).toBe('POST')
+    expect(JSON.parse(String(post.init?.body))).toEqual({ challenge: CHALLENGE, chain: GOOD_ATTEST.chain })
+    expect(v.status).toBe('verified')
+    expect(v.proves).toContain('Model: not attested (the device declined ID attestation)')
+  })
+
+  for (const [name, challenge] of [
+    ['404', () => json(404, { error: 'not found' })],
+    ['500', () => json(500, {})],
+    ['network error', () => Promise.reject(new Error('offline'))],
+    ['malformed body', () => json(200, { challenge: 'short' })],
+  ] as const) {
+    it(`challenge GET ${name} -> unavailable, module never called`, async () => {
+      const t = deps({ challenge })
+      const v = await deviceCheckFlow(t.d)
+      expect(v.status).toBe('unavailable')
+      expect(v.headline).toBe(TEXT.unavailable)
+      expect(t.attestKey).not.toHaveBeenCalled()
+    })
+  }
+
+  it('verify 404 -> unavailable', async () => {
+    const t = deps({
+      challenge: () => json(200, { challenge: CHALLENGE, expires_in: 300 }),
+      verify: () => json(404, {}),
+    })
+    expect((await deviceCheckFlow(t.d)).status).toBe('unavailable')
+  })
+
+  it('verify challenge expired -> try again text', async () => {
+    const t = deps({
+      challenge: () => json(200, { challenge: CHALLENGE, expires_in: 300 }),
+      verify: () => json(400, { valid: false, reason: 'challenge_unknown_or_expired' }),
+    })
+    expect((await deviceCheckFlow(t.d)).headline).toBe(TEXT.challengeExpired)
+  })
+
+  it('module returns no chain -> could not verify with the native error as detail, no POST', async () => {
+    const t = deps(
+      { challenge: () => json(200, { challenge: CHALLENGE, expires_in: 300 }), verify: () => json(200, ok()) },
+      { chain: [], strongBox: false, idAttestation: 'error', error: 'tee: ProviderException: x', claimed: CLAIMED },
+    )
+    const v = await deviceCheckFlow(t.d)
+    expect(v.status).toBe('could_not_verify')
+    expect(v.notes[0]).toBe('Detail: tee: ProviderException: x')
+    expect(t.calls).toHaveLength(1)
+  })
+
+  it('module unavailable -> unavailable, no network', async () => {
+    const t = deps({ challenge: () => json(200, { challenge: CHALLENGE, expires_in: 300 }) })
+    const v = await deviceCheckFlow({ ...t.d, isAvailable: () => false })
+    expect(v.status).toBe('unavailable')
+    expect(t.calls).toHaveLength(0)
   })
 })
