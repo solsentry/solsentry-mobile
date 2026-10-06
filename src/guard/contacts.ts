@@ -1,10 +1,19 @@
 // Known-contact collection for the address-poisoning (lookalike) check.
 // Pure helpers live here so they can be unit tested without React Native or the network.
 import type { HistoryEntry } from '../state/history-logic'
+import { fetchWithTimeout } from './fetch-timeout'
 
 export const MAX_CONTACTS = 50
-const RECENT_SIGNATURES = 25
-const RPC_TIMEOUT_MS = 8000
+/** Most recent signatures read. Each one costs a getTransaction on a rate-limited public RPC. */
+const RECENT_SIGNATURES = 10
+/** Parallel getTransaction calls. The public RPC limits each method per IP; a batch counts every item. */
+const TX_CONCURRENCY = 3
+/** Whole lookup (signatures + transactions) must finish in this time; it runs before every check. */
+export const CONTACTS_BUDGET_MS = 6000
+/** One 429 per transaction is retried once after this pause, if the budget allows. */
+const RETRY_429_MS = 400
+/** getTransaction answers this for a transaction version newer than maxSupportedTransactionVersion. */
+const UNSUPPORTED_TX_VERSION = -32015
 
 /**
  * Addresses the user checked that came back ALLOW; newest first, as stored. WARN rows are
@@ -70,66 +79,86 @@ const walletCache = new Map<string, string[]>()
 
 type Fetch = typeof fetch
 
-async function rpc(fetchFn: Fetch, url: string, body: unknown): Promise<any> {
-  const ctrl = new AbortController()
-  const timer = setTimeout(() => ctrl.abort(), RPC_TIMEOUT_MS)
-  try {
-    const res = await fetchFn(url, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(body),
-      signal: ctrl.signal,
-    })
-    if (!res.ok) throw new Error(`RPC HTTP ${res.status}`)
-    return await res.json()
-  } finally {
-    clearTimeout(timer)
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
+
+/** One JSON-RPC call, body included, bounded by what is left of `deadline`. */
+async function rpc(fetchFn: Fetch, url: string, deadline: number, method: string, params: unknown[]): Promise<any> {
+  const left = deadline - Date.now()
+  if (left <= 0) throw new Error('contacts lookup out of time')
+  const res = await fetchWithTimeout(fetchFn, left, 'Contacts lookup')(url, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
+  })
+  // A 429 still carries a JSON-RPC body on this RPC; anything else non-2xx is a failure.
+  if (!res.ok && res.status !== 429) throw new Error(`RPC HTTP ${res.status}`)
+  return await res.json()
+}
+
+type TxOutcome = { tx: unknown } | { skip: true } | { failed: true }
+
+async function fetchTx(fetchFn: Fetch, url: string, deadline: number, signature: string): Promise<TxOutcome> {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    let r: any
+    try {
+      r = await rpc(fetchFn, url, deadline, 'getTransaction', [
+        signature,
+        // Version 1 transactions are live on mainnet; with 0 every one of them comes back as error -32015.
+        { encoding: 'jsonParsed', maxSupportedTransactionVersion: 1 },
+      ])
+    } catch {
+      return { failed: true }
+    }
+    if (r?.result) return { tx: r.result }
+    const code = r?.error?.code
+    // A newer transaction version cannot be parsed here; it is skipped, not counted as a lookup failure.
+    if (code === UNSUPPORTED_TX_VERSION) return { skip: true }
+    if (code === 429 && attempt === 0 && deadline - Date.now() > RETRY_429_MS * 2) {
+      await sleep(RETRY_429_MS)
+      continue
+    }
+    // No error and no result: the RPC has no such transaction; nothing to read, not a failure.
+    if (!r?.error && r && 'result' in r) return { skip: true }
+    return { failed: true }
   }
+  return { failed: true }
 }
 
 /**
  * Recent outgoing SOL recipients of the connected wallet. Best effort: any RPC problem returns
- * an empty list with ok=false (and is not cached, so a later check retries); it must never block a recipient check.
- * Successful results are cached in memory for the session.
+ * what was read with ok=false (and is not cached, so a later check retries); it must never block a recipient check.
+ *
+ * No JSON-RPC batches: the public mainnet RPC rate-limits each method per IP and counts every batch
+ * item, so a 25-item getTransaction batch came back as 25 x 429 and every check was marked partial.
+ * Instead: the last RECENT_SIGNATURES signatures, at most TX_CONCURRENCY getTransaction calls at a
+ * time, the whole lookup inside CONTACTS_BUDGET_MS. Successful results are cached in memory for the session.
  */
 export async function fetchWalletRecipients(
   wallet: string,
   rpcUrl: string,
   fetchFn: Fetch = fetch,
+  budgetMs: number = CONTACTS_BUDGET_MS,
 ): Promise<WalletRecipients> {
   const hit = walletCache.get(wallet)
   if (hit) return { recipients: hit, ok: true }
+  const deadline = Date.now() + budgetMs
   try {
-    const sigs = await rpc(fetchFn, rpcUrl, {
-      jsonrpc: '2.0',
-      id: 1,
-      method: 'getSignaturesForAddress',
-      params: [wallet, { limit: RECENT_SIGNATURES }],
-    })
+    const sigs = await rpc(fetchFn, rpcUrl, deadline, 'getSignaturesForAddress', [wallet, { limit: RECENT_SIGNATURES }])
     if (!Array.isArray(sigs?.result)) return { recipients: [], ok: false }
     const ok = (sigs.result as { signature: string; err: unknown }[]).filter((s) => !s.err).map((s) => s.signature)
-    if (ok.length === 0) {
-      walletCache.set(wallet, [])
-      return { recipients: [], ok: true }
+    const outcomes: TxOutcome[] = new Array(ok.length)
+    let next = 0
+    const worker = async () => {
+      while (next < ok.length) {
+        const i = next++
+        outcomes[i] = await fetchTx(fetchFn, rpcUrl, deadline, ok[i])
+      }
     }
-    const batch = await rpc(
-      fetchFn,
-      rpcUrl,
-      ok.map((signature, id) => ({
-        jsonrpc: '2.0',
-        id,
-        method: 'getTransaction',
-        params: [signature, { encoding: 'jsonParsed', maxSupportedTransactionVersion: 0 }],
-      })),
-    )
-    if (!Array.isArray(batch)) return { recipients: [], ok: false }
-    const recipients = recipientsFromParsedTxs(
-      batch.map((r: { result?: unknown }) => r?.result),
-      wallet,
-    )
-    // A per-item error (or a missing tx) means the list may be short: use what came back, say so, do not cache.
-    const complete = batch.length === ok.length && batch.every((r: { result?: unknown; error?: unknown }) => r && !r.error && r.result)
-    if (!complete) return { recipients, ok: false }
+    await Promise.all(Array.from({ length: Math.min(TX_CONCURRENCY, ok.length) }, worker))
+    const txs = outcomes.map((o) => ('tx' in o ? o.tx : null))
+    const recipients = recipientsFromParsedTxs(txs, wallet)
+    // A failed transaction read means the list may be short: use what came back, say so, do not cache.
+    if (outcomes.some((o) => 'failed' in o)) return { recipients, ok: false }
     walletCache.set(wallet, recipients)
     return { recipients, ok: true }
   } catch {
