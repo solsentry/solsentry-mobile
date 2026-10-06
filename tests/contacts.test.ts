@@ -23,8 +23,8 @@ const transfer = (source: string, destination: string, err: unknown = null) => (
 describe('contacts', () => {
   beforeEach(() => clearWalletContactsCache())
 
-  it('history: allow and warn count, block does not', () => {
-    expect(contactsFromHistory([h('a', 'allow'), h('b', 'block'), h('c', 'warn')])).toEqual(['a', 'c'])
+  it('history: only allow counts; warn and block do not', () => {
+    expect(contactsFromHistory([h('a', 'allow'), h('b', 'block'), h('c', 'warn')])).toEqual(['a'])
   })
 
   it('parsed txs: only outgoing, successful system transfers', () => {

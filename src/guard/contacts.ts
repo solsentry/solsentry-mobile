@@ -6,9 +6,13 @@ export const MAX_CONTACTS = 50
 const RECENT_SIGNATURES = 25
 const RPC_TIMEOUT_MS = 8000
 
-/** Addresses the user checked and let through (ALLOW or WARN); newest first, as stored. */
+/**
+ * Addresses the user checked that came back ALLOW; newest first, as stored. WARN rows are
+ * left out: History does not record whether a warning was reviewed, and a poisoning address
+ * kept as a "contact" would make the real address look like the lookalike.
+ */
 export function contactsFromHistory(entries: HistoryEntry[]): string[] {
-  return entries.filter((e) => e.decision === 'allow' || e.decision === 'warn').map((e) => e.address)
+  return entries.filter((e) => e.decision === 'allow').map((e) => e.address)
 }
 
 /**
