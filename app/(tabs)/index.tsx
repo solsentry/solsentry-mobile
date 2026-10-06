@@ -142,7 +142,10 @@ export default function CheckAndSend() {
     }
   }
 
-  async function onConnect() {
+  const onConnect = () => once(doConnect)
+  const onSenderCheck = () => once(doSenderCheck)
+
+  async function doConnect() {
     setError(null)
     setBusy('connect')
     try {
@@ -154,7 +157,7 @@ export default function CheckAndSend() {
     }
   }
 
-  async function onSenderCheck() {
+  async function doSenderCheck() {
     if (!wallet.session) return
     setBusy('sender')
     setSenderVerdict(await runSenderCheck(wallet.session.address))
