@@ -44,17 +44,28 @@ export function assertAnalysis(a: unknown): void {
   }
 }
 
+export const QUOTA_MESSAGE = 'SolSentry free daily quota reached on this network; try again later.'
+
+/** The anonymous API tier is 50 credits/day per IP: say that, instead of a bare "API 429". Still a Block. */
+function explainQuota(e: unknown): unknown {
+  return (e as { status?: number } | null)?.status === 429 ? new Error(QUOTA_MESSAGE) : e
+}
+
 /** Wrap the guard so malformed API bodies throw (the vendored checks then fail closed). */
 export function withValidation<G extends CheckGuard>(g: G): G {
   return {
     analyzeProgram: async (x: string) => {
-      const a = await g.analyzeProgram(x)
+      const a = await g.analyzeProgram(x).catch((e) => {
+        throw explainQuota(e)
+      })
       assertAnalysis(a)
       return a
     },
     checkLookalike: g.checkLookalike.bind(g),
     getOperator: async (w: string) => {
-      const o = await g.getOperator(w)
+      const o = await g.getOperator(w).catch((e) => {
+        throw explainQuota(e)
+      })
       if (!o || typeof o !== 'object' || Array.isArray(o)) throw new Error('unexpected API response')
       return o
     },
