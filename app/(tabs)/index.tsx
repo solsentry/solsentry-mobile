@@ -14,6 +14,7 @@ import { parseScanned, unsupportedReason, type SolanaPayRequest } from '@/src/pa
 import { useHistory } from '@/src/state/history'
 import { useWalletState } from '@/src/state/wallet'
 import { Button, Footer, VerdictCard } from '@/src/ui/components'
+import { describeError, type UserError, type WalletAction } from '@/src/ui/errors'
 import { theme } from '@/src/ui/theme'
 import { sendEnabled, toUiState } from '@/src/ui/verdict'
 import { sendSol } from '@/src/wallet/mwa'
@@ -63,7 +64,17 @@ export default function CheckAndSend() {
   const [checkedAt, setCheckedAt] = useState(0)
   const [reviewed, setReviewed] = useState(false)
   const [busy, setBusy] = useState<null | 'check' | 'send' | 'connect' | 'sender'>(null)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setErrorState] = useState<UserError | null>(null)
+  const [showDetail, setShowDetail] = useState(false)
+  const setError = (message: string | null) => {
+    setErrorState(message ? { message } : null)
+    setShowDetail(false)
+  }
+  /** Wallet/send failures: human sentence first, raw text only behind "Details". */
+  const showError = (e: unknown, action: WalletAction) => {
+    setErrorState(describeError(e, action))
+    setShowDetail(false)
+  }
   const [sent, setSent] = useState<{ signature: string } | null>(null)
   const [senderVerdict, setSenderVerdict] = useState<SenderVerdict | null>(null)
   const [senderAt, setSenderAt] = useState(0)
@@ -254,7 +265,7 @@ export default function CheckAndSend() {
       wallet.setSession(r.session)
       setSent({ signature: r.signature })
     } catch (e) {
-      setError(`Send did not complete: ${(e as Error).message}`)
+      showError(e, 'send')
     } finally {
       setBusy(null)
     }
@@ -269,7 +280,7 @@ export default function CheckAndSend() {
     try {
       await wallet.connect()
     } catch (e) {
-      setError(`Could not connect a wallet: ${(e as Error).message}`)
+      showError(e, 'connect')
     } finally {
       setBusy(null)
     }
@@ -277,10 +288,16 @@ export default function CheckAndSend() {
 
   async function doSenderCheck() {
     if (!wallet.session) return
+    setError(null)
     setBusy('sender')
-    setSenderVerdict(await runSenderCheck(wallet.session.address))
-    setSenderAt(Date.now())
-    setBusy(null)
+    try {
+      setSenderVerdict(await runSenderCheck(wallet.session.address))
+      setSenderAt(Date.now())
+    } catch (e) {
+      showError(e, 'sender')
+    } finally {
+      setBusy(null)
+    }
   }
 
   const senderUi = senderVerdict ? toUiState(senderVerdict) : null
@@ -359,7 +376,21 @@ export default function CheckAndSend() {
 
           <Button title="Check recipient" onPress={onCheck} busy={busy === 'check'} disabled={busy !== null || !trimmed} />
 
-          {error && <Text style={styles.error}>{error}</Text>}
+          {error && (
+            <View style={styles.errorBox}>
+              <Text style={styles.error}>{error.message}</Text>
+              {!!error.detail &&
+                (showDetail ? (
+                  <Text selectable style={styles.errorDetail} onPress={() => setShowDetail(false)}>
+                    {error.detail}
+                  </Text>
+                ) : (
+                  <Text style={styles.errorToggle} onPress={() => setShowDetail(true)} accessibilityRole="button">
+                    Details
+                  </Text>
+                ))}
+            </View>
+          )}
 
           {resolved && verdictIsCurrent && (
             <View style={styles.resolvedBox}>
@@ -463,6 +494,9 @@ const styles = StyleSheet.create({
   sgtLine: { color: theme.text, fontSize: 14, fontWeight: '600' },
   sgtRetry: { color: theme.accent, fontWeight: '700' },
   error: { color: theme.stop, fontSize: 14, lineHeight: 20 },
+  errorBox: { gap: 4 },
+  errorToggle: { color: theme.muted, fontSize: 12, textDecorationLine: 'underline' },
+  errorDetail: { color: theme.muted, fontSize: 12, fontFamily: Platform.select({ android: 'monospace', default: 'Courier' }) },
   stopped: { color: theme.stop, fontSize: 15, fontWeight: '700' },
   reviewRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   reviewText: { color: theme.text, fontSize: 15, flex: 1 },
