@@ -27,3 +27,10 @@ export function solscanTx(signature: string): string {
   const suffix = CLUSTER === 'mainnet-beta' ? '' : `?cluster=${CLUSTER}`
   return `https://solscan.io/tx/${signature}${suffix}`
 }
+
+/**
+ * Optional "Device check" (Android hardware key attestation). Off by default: with false the
+ * section does not render and the native module is never called. Turn on only once the
+ * server route /v1/device-attestation/verify is deployed.
+ */
+export const DEVICE_CHECK_ENABLED: boolean = false

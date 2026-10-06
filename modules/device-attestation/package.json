@@ -1,0 +1,8 @@
+{
+  "name": "device-attestation",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Local Expo module: Android Keystore hardware key attestation (no permissions, no device identifiers).",
+  "main": "index.ts",
+  "license": "MIT"
+}

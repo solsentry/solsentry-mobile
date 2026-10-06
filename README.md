@@ -29,6 +29,72 @@ Package id `app.solsentry.guard`. Built with Expo / React Native and Solana Mobi
 
 Config lives in `src/config.ts`: `CLUSTER` (default `mainnet-beta`), `RPC_URL` (`https://api.mainnet-beta.solana.com`) and `API_BASE` (`https://api.solsentry.app`).
 
+## Device check (optional, off by default)
+
+Behind `DEVICE_CHECK_ENABLED` in `src/config.ts` (default `false`). With the flag off the
+section does not render and the native module is never called. It is informational only:
+it never changes a recipient/sender verdict or the send button.
+
+The local Expo module `modules/device-attestation` (Kotlin, autolinked, Android only) creates a
+throwaway EC P-256 key in the Android Keystore with a 32-byte challenge (StrongBox first, then
+TEE), asks for brand/model attestation on Android 12+ (the device may refuse), reads the
+certificate chain, and deletes the key. It reads no serial number, IMEI or other identifier and
+adds no Android permission. The chain goes to the SolSentry server, which checks it against
+Google's hardware attestation roots.
+
+The screen separates what the phone **claims** (`Build.MANUFACTURER`/`Build.MODEL`, self-reported)
+from what the hardware **proves** (key security level, boot state, attested brand/model if the
+device included it, chain validity per the server). Without an attested model it says
+"genuine Android device with a hardware-backed key", never a model name.
+
+### API contract
+
+`POST https://api.solsentry.app/v1/device-attestation/verify`
+
+Request:
+
+```json
+{
+  "challenge": "<base64 of 32 bytes>",
+  "chain": ["<base64 DER leaf>", "<base64 DER intermediate>", "..."]
+}
+```
+
+Response (200):
+
+```json
+{
+  "valid": true,
+  "reason": "revocation_unchecked",
+  "security_level": "strongbox | trusted_environment | software",
+  "keymaster_security_level": "strongbox | trusted_environment | software",
+  "attestation_version": 300,
+  "challenge_match": true,
+  "root_of_trust": { "verified_boot_state": "verified | self_signed | unverified | failed", "device_locked": true },
+  "attested_ids": { "brand": "...", "device": "...", "product": "...", "manufacturer": "...", "model": "..." },
+  "revoked": false,
+  "revocation_checked": true,
+  "os_version": 150000,
+  "os_patch_level": 202609
+}
+```
+
+`reason` is optional; `attested_ids` fields are present only when the device attested them;
+`revoked` is `null` when the list was not checked.
+
+How the app reads it (`src/device/attest-logic.ts`):
+
+| Server answer                                                                                     | Shown                                                                                                  |
+| ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `valid: true`, consistent                                                                         | "Genuine Android device with a hardware-backed key." (or "Genuine <attested model> ..." when attested) |
+| `valid: true`, `reason: "revocation_unchecked"`                                                   | same, plus "(revocation list not checked)"                                                             |
+| `valid: false`, or `valid: true` with `challenge_match: false` / `revoked: true` / software level | "Not verified: this phone did not prove a hardware-backed key." plus the reason                        |
+| 404 (route switched off)                                                                          | "Device check unavailable right now." (never "not genuine")                                            |
+| other HTTP error, network error, timeout, malformed body                                          | "Could not verify this device." (never "genuine")                                                      |
+
+The challenge is currently generated on the phone. TODO: a server-issued single-use nonce is
+the right design (it stops replay of a captured chain); see `src/device/attest.ts`.
+
 ## Limits
 
 - **Risk signals, not guarantees.** A clean result means no signal was found, not that a recipient is trustworthy.
