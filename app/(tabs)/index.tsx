@@ -12,6 +12,12 @@ import type { ResolveDeps } from '@/src/pay/names'
 import { nameBlockVerdict, resolveRecipientInput } from '@/src/pay/recipient'
 import { fetchSgt, SGT_INFO_TEXT, sgtBadgeText, type SgtResult } from '@/src/seeker/sgt'
 import { parseScanned, unsupportedReason, type SolanaPayRequest } from '@/src/pay/solana-pay'
+import {
+  formAfterAmountEdit,
+  formAfterPayRequest,
+  formAfterRecipientEdit,
+  type PayForm,
+} from '@/src/pay/scan-form'
 import { useHistory } from '@/src/state/history'
 import { useWalletState } from '@/src/state/wallet'
 import { Button, Footer, VerdictCard } from '@/src/ui/components'
@@ -92,6 +98,15 @@ export default function CheckAndSend() {
   const [resolved, setResolved] = useState<ResolvedName | null>(null)
   /** Solana Pay request that filled the form; cleared when the recipient is edited. */
   const [payRequest, setPayRequest] = useState<SolanaPayRequest | null>(null)
+  /** The amount field holds what a QR wrote; a hand edit of the recipient then clears it (scan-form.ts). */
+  const [amountFromQr, setAmountFromQr] = useState(false)
+  const form: PayForm = { address, amount, amountFromQr, payRequest }
+  const setForm = (f: PayForm) => {
+    setAddress(f.address)
+    setAmount(f.amount)
+    setAmountFromQr(f.amountFromQr)
+    setPayRequest(f.payRequest)
+  }
   const lastPay = useRef('')
   const [checkedAt, setCheckedAt] = useState(0)
   const [reviewed, setReviewed] = useState(false)
@@ -171,8 +186,7 @@ export default function CheckAndSend() {
 
   useEffect(() => {
     if (params.address && params.address !== address) {
-      setAddress(params.address)
-      setPayRequest(null)
+      setForm(formAfterRecipientEdit(form, params.address))
       resetResult()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -206,19 +220,17 @@ export default function CheckAndSend() {
     }
     if (parsed.request.kind === 'address') {
       const addr = parsed.request.address
-      setPayRequest(null)
-      setAddress(addr)
+      setForm(formAfterRecipientEdit(form, addr))
       void once(() => doCheck(addr))
       return
     }
     const req = parsed.request.request
-    setPayRequest(req)
+    // Only a SOL transfer request writes the SOL amount; SPL / transaction requests clear it.
+    setForm(formAfterPayRequest(form, req))
     if (req.kind === 'transaction') {
       setError(unsupportedReason(req))
       return
     }
-    setAddress(req.recipient)
-    setAmount(req.amount ?? '')
     void once(() => doCheck(req.recipient))
   }
 
@@ -460,6 +472,7 @@ export default function CheckAndSend() {
   const canPress = ui
     ? sendEnabled(ui, reviewed, busy !== null) &&
       verdictIsCurrent &&
+      parsedAmount !== null &&
       pendingReady &&
       !lockedFor(pending, checkedTarget, parsedAmount, Date.now())
     : false
@@ -501,8 +514,7 @@ export default function CheckAndSend() {
             style={styles.input}
             value={address}
             onChangeText={(t) => {
-              setAddress(t)
-              setPayRequest(null)
+              setForm(formAfterRecipientEdit(form, t))
               resetResult()
             }}
             placeholder="Address, name.sol, name.sns or name.skr"
@@ -517,8 +529,7 @@ export default function CheckAndSend() {
             onPress={async () => {
               const t = await Clipboard.getString()
               if (t) {
-                setAddress(t.trim())
-                setPayRequest(null)
+                setForm(formAfterRecipientEdit(form, t.trim()))
                 resetResult()
               }
             }}
@@ -528,7 +539,7 @@ export default function CheckAndSend() {
           <TextInput
             style={styles.input}
             value={amount}
-            onChangeText={setAmount}
+            onChangeText={(t) => setForm(formAfterAmountEdit(form, t))}
             placeholder="0.05"
             placeholderTextColor={theme.muted}
             keyboardType="decimal-pad"
