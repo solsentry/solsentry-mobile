@@ -26,6 +26,10 @@ function patchGradle(src) {
     /(release \{\n\s*\/\/ Caution![^\n]*\n\s*\/\/ see [^\n]*\n\s*)signingConfig signingConfigs\.debug/,
     `$1if (!ksFile.exists()) { throw new GradleException("Release keystore properties not found at " + ksPropsPath) }\n            signingConfig signingConfigs.release`,
   )
+  // A silent miss would leave the release build signed with the debug key.
+  if (!src.includes('signingConfig signingConfigs.release') || !src.includes("ksProps['storeFile']") || !src.includes(MARK)) {
+    throw new Error('with-release-signing: build.gradle patch did not apply (template changed?)')
+  }
   return src
 }
 
