@@ -246,7 +246,11 @@ export default function CheckAndSend() {
         payRequest?.kind === 'transfer' && payRequest.recipient === checkedTarget
           ? { references: payRequest.references, memo: payRequest.memo }
           : undefined
-      const r = await sendSol(checkedTarget, lamports, checkedAt, wallet.session?.authToken, extras)
+      const r = await sendSol(checkedTarget, lamports, checkedAt, wallet.session?.authToken, extras, {
+        // Keep a fresh authorization even if the signature is then cancelled; drop a rejected token.
+        onSession: wallet.setSession,
+        onTokenRejected: wallet.forgetToken,
+      })
       wallet.setSession(r.session)
       setSent({ signature: r.signature })
     } catch (e) {
