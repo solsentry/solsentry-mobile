@@ -36,7 +36,7 @@ function fundingLine(v: SenderVerdict): string | null {
 
 export default function CheckAndSend() {
   const params = useLocalSearchParams<{ address?: string }>()
-  const { record } = useHistory()
+  const { record, entries } = useHistory()
   const wallet = useWalletState()
 
   const [address, setAddress] = useState('')
@@ -103,7 +103,7 @@ export default function CheckAndSend() {
       return
     }
     setBusy('check')
-    const v = await runRecipientCheck(trimmed) // never throws; errors come back as "block"
+    const v = await runRecipientCheck(trimmed, { history: entries, wallet: wallet.session?.address }) // never throws; errors come back as "block"
     const now = Date.now()
     setVerdict(v)
     setCheckedFor(trimmed)

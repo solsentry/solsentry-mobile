@@ -1,6 +1,8 @@
 import { API_BASE, RPC_URL } from '../config'
 import { SolSentryGuard } from './client'
-import type { OperatorProfile } from './types'
+import type { LookalikeResult, OperatorProfile } from './types'
+import { buildContacts, contactsFromHistory, fetchWalletRecipients, lookalikeExplanation, markContactsPartial } from './contacts'
+import type { HistoryEntry } from '../state/history-logic'
 import {
   checkRecipient,
   checkSender,
@@ -138,10 +140,53 @@ export function applyKindScreen(v: RecipientVerdict): RecipientVerdict {
   }
 }
 
-export async function screenRecipient(recipient: string, guardIn: CheckGuard): Promise<RecipientVerdict> {
+/**
+* The live /v1/lookalike-check answers { suspect, confidence, findings: [{ original_contact, ... }] },
+ * while the vendored checkRecipient reads { is_lookalike, findings: [{ contact }] }. Without this
+ * mapping the check would run and never fire. Poisoning addresses collide on first/last chars, which
+ * the API rates "weak" at the low end, so ANY finding counts as a lookalike here.
+ */
+export function normalizeLookalike(raw: unknown, destination: string): LookalikeResult {
+  const r = (raw ?? {}) as {
+    findings?: { original_contact?: string; contact?: string }[]
+    suspect?: boolean
+    is_lookalike?: boolean
+  }
+  // Unexpected shape: neither a verdict field nor a findings array -> cannot tell, fail closed.
+  if (typeof r.suspect !== 'boolean' && typeof r.is_lookalike !== 'boolean' && !Array.isArray(r.findings)) {
+    throw new Error('unexpected /v1/lookalike-check response shape')
+  }
+  const findings = (Array.isArray(r.findings) ? r.findings : []).map((f) => ({
+    contact: f.original_contact ?? f.contact ?? '',
+    similarity: 0,
+    reason: '',
+  }))
+  return {
+    destination,
+    is_lookalike: r.is_lookalike === true || r.suspect === true || findings.length > 0,
+    findings,
+  }
+}
+
+type LookalikeSource = { checkLookalike: (d: string, c: string[]) => Promise<unknown> }
+
+export async function screenRecipient(
+  recipient: string,
+  guardIn: CheckGuard,
+  contacts: string[] = [],
+): Promise<RecipientVerdict> {
   const g = withValidation(guardIn)
   try {
-    const v = await checkRecipient(recipient, POLICY, g)
+    const known = contacts.filter((c) => c && c !== recipient)
+    const wrapped = {
+      analyzeProgram: (a: string) => g.analyzeProgram(a),
+      checkLookalike: async (d: string, c: string[]) =>
+        normalizeLookalike(await (g as unknown as LookalikeSource).checkLookalike(d, c), d),
+    } as Parameters<typeof checkRecipient>[2]
+    let v = await checkRecipient(recipient, { ...POLICY, contacts: known }, wrapped)
+    if (v.reasons.includes('LOOKALIKE')) {
+      v = { ...v, decision: 'block', explanation: lookalikeExplanation(recipient, v.lookalike?.findings[0]?.contact) }
+    }
     if (v.decision === 'block' && v.reasons.includes('CHECK_FAILED')) return v
     const operator = await g.getOperator(recipient)
     return applyKindScreen(applyOperatorScreen(v, operator))
@@ -150,8 +195,17 @@ export async function screenRecipient(recipient: string, guardIn: CheckGuard): P
   }
 }
 
-export async function runRecipientCheck(recipient: string): Promise<RecipientVerdict> {
-  return screenRecipient(recipient, guard)
+export interface ContactSources {
+  history: HistoryEntry[]
+  /** Connected wallet address, if any; enables the on-chain recent-recipients source. */
+  wallet?: string | null
+}
+
+export async function runRecipientCheck(recipient: string, src?: ContactSources): Promise<RecipientVerdict> {
+  const onChain = src?.wallet ? await fetchWalletRecipients(src.wallet, RPC_URL) : { recipients: [], ok: true }
+  const contacts = buildContacts(recipient, [contactsFromHistory(src?.history ?? []), onChain.recipients])
+  const v = await screenRecipient(recipient, guard, contacts)
+  return onChain.ok ? v : markContactsPartial(v)
 }
 
 export const RPC_TIMEOUT_MS = 10_000
