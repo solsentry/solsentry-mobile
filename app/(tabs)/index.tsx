@@ -236,7 +236,7 @@ export default function CheckAndSend() {
 
           {sent && (
             <View style={styles.sentBox}>
-              <Text style={styles.sentTitle}>Sent. Signature</Text>
+              <Text style={styles.sentTitle}>Submitted. Signature</Text>
               <Text selectable style={styles.mono}>{sent.signature}</Text>
               <Button variant="secondary" title="Open on Solscan" onPress={() => Linking.openURL(solscanTx(sent.signature))} />
             </View>
