@@ -2,7 +2,7 @@ import Clipboard from '@react-native-clipboard/clipboard'
 import { PublicKey } from '@solana/web3.js'
 import * as Linking from 'expo-linking'
 import { useLocalSearchParams } from 'expo-router'
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { solscanTx, VERDICT_MAX_AGE_MS } from '@/src/config'
@@ -14,7 +14,7 @@ import { Button, Footer, VerdictCard } from '@/src/ui/components'
 import { theme } from '@/src/ui/theme'
 import { sendEnabled, toUiState } from '@/src/ui/verdict'
 import { sendSol } from '@/src/wallet/mwa'
-import { parseSolToLamports } from '@/src/wallet/mwa-math'
+import { formatLamportsAsSol, parseSolToLamports } from '@/src/wallet/mwa-math'
 
 function isValidAddress(s: string): boolean {
   try {
@@ -36,7 +36,7 @@ function fundingLine(v: SenderVerdict): string | null {
 
 export default function CheckAndSend() {
   const params = useLocalSearchParams<{ address?: string }>()
-  const { record } = useHistory()
+  const { record, entries } = useHistory()
   const wallet = useWalletState()
 
   const [address, setAddress] = useState('')
@@ -68,9 +68,32 @@ export default function CheckAndSend() {
 
   const trimmed = address.trim()
   const ui = useMemo(() => (verdict ? toUiState(verdict) : null), [verdict])
-  const verdictIsCurrent = !!verdict && checkedFor === trimmed
+  const parsedAmount = useMemo(() => {
+    try {
+      return parseSolToLamports(amount)
+    } catch {
+      return null
+    }
+  }, [amount])
+  const verdictIsCurrent =!!verdict && checkedFor === trimmed
 
-  async function onCheck() {
+  // React state (busy) lags a render behind a fast double tap; a ref does not.
+  const inFlight = useRef(false)
+
+  async function once(fn: () => Promise<void>) {
+    if (inFlight.current) return
+    inFlight.current = true
+    try {
+      await fn()
+    } finally {
+      inFlight.current = false
+    }
+  }
+
+  const onCheck = () => once(doCheck)
+  const onSend = () => once(doSend)
+
+  async function doCheck() {
     setError(null)
     setSent(null)
     setReviewed(false)
@@ -80,7 +103,7 @@ export default function CheckAndSend() {
       return
     }
     setBusy('check')
-    const v = await runRecipientCheck(trimmed) // never throws; errors come back as "block"
+    const v = await runRecipientCheck(trimmed, { history: entries, wallet: wallet.session?.address }) // never throws; errors come back as "block"
     const now = Date.now()
     setVerdict(v)
     setCheckedFor(trimmed)
@@ -89,7 +112,7 @@ export default function CheckAndSend() {
     setBusy(null)
   }
 
-  async function onSend() {
+  async function doSend() {
     setError(null)
     if (!ui || !verdict || !verdictIsCurrent) {
       setError('Check this address first.')
@@ -109,7 +132,7 @@ export default function CheckAndSend() {
     }
     setBusy('send')
     try {
-      const r = await sendSol(trimmed, lamports, wallet.session?.authToken)
+      const r = await sendSol(trimmed, lamports, checkedAt, wallet.session?.authToken)
       wallet.setSession(r.session)
       setSent({ signature: r.signature })
     } catch (e) {
@@ -183,6 +206,7 @@ export default function CheckAndSend() {
             placeholderTextColor={theme.muted}
             keyboardType="decimal-pad"
           />
+          {parsedAmount !== null && <Text style={styles.hint}>You will send {formatLamportsAsSol(parsedAmount)} SOL</Text>}
 
           <Button title="Check recipient" onPress={onCheck} busy={busy === 'check'} disabled={busy !== null || !trimmed} />
 
@@ -212,7 +236,7 @@ export default function CheckAndSend() {
 
           {sent && (
             <View style={styles.sentBox}>
-              <Text style={styles.sentTitle}>Sent. Signature</Text>
+              <Text style={styles.sentTitle}>Submitted. Signature</Text>
               <Text selectable style={styles.mono}>{sent.signature}</Text>
               <Button variant="secondary" title="Open on Solscan" onPress={() => Linking.openURL(solscanTx(sent.signature))} />
             </View>
@@ -260,6 +284,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: theme.text,
   },
+  hint: { color: theme.muted, fontSize: 13 },
   error: { color: theme.stop, fontSize: 14, lineHeight: 20 },
   stopped: { color: theme.stop, fontSize: 15, fontWeight: '700' },
   reviewRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { STOPPED_TEXT, normalizeDecision, sendEnabled, toUiState } from '../src/ui/verdict'
 import { checkRecipient } from '../src/guard/checks'
 import { upsertEntry, type HistoryEntry } from '../src/state/history-logic'
-import { parseSolToLamports } from '../src/wallet/mwa-math'
+import { assertVerdictFresh, formatLamportsAsSol, parseSolToLamports } from '../src/wallet/mwa-math'
 
 describe('verdict -> UI state', () => {
   it('allow: send enabled, no review needed', () => {
@@ -87,6 +87,32 @@ describe('SOL amount parsing', () => {
     expect(parseSolToLamports(' 0.05 ')).toBe(50_000_000n)
   })
   it('rejects bad input', () => {
-    for (const bad of ['', '0', '-1', '1e3', '0.0000000001', 'abc', '1.']) expect(() => parseSolToLamports(bad)).toThrow()
+    for (const bad of ['', '0', '-1', '1e3', '0.0000000001', 'abc', '1.', '.', ',', '1,000.5', '1.2.3']) {
+      expect(() => parseSolToLamports(bad)).toThrow()
+    }
+  })
+  it('accepts a comma decimal and a leading dot', () => {
+    expect(parseSolToLamports('0,05')).toBe(50_000_000n)
+    expect(parseSolToLamports('.5')).toBe(500_000_000n)
+    expect(parseSolToLamports(',5')).toBe(500_000_000n)
+  })
+  it('rejects more than u64 max lamports with a clear message', () => {
+    expect(() => parseSolToLamports('18446744074')).toThrow('Enter an amount like 0.05')
+    expect(parseSolToLamports('18446744073.709551615')).toBe(18_446_744_073_709_551_615n)
+    expect(() => parseSolToLamports('18446744073.709551616')).toThrow('Enter an amount like 0.05')
+  })
+  it('formats lamports back to SOL without floats', () => {
+    expect(formatLamportsAsSol(50_000_000n)).toBe('0.05')
+    expect(formatLamportsAsSol(1_000_000_000n)).toBe('1')
+    expect(formatLamportsAsSol(1n)).toBe('0.000000001')
+  })
+})
+
+describe('verdict age right before building the tx', () => {
+  it('fresh passes, stale or invalid throws', () => {
+    expect(() => assertVerdictFresh(1_000, 300_000, 1_000 + 299_000)).not.toThrow()
+    expect(() => assertVerdictFresh(1_000, 300_000, 1_000 + 300_001)).toThrow('out of date')
+    expect(() => assertVerdictFresh(0, 300_000, 1_000_000)).toThrow('out of date')
+    expect(() => assertVerdictFresh(NaN, 300_000, 5)).toThrow('out of date')
   })
 })

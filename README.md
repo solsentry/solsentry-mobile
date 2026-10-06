@@ -12,6 +12,10 @@ Package id `app.solsentry.guard`. Built with Expo / React Native and Solana Mobi
   - **Allow**: "Send with wallet" is enabled.
   - **Warning**: the send button stays disabled until you switch on "I reviewed this recipient".
   - **Block**: sending is disabled. The app shows "Stopped: nothing was built or signed."
+- **What the recipient check looks at.**
+  - Catalogued drainers and the recipient's deployer profile in SolSentry's records (HIGH or CRITICAL blocks, MEDIUM warns).
+  - Whether the address is a wallet at all: a token mint or a program is blocked, because SOL sent there is lost or never reaches a person.
+  - Address poisoning: the recipient is compared with your contacts (addresses you checked that came back Allow, plus the recipients of your wallet's recent SOL transfers). An address that copies the first and last characters of a contact is blocked, and the card shows both addresses. If the wallet's recent transfers cannot be read, the card says the comparison used local history only.
 - **Where did my money come from?** After you connect a wallet, the app looks up the wallet's first funder (one hop back, via Solana RPC), screens both the wallet and that funder, and shows the verdict.
 - **History.** Addresses you checked, kept on the device (AsyncStorage), each with its verdict, date and a "Re-check" button. Re-check before you pay the same address again: signals change.
 
@@ -26,8 +30,8 @@ Config lives in `src/config.ts`: `CLUSTER` (default `mainnet-beta`), `RPC_URL` (
 ## Limits
 
 - **Risk signals, not guarantees.** A clean result means no signal was found, not that a recipient is trustworthy.
-- **Catalogued drainers only.** Blocks come from addresses and patterns SolSentry already knows about.
-- **Unknown addresses produce a warning, not a block.**
+- **Known signals only.** Blocks come from catalogued drainers plus wallets whose deployer profile in SolSentry's records is HIGH or CRITICAL risk (MEDIUM risk shows a Warning). Anything SolSentry has not seen is not flagged.
+- **Allow is not a guarantee.** Allow means no signal was found. An address with no on-chain history shows as a Warning, but a real wallet with no known risk shows as Allow.
 - **Source of funds is one hop.** Only the wallet's first funder is looked up; long histories (more than 5,000 signatures) and wallets without a plain funding transfer come back as "not determined".
 - The public Solana RPC is rate limited. If it refuses the source-of-funds lookup, the check fails closed.
 - SOL transfers only in this version. The Mobile Wallet Adapter path was not exercised end to end in CI: it needs a wallet app on a device.

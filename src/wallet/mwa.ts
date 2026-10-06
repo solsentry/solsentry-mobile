@@ -5,7 +5,8 @@ import {
   Connection,
 } from '@solana/web3.js'
 import { transact, type Web3MobileWallet } from '@solana-mobile/mobile-wallet-adapter-protocol-web3js'
-import { APP_IDENTITY, MWA_CHAIN, RPC_URL } from '../config'
+import { APP_IDENTITY, MWA_CHAIN, RPC_URL, VERDICT_MAX_AGE_MS } from '../config'
+import { assertVerdictFresh } from './mwa-math'
 
 export { parseSolToLamports } from './mwa-math'
 
@@ -54,12 +55,15 @@ export interface SendResult {
 export async function sendSol(
   recipient: string,
   lamports: bigint,
+  checkedAt: number,
   authToken?: string,
 ): Promise<SendResult & { session: WalletSession }> {
   const to = new PublicKey(recipient)
   const connection = new Connection(RPC_URL, 'confirmed')
   return transact(async (wallet) => {
     const session = await authorizeIn(wallet, authToken)
+    // The user may sit on the wallet prompt for minutes: re-check the verdict age right before building.
+    assertVerdictFresh(checkedAt, VERDICT_MAX_AGE_MS)
     const from = new PublicKey(session.address)
     const { blockhash } = await connection.getLatestBlockhash()
     const tx = new Transaction({ feePayer: from, recentBlockhash: blockhash }).add(
