@@ -48,3 +48,4 @@ keystore.properties
 release.keystore
 *.apk
 *.aab
+dist/
