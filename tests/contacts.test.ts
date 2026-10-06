@@ -57,6 +57,19 @@ describe('contacts', () => {
     expect(calls).toBe(2)
   })
 
+  it('a per-item batch error keeps what came back but marks the list partial', async () => {
+    clearWalletContactsCache()
+    const partial = (async (_u: unknown, init?: { body?: string }) => {
+      const body = JSON.parse(String(init?.body))
+      if (!Array.isArray(body)) {
+        return new Response(JSON.stringify({ result: [{ signature: 's1', err: null }, { signature: 's2', err: null }] }))
+      }
+      const tx = { meta: { err: null }, transaction: { message: { instructions: [{ program: 'system', parsed: { type: 'transfer', info: { source: W, destination: 'dest' } } }] } } }
+      return new Response(JSON.stringify([{ id: 0, result: tx }, { id: 1, error: { code: 429 } }]))
+    }) as unknown as typeof fetch
+    expect(await fetchWalletRecipients(W, 'http://rpc', partial)).toEqual({ recipients: ['dest'], ok: false })
+  })
+
   it('partial contacts is said out loud and keeps the decision', () => {
     const v = markContactsPartial({ decision: 'allow', reasons: ['X'], explanation: 'No risk signals found for the recipient.' })
     expect(v.decision).toBe('allow')

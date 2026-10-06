@@ -127,6 +127,9 @@ export async function fetchWalletRecipients(
       batch.map((r: { result?: unknown }) => r?.result),
       wallet,
     )
+    // A per-item error (or a missing tx) means the list may be short: use what came back, say so, do not cache.
+    const complete = batch.length === ok.length && batch.every((r: { result?: unknown; error?: unknown }) => r && !r.error && r.result)
+    if (!complete) return { recipients, ok: false }
     walletCache.set(wallet, recipients)
     return { recipients, ok: true }
   } catch {
