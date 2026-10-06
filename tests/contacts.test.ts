@@ -83,7 +83,21 @@ describe('lookalike through screenRecipient', () => {
       getOperator: async () => ({ wallet: 'a', known: false }),
     }) as never
 
-  it('live API shape (weak finding, suspect false) still blocks and names the contact', async () => {
+  it('one end only (live shape, weak) -> warning naming the contact, not a block', async () => {
+    const live = { suspect: false, confidence: 'weak', findings: [{ original_contact: REAL, prefix_match: 4, suffix_match: 1 }] }
+    expect(normalizeLookalike(live, FAKE).is_lookalike).toBe(false)
+    const v = await screenRecipient(FAKE, guard(live), [REAL])
+    expect(v.decision).toBe('warn')
+    expect(v.reasons).toContain('LOOKALIKE_PARTIAL')
+    expect(v.explanation).toContain(REAL)
+  })
+
+  it('finding without match lengths is treated as both ends (strict)', async () => {
+    const v = await screenRecipient(FAKE, guard({ suspect: false, findings: [{ original_contact: REAL }] }), [REAL])
+    expect(v.decision).toBe('block')
+  })
+
+  it('live API shape (weak finding, suspect false, both ends) still blocks and names the contact', async () => {
     const live = { suspect: false, confidence: 'weak', findings: [{ original_contact: REAL, prefix_match: 4, suffix_match: 9 }] }
     expect(normalizeLookalike(live, FAKE).is_lookalike).toBe(true)
     const v = await screenRecipient(FAKE, guard(live), [REAL])

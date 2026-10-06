@@ -1,7 +1,14 @@
 import { API_BASE, RPC_URL } from '../config'
 import { SolSentryGuard } from './client'
 import type { LookalikeResult, OperatorProfile } from './types'
-import { buildContacts, contactsFromHistory, fetchWalletRecipients, lookalikeExplanation, markContactsPartial } from './contacts'
+import {
+  buildContacts,
+  contactsFromHistory,
+  fetchWalletRecipients,
+  lookalikeExplanation,
+  markContactsPartial,
+  partialLookalikeExplanation,
+} from './contacts'
 import type { HistoryEntry } from '../state/history-logic'
 import {
   checkRecipient,
@@ -143,12 +150,18 @@ export function applyKindScreen(v: RecipientVerdict): RecipientVerdict {
 /**
 * The live /v1/lookalike-check answers { suspect, confidence, findings: [{ original_contact, ... }] },
  * while the vendored checkRecipient reads { is_lookalike, findings: [{ contact }] }. Without this
- * mapping the check would run and never fire. Poisoning addresses collide on first/last chars, which
- * the API rates "weak" at the low end, so ANY finding counts as a lookalike here.
+ * mapping the check would run and never fire. The API reports a finding when EITHER end matches
+ * (>= 4 chars) and rates plain string collisions "weak". Poisoning addresses copy BOTH ends, so:
+ * both ends match (or the API says suspect) -> lookalike, Block; one end only -> Warning
+ * (vanity prefixes are common). A finding without match lengths is treated as both ends (strict).
  */
+const MATCH_LEN = 4
+const BOTH_ENDS = 'both_ends'
+const ONE_END = 'one_end'
+
 export function normalizeLookalike(raw: unknown, destination: string): LookalikeResult {
   const r = (raw ?? {}) as {
-    findings?: { original_contact?: string; contact?: string }[]
+    findings?: { original_contact?: string; contact?: string; prefix_match?: number; suffix_match?: number }[]
     suspect?: boolean
     is_lookalike?: boolean
   }
@@ -156,14 +169,20 @@ export function normalizeLookalike(raw: unknown, destination: string): Lookalike
   if (typeof r.suspect !== 'boolean' && typeof r.is_lookalike !== 'boolean' && !Array.isArray(r.findings)) {
     throw new Error('unexpected /v1/lookalike-check response shape')
   }
-  const findings = (Array.isArray(r.findings) ? r.findings : []).map((f) => ({
-    contact: f.original_contact ?? f.contact ?? '',
-    similarity: 0,
-    reason: '',
-  }))
+  const findings = (Array.isArray(r.findings) ? r.findings : []).map((f) => {
+    const p = typeof f.prefix_match === 'number' ? f.prefix_match : MATCH_LEN
+    const sfx = typeof f.suffix_match === 'number' ? f.suffix_match : MATCH_LEN
+    return {
+      contact: f.original_contact ?? f.contact ?? '',
+      similarity: p + sfx,
+      reason: p >= MATCH_LEN && sfx >= MATCH_LEN ? BOTH_ENDS : ONE_END,
+    }
+  })
+  // Both-ends findings first, so the explanation names the strongest match.
+  findings.sort((a, b) => (a.reason === b.reason ? b.similarity - a.similarity : a.reason === BOTH_ENDS ? -1 : 1))
   return {
     destination,
-    is_lookalike: r.is_lookalike === true || r.suspect === true || findings.length > 0,
+    is_lookalike: r.is_lookalike === true || r.suspect === true || findings.some((f) => f.reason === BOTH_ENDS),
     findings,
   }
 }
@@ -186,6 +205,13 @@ export async function screenRecipient(
     let v = await checkRecipient(recipient, { ...POLICY, contacts: known }, wrapped)
     if (v.reasons.includes('LOOKALIKE')) {
       v = { ...v, decision: 'block', explanation: lookalikeExplanation(recipient, v.lookalike?.findings[0]?.contact) }
+    } else if (v.decision !== 'block' && v.lookalike?.findings.length) {
+      v = {
+        ...v,
+        decision: 'warn',
+        reasons: [...v.reasons, 'LOOKALIKE_PARTIAL'],
+        explanation: partialLookalikeExplanation(recipient, v.lookalike.findings[0].contact),
+      }
     }
     if (v.decision === 'block' && v.reasons.includes('CHECK_FAILED')) return v
     const operator = await g.getOperator(recipient)

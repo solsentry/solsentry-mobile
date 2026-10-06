@@ -154,3 +154,11 @@ export function lookalikeExplanation(destination: string, contact: string | unde
     `Copy the address from a source you trust, not from your history.`
   )
 }
+
+/** One end matches a contact: common for vanity addresses, so a Warning, not a Block. */
+export function partialLookalikeExplanation(destination: string, contact: string): string {
+  return (
+    `Warning: ${destination} (${ends(destination)}) shares its first or last characters with your contact ` +
+    `${contact} (${ends(contact)}). Compare the whole address before sending.`
+  )
+}
