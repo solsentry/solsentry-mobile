@@ -36,7 +36,7 @@ section does not render and the native module is never called. It is information
 it never changes a recipient/sender verdict or the send button.
 
 The local Expo module `modules/device-attestation` (Kotlin, autolinked, Android only) creates a
-throwaway EC P-256 key in the Android Keystore with a 32-byte challenge (StrongBox first, then
+throwaway EC P-256 key in the Android Keystore over a 32-byte server-issued challenge (StrongBox first, then
 TEE), asks for brand/model attestation on Android 12+ (the device may refuse), reads the
 certificate chain, and deletes the key. It reads no serial number, IMEI or other identifier and
 adds no Android permission. The chain goes to the SolSentry server, which checks it against
@@ -48,6 +48,17 @@ device included it, chain validity per the server). Without an attested model it
 "genuine Android device with a hardware-backed key", never a model name.
 
 ### API contract
+
+Two calls, both with a 15 s deadline that also covers the response body.
+
+1. `GET https://api.solsentry.app/v1/device-attestation/challenge` returns a server-issued,
+   single-use nonce:
+
+```json
+{ "challenge": "<base64 of 32 bytes>", "expires_in": 300 }
+```
+
+2. The app attests a fresh key over that challenge and sends the chain:
 
 `POST https://api.solsentry.app/v1/device-attestation/verify`
 
@@ -90,10 +101,14 @@ How the app reads it (`src/device/attest-logic.ts`):
 | `valid: true`, `reason: "revocation_unchecked"`                                                   | same, plus "(revocation list not checked)"                                                             |
 | `valid: false`, or `valid: true` with `challenge_match: false` / `revoked: true` / software level | "Not verified: this phone did not prove a hardware-backed key." plus the reason                        |
 | 404 (route switched off)                                                                          | "Device check unavailable right now." (never "not genuine")                                            |
-| other HTTP error, network error, timeout, malformed body                                          | "Could not verify this device." (never "genuine")                                                      |
+| any other HTTP error, network error, timeout, malformed body                                      | "Could not verify this device." (never "genuine")                                                      |
+| `reason: "challenge_unknown_or_expired"` (any status)                                             | "Could not verify (challenge expired, try again)." (never "not genuine")                               |
+| challenge GET fails, 404s or returns a malformed nonce                                            | "Device check unavailable right now." (the module is not called)                                       |
 
-The challenge is currently generated on the phone. TODO: a server-issued single-use nonce is
-the right design (it stops replay of a captured chain); see `src/device/attest.ts`.
+`idAttestation` in the module result: `included`, `refused` (the device declined ID
+attestation), `unsupported` (Android < 12), `not_requested`, or `error` (the attempt with IDs
+failed for another reason; the exception text is shown as a detail so a field run shows what
+happened).
 
 ## Limits
 

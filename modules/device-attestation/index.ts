@@ -14,11 +14,15 @@ export interface ClaimedDevice {
 }
 
 export interface AttestResult {
-  /** base64 DER certificates, leaf first. Empty on failure. */
+  /** base64 DER certificates, leaf first. Empty on failure (then `error` says why). */
   chain: string[]
   strongBox: boolean
-  idAttestation: 'included' | 'refused' | 'unsupported'
+  /** See IdAttestation in src/device/attest-logic.ts. */
+  idAttestation: 'included' | 'refused' | 'unsupported' | 'not_requested' | 'error'
+  /** Set when no chain was produced: every attempt and its exception chain. */
   error?: string
+  /** Set when idAttestation is 'error': the unrecognized exception on the attempt with IDs. */
+  idError?: string
   claimed?: ClaimedDevice
 }
 
