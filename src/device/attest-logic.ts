@@ -175,6 +175,15 @@ function proveLines(r: VerifyResponse, idAttestation: IdAttestation): string[] {
 }
 
 /** Main mapping: everything the Device check section shows. */
+const HARDWARE_LEVELS = new Set(['trustedenvironment', 'tee', 'strongbox'])
+const CONTRADICTION_NOTE =
+  'The server accepted the chain, but the challenge match, the hardware level or a verified, locked boot was not confirmed.'
+
+/** Lower-case letters only, so "TrustedEnvironment", "trusted_environment" and "TRUSTED_ENVIRONMENT" compare equal. */
+function norm(v: unknown): string {
+  return typeof v === 'string' ? v.toLowerCase().replace(/[^a-z]/g, '') : ''
+}
+
 export function toDeviceCheckView(
   outcome: ServerOutcome,
   ctx: { claimed?: ClaimedDevice; idAttestation: IdAttestation; idError?: string },
@@ -199,20 +208,23 @@ export function toDeviceCheckView(
 
   const proves = proveLines(r, ctx.idAttestation)
   // Defence in depth: a "valid" answer that contradicts itself is not shown as genuine.
+  // Only an explicit hardware level, an explicit challenge match and a verified, locked boot count as genuine.
   const contradicts =
-    r.challenge_match === false ||
+    r.challenge_match !== true ||
     r.revoked === true ||
-    str(r.security_level) === 'software' ||
-    str(r.security_level) == null
+    !HARDWARE_LEVELS.has(norm(r.security_level)) ||
+    norm(r.root_of_trust?.verified_boot_state) !== 'verified' ||
+    r.root_of_trust?.device_locked !== true
   if (!r.valid || contradicts) {
     const notes = [...base.notes]
+    if (r.valid && contradicts) notes.unshift(CONTRADICTION_NOTE)
     const why = str(r.reason)
     if (why) notes.unshift(`Reason: ${why.replace(/_/g, ' ')}`)
     return { claims, proves, notes, status: 'not_verified', headline: TEXT.notVerified }
   }
 
   const name = attestedName(r)
-  const revocationUnchecked = r.reason === 'revocation_unchecked' || r.revocation_checked === false
+  const revocationUnchecked = r.reason === 'revocation_unchecked' || r.revocation_checked !== true
   const headline =
     (name ? `Genuine ${name} with a hardware-backed key` : TEXT.genericGenuine.replace(/\.$/, '')) +
     (revocationUnchecked ? TEXT.revocationUnchecked : '') +

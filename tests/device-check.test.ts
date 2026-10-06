@@ -109,11 +109,31 @@ describe('server response -> UI text', () => {
       { revoked: true },
       { security_level: 'software' },
       { security_level: null },
-    ]) {
+      { security_level: 'unknown' },
+      { challenge_match: undefined },
+      { root_of_trust: { verified_boot_state: 'unverified', device_locked: true } },
+      { root_of_trust: { verified_boot_state: 'verified', device_locked: false } },
+      { root_of_trust: null },
+    ] as Partial<VerifyResponse>[]) {
       const v = toDeviceCheckView({ kind: 'ok', body: ok(over) }, { claimed: CLAIMED, idAttestation: 'included' })
       expect(v.status).toBe('not_verified')
       expect(v.headline).not.toMatch(/genuine/i)
     }
+  })
+
+  it('hardware level names compare loosely (StrongBox, TrustedEnvironment)', () => {
+    for (const level of ['StrongBox', 'TRUSTED_ENVIRONMENT', 'TrustedEnvironment']) {
+      const v = toDeviceCheckView({ kind: 'ok', body: ok({ security_level: level }) }, { claimed: CLAIMED, idAttestation: 'included' })
+      expect(v.status).toBe('verified')
+    }
+  })
+
+  it('revocation status missing is said out loud', () => {
+    const v = toDeviceCheckView(
+      { kind: 'ok', body: ok({ revocation_checked: undefined, revoked: null }) },
+      { claimed: CLAIMED, idAttestation: 'included' },
+    )
+    expect(v.headline).toContain('revocation list not checked')
   })
 
   it('unlocked bootloader is described, not hidden', () => {

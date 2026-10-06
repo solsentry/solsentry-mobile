@@ -15,6 +15,15 @@ export function DeviceCheckSection() {
     setBusy(true)
     try {
       setView(await runDeviceCheck())
+    } catch (e) {
+      // Never a silent failure: an unexpected throw is shown as "could not verify", never as genuine.
+      setView({
+        claims: [],
+        proves: [],
+        notes: [`Detail: ${(e as Error)?.message ?? String(e)}`],
+        status: 'could_not_verify',
+        headline: 'Could not verify this device.',
+      })
     } finally {
       setBusy(false)
     }
