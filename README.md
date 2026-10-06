@@ -12,6 +12,10 @@ Package id `app.solsentry.guard`. Built with Expo / React Native and Solana Mobi
   - **Allow**: "Send with wallet" is enabled.
   - **Warning**: the send button stays disabled until you switch on "I reviewed this recipient".
   - **Block**: sending is disabled. The app shows "Stopped: nothing was built or signed."
+- **What the recipient check looks at.**
+  - Catalogued drainers and the recipient's deployer profile in SolSentry's records (HIGH or CRITICAL blocks, MEDIUM warns).
+  - Whether the address is a wallet at all: a token mint or a program is blocked, because SOL sent there is lost or never reaches a person.
+  - Address poisoning: the recipient is compared with your contacts (addresses you checked that came back Allow, plus the recipients of your wallet's recent SOL transfers). An address that copies the first and last characters of a contact is blocked, and the card shows both addresses. If the wallet's recent transfers cannot be read, the card says the comparison used local history only.
 - **Where did my money come from?** After you connect a wallet, the app looks up the wallet's first funder (one hop back, via Solana RPC), screens both the wallet and that funder, and shows the verdict.
 - **History.** Addresses you checked, kept on the device (AsyncStorage), each with its verdict, date and a "Re-check" button. Re-check before you pay the same address again: signals change.
 
