@@ -24,6 +24,42 @@ function failedClosed(err: unknown, what: string): RecipientVerdict {
 }
 
 type OperatorLookup = { getOperator: (wallet: string) => Promise<OperatorProfile> }
+type CheckGuard = Parameters<typeof checkRecipient>[2] & OperatorLookup
+
+const VERDICTS = new Set(['safe', 'caution', 'dangerous', 'unknown'])
+
+/** The client casts the JSON body without validating it; an odd shape must not turn into Allow. */
+export function assertAnalysis(a: unknown): void {
+  const x = a as { verdict?: unknown; risk_score?: unknown; flags?: unknown } | null
+  if (
+    !x ||
+    typeof x !== 'object' ||
+    typeof x.verdict !== 'string' ||
+    !VERDICTS.has(x.verdict) ||
+    typeof x.risk_score !== 'number' ||
+    !Number.isFinite(x.risk_score) ||
+    (x.flags != null && !Array.isArray(x.flags))
+  ) {
+    throw new Error('unexpected API response')
+  }
+}
+
+/** Wrap the guard so malformed API bodies throw (the vendored checks then fail closed). */
+export function withValidation<G extends CheckGuard>(g: G): G {
+  return {
+    analyzeProgram: async (x: string) => {
+      const a = await g.analyzeProgram(x)
+      assertAnalysis(a)
+      return a
+    },
+    checkLookalike: g.checkLookalike.bind(g),
+    getOperator: async (w: string) => {
+      const o = await g.getOperator(w)
+      if (!o || typeof o !== 'object' || Array.isArray(o)) throw new Error('unexpected API response')
+      return o
+    },
+  } as unknown as G
+}
 
 /**
  * The vendored checkRecipient only asks /v1/contract-analysis, which knows catalogued
@@ -57,10 +93,8 @@ export function applyOperatorScreen(v: RecipientVerdict, operator: OperatorProfi
   return v
 }
 
-export async function screenRecipient(
-  recipient: string,
-  g: Parameters<typeof checkRecipient>[2] & OperatorLookup,
-): Promise<RecipientVerdict> {
+export async function screenRecipient(recipient: string, guardIn: CheckGuard): Promise<RecipientVerdict> {
+  const g = withValidation(guardIn)
   try {
     const v = await checkRecipient(recipient, POLICY, g)
     if (v.decision === 'block' && v.reasons.includes('CHECK_FAILED')) return v
@@ -75,9 +109,21 @@ export async function runRecipientCheck(recipient: string): Promise<RecipientVer
   return screenRecipient(recipient, guard)
 }
 
+export async function screenSender(
+  sender: string,
+  g: CheckGuard,
+  opts: Parameters<typeof checkSender>[3],
+): Promise<SenderVerdict> {
+  try {
+    return await checkSender(sender, POLICY, withValidation(g), opts)
+  } catch (err) {
+    return failedClosed(err, 'Source-of-funds check')
+  }
+}
+
 export async function runSenderCheck(sender: string): Promise<SenderVerdict> {
   try {
-    return await checkSender(sender, POLICY, guard, { rpcUrl: RPC_URL })
+    return await screenSender(sender, guard, { rpcUrl: RPC_URL })
   } catch (err) {
     return failedClosed(err, 'Source-of-funds check')
   }
