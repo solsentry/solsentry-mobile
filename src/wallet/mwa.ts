@@ -2,7 +2,7 @@ import { Connection } from '@solana/web3.js'
 import { transact } from '@solana-mobile/mobile-wallet-adapter-protocol-web3js'
 import { RPC_URL, VERDICT_MAX_AGE_MS } from '../config'
 import type { PayExtras } from '../pay/transfer'
-import { sendTracked } from './send-recovery'
+import { sendTracked, type PendingSend } from './send-recovery'
 import { disconnectWallet, withAuthorizedWallet, type AuthCallbacks, type WalletSession } from './mwa-session'
 
 export { parseSolToLamports } from './mwa-math'
@@ -45,6 +45,7 @@ export async function sendSol(
   authToken?: string,
   extras?: PayExtras,
   cb?: AuthCallbacks,
+  onPending?: (p: PendingSend) => void,
 ): Promise<SendResult & { session: WalletSession }> {
   const connection = new Connection(RPC_URL, 'confirmed')
   return sendTracked(
@@ -54,6 +55,6 @@ export async function sendSol(
       getSlot: () => connection.getSlot('confirmed'),
       maxVerdictAgeMs: VERDICT_MAX_AGE_MS,
     },
-    { recipient, lamports, checkedAt, authToken, extras, cb },
+    { recipient, lamports, checkedAt, authToken, extras, cb, onPending },
   )
 }

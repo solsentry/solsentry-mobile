@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import Clipboard from '@react-native-clipboard/clipboard'
 import * as Linking from 'expo-linking'
 import { useLocalSearchParams, useRouter } from 'expo-router'
@@ -17,18 +18,29 @@ import { Button, Footer, VerdictCard } from '@/src/ui/components'
 import { describeError, type UserError, type WalletAction } from '@/src/ui/errors'
 import { theme } from '@/src/ui/theme'
 import { sendEnabled, toUiState } from '@/src/ui/verdict'
-import { sendSol } from '@/src/wallet/mwa'
+import { sendSol, type WalletSession } from '@/src/wallet/mwa'
 import { formatLamportsAsSol, parseSolToLamports } from '@/src/wallet/mwa-math'
 import {
-  blockedByPending,
+  addPending,
+  applyRecovery,
+  loadPending,
+  lockedFor,
+  pendingKey,
+  prunePending,
+  removePending,
+  RESTORED_NOTICE,
+  savePending,
+  type PendingMap,
+  type PendingRecord,
+} from '@/src/wallet/pending-sends'
+import {
   CHECKING_NETWORK,
   COULD_NOT_CONFIRM,
-  guardAfterEdit,
   NOT_SENT,
   publicRpc,
   recoverPendingSend,
   SendOutcomeUnknownError,
-  type PendingGuard,
+  type PendingSend,
 } from '@/src/wallet/send-recovery'
 
 const RECOVERY_DEPS = {
@@ -80,7 +92,7 @@ export default function CheckAndSend() {
   const lastPay = useRef('')
   const [checkedAt, setCheckedAt] = useState(0)
   const [reviewed, setReviewed] = useState(false)
-  const [busy, setBusy] = useState<null | 'check' | 'send' | 'connect' | 'sender' | 'disconnect'>(null)
+  const [busy, setBusy] = useState<null | 'check' | 'send' | 'recheck' | 'connect' | 'sender' | 'disconnect'>(null)
   const [error, setErrorState] = useState<UserError | null>(null)
   const [showDetail, setShowDetail] = useState(false)
   const setError = (message: string | null) => {
@@ -93,10 +105,27 @@ export default function CheckAndSend() {
     setShowDetail(false)
   }
   const [sent, setSent] = useState<{ signature: string } | null>(null)
-  /** A send whose outcome is unknown (wallet timed out): holds Send for that recipient+amount. */
-  const [pendingGuard, setPendingGuard] = useState<PendingGuard | null>(null)
+  /**
+   * Sends whose outcome is not known yet, by recipient+amount. Each locks Send for its pair until
+   * the chain answers (found / not sent) or its TTL passes; editing the form never unlocks it.
+   * Persisted, so a remount or restart keeps the lock.
+   */
+  const [pending, setPending] = useState<PendingMap>({})
+  /** Key of the record whose network check is running now. */
+  const [checkingKey, setCheckingKey] = useState<string | null>(null)
   /** Progress line while the network is checked; not an error. */
   const [notice, setNotice] = useState<string | null>(null)
+  const updatePending = (fn: (m: PendingMap) => PendingMap) =>
+    setPending((prev) => {
+      const next = prunePending(fn(prev), Date.now())
+      void savePending(AsyncStorage, next)
+      return next
+    })
+
+  useEffect(() => {
+    // Records written in this session win over what was stored.
+    void loadPending(AsyncStorage, Date.now()).then((stored) => setPending((prev) => ({ ...stored, ...prev })))
+  }, [])
   const [senderVerdict, setSenderVerdict] = useState<SenderVerdict | null>(null)
   const [senderAt, setSenderAt] = useState(0)
   /** Seeker Genesis Token of the connected wallet only (never shown for a recipient). */
@@ -143,7 +172,6 @@ export default function CheckAndSend() {
     setReviewed(false)
     setError(null)
     setSent(null)
-    setPendingGuard(guardAfterEdit)
   }
 
   /** Fill the form from a QR / link and run the recipient check. It never skips the check. */
@@ -249,10 +277,6 @@ export default function CheckAndSend() {
       return
     }
     if (!sendEnabled(ui, reviewed, false) || !checkedTarget) return
-    if (blockedByPending(pendingGuard, checkedTarget, parsedAmount)) {
-      setError(COULD_NOT_CONFIRM)
-      return
-    }
     if (payBlocked) {
       setError(payBlocked)
       return
@@ -262,6 +286,11 @@ export default function CheckAndSend() {
       lamports = parseSolToLamports(amount)
     } catch (e) {
       setError((e as Error).message)
+      return
+    }
+    const lock = lockedFor(pending, checkedTarget, lamports, Date.now())
+    if (lock) {
+      setError(lock.restored ? RESTORED_NOTICE : COULD_NOT_CONFIRM)
       return
     }
     setBusy('send')
@@ -285,43 +314,70 @@ export default function CheckAndSend() {
         payRequest?.kind === 'transfer' && payRequest.recipient === checkedTarget
           ? { references: payRequest.references, memo: payRequest.memo }
           : undefined
-      const r = await sendSol(checkedTarget, lamports, checkedAt, wallet.session?.authToken, extras, {
-        // Keep a fresh authorization even if the signature is then cancelled; drop a rejected token.
-        onSession: wallet.setSession,
-        onTokenRejected: wallet.forgetToken,
-      })
+      const r = await sendSol(
+        checkedTarget,
+        lamports,
+        checkedAt,
+        wallet.session?.authToken,
+        extras,
+        {
+          // Keep a fresh authorization even if the signature is then cancelled; drop a rejected token.
+          onSession: wallet.setSession,
+          onTokenRejected: wallet.forgetToken,
+        },
+        // Locked (and persisted) before the wallet is asked: an app kill mid-prompt keeps the lock.
+        (p) => updatePending((m) => addPending(m, p)),
+      )
+      updatePending((m) => removePending(m, checkedTarget, lamports))
       wallet.setSession(r.session)
       setSent({ signature: r.signature })
     } catch (e) {
-      if (e instanceof SendOutcomeUnknownError) await checkPendingSend(e)
-      else showError(e, 'send')
+      if (e instanceof SendOutcomeUnknownError) {
+        await checkPendingSend(e.pending, e.session, describeError(e.cause, 'send').detail)
+      } else {
+        // Declined, or failed before reaching the wallet: nothing can be in flight.
+        updatePending((m) => removePending(m, checkedTarget, lamports))
+        showError(e, 'send')
+      }
     } finally {
       setBusy(null)
     }
   }
 
   /** The wallet may have sent it anyway: never report a failure before the chain says so. */
-  async function checkPendingSend(e: SendOutcomeUnknownError) {
-    const p = e.pending
-    setPendingGuard({ recipient: p.recipient, lamports: p.lamports, phase: 'checking' })
+  async function checkPendingSend(p: PendingSend, session?: WalletSession, detail?: string) {
+    setCheckingKey(pendingKey(p.recipient, p.lamports))
     setNotice(CHECKING_NETWORK)
     try {
       const r = await recoverPendingSend(p, RECOVERY_DEPS)
+      updatePending((m) => applyRecovery(m, p, r))
       if (r.status === 'found') {
-        setPendingGuard(null)
+        if (session) wallet.setSession(session)
+        setError(null)
         setSent({ signature: r.signature })
       } else if (r.status === 'expired') {
-        setPendingGuard(null)
         setError(NOT_SENT)
       } else {
-        setPendingGuard((g) => (g ? { ...g, phase: 'unconfirmed' } : g))
-        setErrorState({ message: COULD_NOT_CONFIRM, detail: describeError(e.cause, 'send').detail })
+        setErrorState({ message: COULD_NOT_CONFIRM, detail })
         setShowDetail(false)
       }
     } finally {
       setNotice(null)
+      setCheckingKey(null)
     }
   }
+
+  const onRecheck = (r: PendingRecord) =>
+    once(async () => {
+      setError(null)
+      setSent(null)
+      setBusy('recheck')
+      try {
+        await checkPendingSend(r)
+      } finally {
+        setBusy(null)
+      }
+    })
 
   const onConnect = () => once(doConnect)
   const onSenderCheck = () => once(doSenderCheck)
@@ -368,8 +424,9 @@ export default function CheckAndSend() {
   const canPress = ui
     ? sendEnabled(ui, reviewed, busy !== null) &&
       verdictIsCurrent &&
-      !blockedByPending(pendingGuard, checkedTarget, parsedAmount)
+      !lockedFor(pending, checkedTarget, parsedAmount, Date.now())
     : false
+  const openPending = Object.entries(prunePending(pending, Date.now())).filter(([k]) => k !== checkingKey)
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -433,10 +490,7 @@ export default function CheckAndSend() {
           <TextInput
             style={styles.input}
             value={amount}
-            onChangeText={(t) => {
-              setAmount(t)
-              setPendingGuard(guardAfterEdit)
-            }}
+            onChangeText={setAmount}
             placeholder="0.05"
             placeholderTextColor={theme.muted}
             keyboardType="decimal-pad"
@@ -448,6 +502,23 @@ export default function CheckAndSend() {
           <Button title="Check recipient" onPress={onCheck} busy={busy === 'check'} disabled={busy !== null || !trimmed} />
 
           {notice && <Text style={styles.notice}>{notice}</Text>}
+
+          {openPending.map(([key, r]) => (
+            <View key={key} style={styles.pendingBox}>
+              <Text style={styles.payText}>{r.restored ? RESTORED_NOTICE : COULD_NOT_CONFIRM}</Text>
+              <Text selectable style={styles.mono}>
+                {formatLamportsAsSol(r.lamports)} SOL to {short(r.recipient)}
+              </Text>
+              <Text style={styles.hint}>Sending this amount to this address is paused until the network answers.</Text>
+              <Button
+                variant="secondary"
+                title="Check again"
+                onPress={() => onRecheck(r)}
+                busy={busy === 'recheck'}
+                disabled={busy !== null}
+              />
+            </View>
+          ))}
 
           {error && (
             <View style={styles.errorBox}>
@@ -571,6 +642,7 @@ const styles = StyleSheet.create({
   },
   hint: { color: theme.muted, fontSize: 13 },
   notice: { color: theme.text, fontSize: 14, fontWeight: '600' },
+  pendingBox: { borderColor: theme.stop, borderWidth: 1.5, borderRadius: 12, padding: 14, gap: 6, backgroundColor: theme.white },
   sgtBox: { gap: 2 },
   sgtLine: { color: theme.text, fontSize: 14, fontWeight: '600' },
   sgtRetry: { color: theme.accent, fontWeight: '700' },

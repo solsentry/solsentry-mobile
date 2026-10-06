@@ -42,6 +42,8 @@ export class SendOutcomeUnknownError extends Error {
   constructor(
     readonly pending: PendingSend,
     readonly cause: unknown,
+    /** The session the wallet authorized for this send (to keep once the transfer is found). */
+    readonly session?: WalletSession,
   ) {
     super(CHECKING_NETWORK)
     this.name = 'SendOutcomeUnknownError'
@@ -72,6 +74,8 @@ export interface SendRequest {
   authToken?: string
   extras?: PayExtras
   cb?: AuthCallbacks
+  /** Fires right before the wallet is asked to sign and send: persist the record (lock) here. */
+  onPending?: (p: PendingSend) => void
 }
 
 /**
@@ -85,7 +89,7 @@ export async function sendTracked(
   const now = deps.now ?? Date.now
   const to = new PublicKey(req.recipient)
   // Set inside the transact callback; read in the catch below, so an object, not a let.
-  const st: { pending: PendingSend | null } = { pending: null }
+  const st: { pending: PendingSend | null; session?: WalletSession } = { pending: null }
   try {
     return await withAuthorizedWallet(
       deps.transact,
@@ -108,6 +112,12 @@ export async function sendTracked(
           startedAt: now(),
           startSlot,
         }
+        st.session = session
+        try {
+          req.onPending?.(st.pending)
+        } catch {
+          // Persisting the lock is best effort; the send itself goes on.
+        }
         const [signature] = await wallet.signAndSendTransactions({ transactions: [tx] })
         if (!signature) throw new Error('The wallet returned no signature.')
         return { signature, from: session.address, session }
@@ -115,7 +125,7 @@ export async function sendTracked(
       req.cb,
     )
   } catch (e) {
-    if (st.pending && !isWalletDecline(e)) throw new SendOutcomeUnknownError(st.pending, e)
+    if (st.pending && !isWalletDecline(e)) throw new SendOutcomeUnknownError(st.pending, e, st.session)
     throw e
   }
 }
@@ -315,25 +325,4 @@ export async function recoverPendingSend(
     if (cleanAt === null) cleanAt = scanAt
     else if (scanAt - cleanAt >= RECHECK_GAP_MS) return done({ status: 'expired' })
   }
-}
-
-// ---------------------------------------------------------------------------------------------
-// Send-button guard
-
-export interface PendingGuard {
-  recipient: string
-  lamports: bigint
-  phase: 'checking' | 'unconfirmed'
-}
-
-/** While a check runs nothing may be sent; after "could not confirm", only the same recipient+amount is held. */
-export function blockedByPending(g: PendingGuard | null, recipient: string, lamports: bigint | null): boolean {
-  if (!g) return false
-  if (g.phase === 'checking') return true
-  return recipient === g.recipient && lamports === g.lamports
-}
-
-/** Guard after the user edits recipient or amount: an ended check is released; a running one is kept. */
-export function guardAfterEdit(g: PendingGuard | null): PendingGuard | null {
-  return g?.phase === 'checking' ? g : null
 }

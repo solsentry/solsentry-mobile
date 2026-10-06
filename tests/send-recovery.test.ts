@@ -2,15 +2,23 @@ import { PublicKey } from '@solana/web3.js'
 import { describe, expect, it } from 'vitest'
 import type { Transact } from '../src/wallet/mwa-session'
 import {
-  blockedByPending,
+  addPending,
+  applyRecovery,
+  loadPending,
+  lockedFor,
+  PENDING_STORAGE_KEY,
+  PENDING_TTL_MS,
+  removePending,
+  savePending,
+  type KeyValueStore,
+} from '../src/wallet/pending-sends'
+import {
   expiryHorizon,
-  guardAfterEdit,
   hasMatchingTransfer,
   isOurTransfer,
   recoverPendingSend,
   sendTracked,
   SendOutcomeUnknownError,
-  type PendingGuard,
   type PendingSend,
 } from '../src/wallet/send-recovery'
 
@@ -229,18 +237,18 @@ describe('wallet timeout after the request was sent', () => {
     expect(rpc.calls.length).toBeLessThanOrEqual(46)
     spacing(rpc.calls)
 
-    const checking: PendingGuard = { recipient: RECIPIENT, lamports: LAMPORTS, phase: 'checking' }
-    // While checking: nothing goes, whatever the fields say.
-    expect(blockedByPending(checking, RECIPIENT, LAMPORTS)).toBe(true)
-    expect(blockedByPending(checking, RECIPIENT, 1n)).toBe(true)
-    expect(guardAfterEdit(checking)).toBe(checking)
-    const unconfirmed: PendingGuard = { ...checking, phase: 'unconfirmed' }
-    expect(blockedByPending(unconfirmed, RECIPIENT, LAMPORTS)).toBe(true)
-    expect(blockedByPending(unconfirmed, RECIPIENT, LAMPORTS + 1n)).toBe(false)
-    expect(blockedByPending(unconfirmed, SENDER_B58, LAMPORTS)).toBe(false)
-    // Editing after the check ended releases it.
-    expect(guardAfterEdit(unconfirmed)).toBeNull()
-    expect(blockedByPending(null, RECIPIENT, LAMPORTS)).toBe(false)
+    // The record stays: "could not confirm" keeps Send locked for this recipient+amount.
+    let map = applyRecovery(addPending({}, pending), pending, r)
+    const now = T0 + 120_000
+    expect(lockedFor(map, RECIPIENT, LAMPORTS, now)).not.toBeNull()
+    // Edit-and-restore: change the amount (another pair is free), then type the same amount back.
+    expect(lockedFor(map, RECIPIENT, LAMPORTS + 1n, now)).toBeNull()
+    expect(lockedFor(map, SENDER_B58, LAMPORTS, now)).toBeNull()
+    expect(lockedFor(map, RECIPIENT, LAMPORTS, now)).not.toBeNull()
+    // Only a definite answer or the TTL releases it.
+    expect(lockedFor(map, RECIPIENT, LAMPORTS, T0 + PENDING_TTL_MS)).toBeNull()
+    map = applyRecovery(map, pending, { status: 'expired' })
+    expect(lockedFor(map, RECIPIENT, LAMPORTS, now)).toBeNull()
   })
 
   it('a miss with a full page of new signatures proves nothing: no "Not sent"', async () => {
@@ -333,5 +341,60 @@ describe('decline in the wallet', () => {
     const r = await sendTracked(deps(w.transact), { recipient: RECIPIENT, lamports: LAMPORTS, checkedAt: T0 })
     expect(r.signature).toBe('abc')
     expect(r.from).toBe(SENDER_B58)
+  })
+})
+
+describe('pending-send lock', () => {
+  const memoryStore = () => {
+    const data = new Map<string, string>()
+    const kv: KeyValueStore = {
+      getItem: async (k) => data.get(k) ?? null,
+      setItem: async (k, v) => {
+        data.set(k, v)
+      },
+    }
+    return { kv, data }
+  }
+
+  it('is recorded before the wallet is asked, and the timeout error carries the session', async () => {
+    const order: string[] = []
+    const w = fakeWallet(() => {
+      order.push('wallet')
+      return timeoutErr()
+    })
+    const err = await sendTracked(deps(w.transact), {
+      recipient: RECIPIENT,
+      lamports: LAMPORTS,
+      checkedAt: T0,
+      onPending: (p) => order.push(`pending:${p.recipient}`),
+    }).catch((e) => e)
+    expect(order).toEqual([`pending:${RECIPIENT}`, 'wallet'])
+    expect(err).toBeInstanceOf(SendOutcomeUnknownError)
+    expect(err.session).toMatchObject({ address: SENDER_B58, authToken: 't' })
+  })
+
+  it('survives a restart: persisted, restored, still locked for the same pair until TTL', async () => {
+    const { kv, data } = memoryStore()
+    const withEnd = applyRecovery(addPending({}, pending), pending, { status: 'unknown', endHeight: 995 })
+    await savePending(kv, withEnd)
+    expect(data.get(PENDING_STORAGE_KEY)).toContain('"lamports":"50000000"')
+
+    const restored = await loadPending(kv, T0 + 60_000)
+    const lock = lockedFor(restored, RECIPIENT, LAMPORTS, T0 + 60_000)
+    expect(lock).toMatchObject({ restored: true, lamports: LAMPORTS, endHeight: 995, startSlot: START_SLOT })
+    // Past the TTL it is gone on load.
+    expect(await loadPending(kv, T0 + PENDING_TTL_MS + 1)).toEqual({})
+  })
+
+  it('"Check again" outcomes: found clears, unknown keeps, garbage in storage is ignored', async () => {
+    const map = addPending({}, pending)
+    expect(lockedFor(applyRecovery(map, pending, { status: 'found', signature: 's' }), RECIPIENT, LAMPORTS, T0)).toBeNull()
+    expect(lockedFor(applyRecovery(map, pending, { status: 'unknown' }), RECIPIENT, LAMPORTS, T0)).not.toBeNull()
+    expect(lockedFor(removePending(map, RECIPIENT, LAMPORTS), RECIPIENT, LAMPORTS, T0)).toBeNull()
+    const { kv, data } = memoryStore()
+    data.set(PENDING_STORAGE_KEY, '[{"sender":1},"x",null]')
+    expect(await loadPending(kv, T0)).toEqual({})
+    data.set(PENDING_STORAGE_KEY, '{not json')
+    expect(await loadPending(kv, T0)).toEqual({})
   })
 })
