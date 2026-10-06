@@ -20,7 +20,7 @@ export async function resolveRecipientInput(input: string, deps: ResolveDeps): P
   }
   if (looksLikeName(s)) return { ok: false, error: 'That name is not well formed.', isName: true }
   if (isPublicKey(s)) return { ok: true, address: s, name: null }
-  return { ok: false, error: 'That is not a valid Solana address (base58, 32 bytes) or a .sol, .sns or .skr name.', isName: false }
+  return { ok: false, error: 'That is not a valid Solana address (base58, 32 bytes) or a name such as name.skr.', isName: false }
 }
 
 /** A name that cannot be resolved is a block with the reason (fail closed). */

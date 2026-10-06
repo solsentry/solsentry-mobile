@@ -321,7 +321,7 @@ export default function CheckAndSend() {
               setPayRequest(null)
               resetResult()
             }}
-            placeholder="Address, name.sol, name.sns or name.skr"
+            placeholder="Address or name.skr"
             placeholderTextColor={theme.muted}
             autoCapitalize="none"
             autoCorrect={false}
