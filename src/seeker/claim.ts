@@ -4,6 +4,8 @@
 //
 // SIWS contract mirrored from solsentry integrations/auth/endpoints.py
 // (_build_siws_message, handle_wallet_nonce, handle_wallet_verify, _decode_signature).
+// Seeker contract mirrored from integrations/auth/seeker.py (handle_seeker_claim,
+// claim_for_user, _status_payload, handle_seeker_status).
 import { fetchWithTimeout } from '../guard/service'
 
 export const CLAIM_TIMEOUT_MS = 10_000
@@ -25,19 +27,34 @@ export function buildSiwsMessage(domain: string, uri: string, pubkey: string, no
 }
 
 export type ClaimOutcome =
-  | { kind: 'granted'; expiresAt: string; benefit: string | null; newlyGranted: boolean }
+  | { kind: 'granted'; expiresAt: string; benefit: string | null; newlyGranted: boolean; benefitActive: boolean | null }
   | { kind: 'no_sgt' }
   | { kind: 'already_claimed' }
+  | { kind: 'paid_plan' }
+  | { kind: 'reauth' }
   | { kind: 'retry' }
   | { kind: 'unavailable' }
   | { kind: 'cancelled' }
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
-/** "6 Jan 2027" in UTC: no locale data needed on Hermes, and the day does not shift with the phone's zone. */
+/**
+ * The server sends naive-UTC isoformat() + "Z" ("2027-01-04T12:00:00Z", microseconds when
+ * present). Only the UTC calendar date is read, by pattern: no Date parsing quirks on Hermes,
+ * no locale data, and the day does not shift with the phone's zone.
+ */
+const ISO_DATE = /^(\d{4})-(\d{2})-(\d{2})T/
+
+export function isExpiryDate(v: string): boolean {
+  const m = ISO_DATE.exec(v)
+  return !!m && Number(m[2]) >= 1 && Number(m[2]) <= 12 && Number(m[3]) >= 1 && Number(m[3]) <= 31
+}
+
+/** "4 Jan 2027". */
 export function formatExpiry(iso: string): string {
-  const d = new Date(iso)
-  return `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}`
+  const m = ISO_DATE.exec(iso)
+  if (!m) return iso
+  return `${Number(m[3])} ${MONTHS[Number(m[2]) - 1]} ${m[1]}`
 }
 
 export function claimText(o: ClaimOutcome): string {
@@ -48,6 +65,10 @@ export function claimText(o: ClaimOutcome): string {
       return 'No Seeker Genesis Token in this wallet'
     case 'already_claimed':
       return 'This Seeker was already used to claim'
+    case 'paid_plan':
+      return 'You already have a paid SolSentry plan'
+    case 'reauth':
+      return 'Sign in with your wallet again'
     case 'retry':
       return 'Could not verify, try again'
     case 'unavailable':
@@ -180,16 +201,55 @@ async function postVerify(
   return token
 }
 
-/** Maps a /v1/seeker/claim (or /status) reply to an outcome. Shape per the server contract. */
+/**
+ * Maps a POST /v1/seeker/claim reply (seeker.py handle_seeker_claim / claim_for_user):
+ *   200 {eligible:false}
+ *   200 {eligible:true, claimed:true, already_claimed:bool, [tier], seeker_verified, sgt_mint,
+ *        benefit, expires_at, benefit_active}
+ *   401 auth required · 403 siws_session_required · 404 flag off
+ *   409 sgt_already_claimed | paid_plan_active · 503 could not verify | auth_db_unavailable
+ */
 export function mapClaimResponse(status: number, body: Record<string, unknown> | null): ClaimOutcome {
   if (status === 404) return { kind: 'unavailable' }
-  if (status === 409) return body?.error === 'sgt_already_claimed' ? { kind: 'already_claimed' } : { kind: 'retry' }
+  if (status === 403) return body?.error === 'siws_session_required' ? { kind: 'reauth' } : { kind: 'retry' }
+  if (status === 409) {
+    if (body?.error === 'sgt_already_claimed') return { kind: 'already_claimed' }
+    if (body?.error === 'paid_plan_active') return { kind: 'paid_plan' }
+    return { kind: 'retry' }
+  }
   if (status !== 200 || !body) return { kind: 'retry' }
   if (body.eligible === false) return { kind: 'no_sgt' }
-  if (body.eligible !== true || typeof body.granted !== 'boolean') return { kind: 'retry' }
+  if (body.eligible !== true) return { kind: 'retry' }
+  const granted = body.claimed === true || body.already_claimed === true
   const expiresAt = str(body.expires_at)
-  if (!expiresAt || Number.isNaN(new Date(expiresAt).getTime())) return { kind: 'retry' }
-  return { kind: 'granted', expiresAt, benefit: str(body.benefit), newlyGranted: body.granted }
+  if (!granted || !expiresAt || !isExpiryDate(expiresAt)) return { kind: 'retry' }
+  return {
+    kind: 'granted',
+    expiresAt,
+    benefit: str(body.benefit),
+    newlyGranted: body.already_claimed !== true,
+    benefitActive: typeof body.benefit_active === 'boolean' ? body.benefit_active : null,
+  }
+}
+
+export type StatusOutcome =
+  | { kind: 'claimed'; expiresAt: string | null; benefit: string | null; benefitActive: boolean }
+  | { kind: 'not_claimed' }
+  | { kind: 'retry' }
+  | { kind: 'unavailable' }
+
+/** GET /v1/seeker/status -> {seeker_verified, sgt_mint, benefit, expires_at, benefit_active} (_status_payload). */
+export function mapStatusResponse(status: number, body: Record<string, unknown> | null): StatusOutcome {
+  if (status === 404) return { kind: 'unavailable' }
+  if (status !== 200 || !body || typeof body.seeker_verified !== 'boolean') return { kind: 'retry' }
+  if (!body.seeker_verified) return { kind: 'not_claimed' }
+  const expiresAt = str(body.expires_at)
+  return {
+    kind: 'claimed',
+    expiresAt: expiresAt && isExpiryDate(expiresAt) ? expiresAt : null,
+    benefit: str(body.benefit),
+    benefitActive: body.benefit_active === true,
+  }
 }
 
 /** POST /v1/seeker/claim with the SIWS session as a Bearer token. */
@@ -208,11 +268,11 @@ export async function getSeekerStatus(
   token: string,
   fetchFn: typeof fetch = (u, i) => globalThis.fetch(u, i),
   timeoutMs: number = CLAIM_TIMEOUT_MS,
-): Promise<ClaimOutcome> {
+): Promise<StatusOutcome> {
   const f = fetchWithTimeout(fetchFn, timeoutMs, 'Seeker status request')
   try {
     const res = await f(`${apiBase}/v1/seeker/status`, { headers: { authorization: `Bearer ${token}` } })
-    return mapClaimResponse(res.status, await readJson(res))
+    return mapStatusResponse(res.status, await readJson(res))
   } catch {
     return { kind: 'retry' }
   }

@@ -6,6 +6,7 @@ import {
   extractSignature,
   getSeekerStatus,
   mapClaimResponse,
+  mapStatusResponse,
   type ClaimDeps,
   type ClaimOutcome,
 } from '../src/seeker/claim'
@@ -152,52 +153,103 @@ describe('request shapes (mirrors handle_wallet_nonce / handle_wallet_verify)', 
   })
 })
 
-describe('claim result mapping', () => {
-  const EXP = '2027-01-04T10:00:00Z'
+describe('claim result mapping (seeker.py handle_seeker_claim / claim_for_user)', () => {
+  const EXP = '2027-01-04T12:00:00Z'
+  const GRANTED = {
+    eligible: true,
+    claimed: true,
+    already_claimed: false,
+    tier: 'pro',
+    seeker_verified: true,
+    sgt_mint: 'DBiW…Heb4',
+    benefit: 'pro_90d',
+    expires_at: EXP,
+    benefit_active: true,
+  }
+  const { tier: _tier, ...IDEMPOTENT_BASE } = GRANTED
+  const IDEMPOTENT = { ...IDEMPOTENT_BASE, already_claimed: true }
+  const RETRY = 'Could not verify, try again'
   const cases: [string, Reply, ClaimOutcome, string][] = [
     [
-      'granted now',
-      { status: 200, body: { eligible: true, granted: true, benefit: 'pro_90d', expires_at: EXP } },
-      { kind: 'granted', expiresAt: EXP, benefit: 'pro_90d', newlyGranted: true },
+      '200 granted now',
+      { status: 200, body: GRANTED },
+      { kind: 'granted', expiresAt: EXP, benefit: 'pro_90d', newlyGranted: true, benefitActive: true },
       'Seeker verified: SolSentry Pro free until 4 Jan 2027',
     ],
     [
-      'already granted to this user (idempotent)',
-      { status: 200, body: { eligible: true, granted: false, benefit: 'pro_90d', expires_at: EXP } },
-      { kind: 'granted', expiresAt: EXP, benefit: 'pro_90d', newlyGranted: false },
+      '200 idempotent (already_claimed:true, no tier)',
+      { status: 200, body: IDEMPOTENT },
+      { kind: 'granted', expiresAt: EXP, benefit: 'pro_90d', newlyGranted: false, benefitActive: true },
       'Seeker verified: SolSentry Pro free until 4 Jan 2027',
     ],
     [
-      'no SGT',
+      '200 granted, expires_at with microseconds (naive isoformat + Z)',
+      { status: 200, body: { ...GRANTED, expires_at: '2027-01-04T12:00:00.123456Z' } },
+      {
+        kind: 'granted',
+        expiresAt: '2027-01-04T12:00:00.123456Z',
+        benefit: 'pro_90d',
+        newlyGranted: true,
+        benefitActive: true,
+      },
+      'Seeker verified: SolSentry Pro free until 4 Jan 2027',
+    ],
+    [
+      '200 not eligible',
       { status: 200, body: { eligible: false } },
       { kind: 'no_sgt' },
       'No Seeker Genesis Token in this wallet',
     ],
+    [
+      '401 authentication required',
+      { status: 401, body: { error: 'authentication required' } },
+      { kind: 'retry' },
+      RETRY,
+    ],
+    [
+      '403 siws_session_required',
+      { status: 403, body: { error: 'siws_session_required' } },
+      { kind: 'reauth' },
+      'Sign in with your wallet again',
+    ],
+    ['403 other', { status: 403, body: { error: 'x' } }, { kind: 'retry' }, RETRY],
+    ['404 feature off', { status: 404, body: { error: 'not found' } }, { kind: 'unavailable' }, 'Not available'],
     [
       '409 sgt_already_claimed',
       { status: 409, body: { error: 'sgt_already_claimed' } },
       { kind: 'already_claimed' },
       'This Seeker was already used to claim',
     ],
-    ['409 other error', { status: 409, body: { error: 'x' } }, { kind: 'retry' }, 'Could not verify, try again'],
-    ['503', { status: 503, body: { error: 'rpc' } }, { kind: 'retry' }, 'Could not verify, try again'],
-    ['404 feature off', { status: 404, body: { error: 'not found' } }, { kind: 'unavailable' }, 'Not available'],
-    ['401', { status: 401, body: { error: 'unauthorized' } }, { kind: 'retry' }, 'Could not verify, try again'],
-    ['500', { status: 500 }, { kind: 'retry' }, 'Could not verify, try again'],
-    ['200 non-JSON', { status: 200 }, { kind: 'retry' }, 'Could not verify, try again'],
     [
-      'eligible true without granted',
-      { status: 200, body: { eligible: true, expires_at: EXP } },
+      '409 paid_plan_active',
+      { status: 409, body: { error: 'paid_plan_active' } },
+      { kind: 'paid_plan' },
+      'You already have a paid SolSentry plan',
+    ],
+    ['409 other error', { status: 409, body: { error: 'x' } }, { kind: 'retry' }, RETRY],
+    ['503 could not verify', { status: 503, body: { error: 'could not verify, try again' } }, { kind: 'retry' }, RETRY],
+    ['503 auth_db_unavailable', { status: 503, body: { error: 'auth_db_unavailable' } }, { kind: 'retry' }, RETRY],
+    ['500', { status: 500 }, { kind: 'retry' }, RETRY],
+    ['200 non-JSON', { status: 200 }, { kind: 'retry' }, RETRY],
+    [
+      'eligible true but neither claimed nor already_claimed',
+      { status: 200, body: { ...GRANTED, claimed: false, already_claimed: false } },
       { kind: 'retry' },
-      'Could not verify, try again',
+      RETRY,
     ],
     [
       'eligible true with a bad date',
-      { status: 200, body: { eligible: true, granted: true, expires_at: 'soon' } },
+      { status: 200, body: { ...GRANTED, expires_at: 'soon' } },
       { kind: 'retry' },
-      'Could not verify, try again',
+      RETRY,
     ],
-    ['eligible missing', { status: 200, body: {} }, { kind: 'retry' }, 'Could not verify, try again'],
+    [
+      'eligible true without expires_at',
+      { status: 200, body: { ...GRANTED, expires_at: null } },
+      { kind: 'retry' },
+      RETRY,
+    ],
+    ['eligible missing', { status: 200, body: {} }, { kind: 'retry' }, RETRY],
   ]
   for (const [name, reply, outcome, text] of cases) {
     it(name, async () => {
@@ -291,14 +343,46 @@ describe('wallet step', () => {
   })
 })
 
-describe('status + pure mapper', () => {
-  it('GET /v1/seeker/status with Bearer, same mapping', async () => {
-    const { f, calls } = fakeFetch({ '/v1/seeker/status': { status: 200, body: { eligible: false } } })
-    expect(await getSeekerStatus(API, 'tok', f)).toEqual({ kind: 'no_sgt' })
+describe('GET /v1/seeker/status (seeker.py _status_payload)', () => {
+  it('claimed: Bearer sent, fields mapped', async () => {
+    const { f, calls } = fakeFetch({
+      '/v1/seeker/status': {
+        status: 200,
+        body: {
+          seeker_verified: true,
+          sgt_mint: 'DBiW…Heb4',
+          benefit: 'pro_90d',
+          expires_at: '2027-01-04T12:00:00Z',
+          benefit_active: true,
+        },
+      },
+    })
+    expect(await getSeekerStatus(API, 'tok', f)).toEqual({
+      kind: 'claimed',
+      expiresAt: '2027-01-04T12:00:00Z',
+      benefit: 'pro_90d',
+      benefitActive: true,
+    })
+    expect(calls[0].init?.method ?? 'GET').toBe('GET')
     expect((calls[0].init?.headers as Record<string, string>).authorization).toBe('Bearer tok')
   })
 
-  it('status network failure -> retry', async () => {
+  it('no claim: all-null payload -> not_claimed', () => {
+    expect(
+      mapStatusResponse(200, {
+        seeker_verified: false,
+        sgt_mint: null,
+        benefit: null,
+        expires_at: null,
+        benefit_active: false,
+      }),
+    ).toEqual({ kind: 'not_claimed' })
+  })
+
+  it('404 -> unavailable; 503 / odd shape / network -> retry', async () => {
+    expect(mapStatusResponse(404, { error: 'not found' })).toEqual({ kind: 'unavailable' })
+    expect(mapStatusResponse(503, { error: 'auth_db_unavailable' })).toEqual({ kind: 'retry' })
+    expect(mapStatusResponse(200, { eligible: false })).toEqual({ kind: 'retry' })
     const { f } = fakeFetch({ '/v1/seeker/status': new Error('down') })
     expect(await getSeekerStatus(API, 'tok', f)).toEqual({ kind: 'retry' })
   })
