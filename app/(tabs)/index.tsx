@@ -2,7 +2,7 @@ import Clipboard from '@react-native-clipboard/clipboard'
 import { PublicKey } from '@solana/web3.js'
 import * as Linking from 'expo-linking'
 import { useLocalSearchParams } from 'expo-router'
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { solscanTx, VERDICT_MAX_AGE_MS } from '@/src/config'
@@ -70,7 +70,23 @@ export default function CheckAndSend() {
   const ui = useMemo(() => (verdict ? toUiState(verdict) : null), [verdict])
   const verdictIsCurrent = !!verdict && checkedFor === trimmed
 
-  async function onCheck() {
+  // React state (busy) lags a render behind a fast double tap; a ref does not.
+  const inFlight = useRef(false)
+
+  async function once(fn: () => Promise<void>) {
+    if (inFlight.current) return
+    inFlight.current = true
+    try {
+      await fn()
+    } finally {
+      inFlight.current = false
+    }
+  }
+
+  const onCheck = () => once(doCheck)
+  const onSend = () => once(doSend)
+
+  async function doCheck() {
     setError(null)
     setSent(null)
     setReviewed(false)
@@ -89,7 +105,7 @@ export default function CheckAndSend() {
     setBusy(null)
   }
 
-  async function onSend() {
+  async function doSend() {
     setError(null)
     if (!ui || !verdict || !verdictIsCurrent) {
       setError('Check this address first.')
