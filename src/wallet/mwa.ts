@@ -48,7 +48,12 @@ export async function sendSol(
 ): Promise<SendResult & { session: WalletSession }> {
   const connection = new Connection(RPC_URL, 'confirmed')
   return sendTracked(
-    { transact, getLatestBlockhash: () => connection.getLatestBlockhash(), maxVerdictAgeMs: VERDICT_MAX_AGE_MS },
+    {
+      transact,
+      getLatestBlockhash: () => connection.getLatestBlockhash(),
+      getSlot: () => connection.getSlot('confirmed'),
+      maxVerdictAgeMs: VERDICT_MAX_AGE_MS,
+    },
     { recipient, lamports, checkedAt, authToken, extras, cb },
   )
 }

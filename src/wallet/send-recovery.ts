@@ -24,6 +24,13 @@ export interface PendingSend {
   lastValidBlockHeight: number
   /** Device clock (ms) when the request went to the wallet. */
   startedAt: number
+  /** Confirmed slot read right before the wallet was asked: our transfer can only land at or after it. */
+  startSlot: number
+  /**
+   * Confirmed block height first seen after the wallet session ended (set by the first network
+   * check, kept for later re-checks). Anchors the expiry horizon for a wallet that rewrote our blockhash.
+   */
+  endHeight?: number
 }
 
 export const CHECKING_NETWORK = 'Wallet did not confirm in time — checking the network…'
@@ -52,6 +59,8 @@ export function isWalletDecline(e: unknown): boolean {
 export interface SendDeps {
   transact: Transact
   getLatestBlockhash: () => Promise<{ blockhash: string; lastValidBlockHeight: number }>
+  /** Current slot at 'confirmed'. */
+  getSlot: () => Promise<number>
   maxVerdictAgeMs: number
   now?: () => number
 }
@@ -86,6 +95,7 @@ export async function sendTracked(
         assertVerdictFresh(req.checkedAt, deps.maxVerdictAgeMs, now())
         const from = new PublicKey(session.address)
         const { blockhash, lastValidBlockHeight } = await deps.getLatestBlockhash()
+        const startSlot = await deps.getSlot()
         const tx = new Transaction({ feePayer: from, recentBlockhash: blockhash }).add(
           ...buildSolTransferInstructions(from, to, req.lamports, req.extras),
         )
@@ -96,6 +106,7 @@ export async function sendTracked(
           blockhash,
           lastValidBlockHeight,
           startedAt: now(),
+          startSlot,
         }
         const [signature] = await wallet.signAndSendTransactions({ transactions: [tx] })
         if (!signature) throw new Error('The wallet returned no signature.')
@@ -112,10 +123,14 @@ export async function sendTracked(
 // ---------------------------------------------------------------------------------------------
 // On-chain lookup
 
-export type RecoveryResult =
+export type RecoveryResult = (
   | { status: 'found'; signature: string }
   | { status: 'expired' }
   | { status: 'unknown' }
+) & {
+  /** PendingSend.endHeight as used by this check; store it so a later re-check keeps the same horizon. */
+  endHeight?: number
+}
 
 /** One JSON-RPC call; returns the parsed envelope ({ result } or { error }). Throws on transport failure. */
 export type RpcCall = (method: string, params: unknown[], timeoutMs: number) => Promise<any>
@@ -130,8 +145,14 @@ export const RECOVERY_CAP_MS = 90_000
 /** Minimum gap between two requests to the public RPC. */
 export const RECOVERY_INTERVAL_MS = 2_000
 const SIGNATURE_LIMIT = 10
-/** Device clock vs block time: a candidate this much older than startedAt is still looked at. */
-const CLOCK_SKEW_S = 120
+/** A transaction is valid while block height <= (height of its blockhash) + 150. */
+const BLOCKHASH_VALID_BLOCKS = 151
+/** Slack for a wallet that took its blockhash at 'processed' (a few blocks ahead of 'confirmed'). */
+const HORIZON_MARGIN_BLOCKS = 20
+/** A transfer under a blockhash the wallet chose must have a block time within this of startedAt. */
+const REWRITTEN_BLOCKTIME_WINDOW_S = 600
+/** "Not sent" needs two clean, complete scans after expiry, at least this far apart (a lagging RPC node). */
+export const RECHECK_GAP_MS = 4_000
 
 /** Plain fetch-based RPC (one call per request, no batch), body bounded by fetchWithTimeout. */
 export function publicRpc(url: string, base: typeof fetch = (u, i) => globalThis.fetch(u, i)): RpcCall {
@@ -174,10 +195,47 @@ export function hasMatchingTransfer(tx: any, p: Pick<PendingSend, 'sender' | 're
   })
 }
 
+interface SigRow {
+  signature: string
+  slot?: number
+  err: unknown
+  blockTime?: number | null
+}
+
 /**
- * Look for the pending transfer on chain. Stops on: found; blockhash expired with nothing found
- * (it can never land now); or the time cap (outcome still unknown). One request at a time, at most
- * one every RECOVERY_INTERVAL_MS. RPC errors are not conclusions: they only cost time.
+ * Is this transaction our transfer? Bound by blockhash first: our blockhash only exists in what
+ * was built from this request. A wallet may rewrite the blockhash; then the transfer must land at
+ * or after the slot read before the request, with a block time within ±10 min of the request.
+ */
+export function isOurTransfer(tx: any, row: Pick<SigRow, 'slot' | 'blockTime'>, p: PendingSend): boolean {
+  if (!hasMatchingTransfer(tx, p)) return false
+  if (tx.transaction?.message?.recentBlockhash === p.blockhash) return true
+  const slot = typeof tx.slot === 'number' ? tx.slot : row.slot
+  const blockTime = typeof tx.blockTime === 'number' ? tx.blockTime : row.blockTime
+  if (typeof slot !== 'number' || slot < p.startSlot || typeof blockTime !== 'number') return false
+  return Math.abs(blockTime - p.startedAt / 1000) <= REWRITTEN_BLOCKTIME_WINDOW_S
+}
+
+/**
+ * Block height after which nothing from this request can still land.
+ *
+ * Our own blockhash dies at lastValidBlockHeight. A wallet that rewrites the blockhash cannot be
+ * told apart before its transaction is seen, so the horizon always also covers that case.
+ * ASSUMPTION: such a wallet takes its blockhash no later than the moment the MWA session ended
+ * (endHeight = first confirmed height seen after the error, which is at or after that moment), so
+ * its transaction is dead once the height passes endHeight + 151 (+ margin for a 'processed'
+ * blockhash). A wallet that signs with a fresh blockhash long after the session closed would break
+ * this; that is why the send lock persists (TTL) and the copy says to check the wallet history.
+ */
+export function expiryHorizon(p: PendingSend, endHeight: number): number {
+  return Math.max(p.lastValidBlockHeight, endHeight + BLOCKHASH_VALID_BLOCKS) + HORIZON_MARGIN_BLOCKS
+}
+
+/**
+ * Look for the pending transfer on chain. Stops on: found; past the expiry horizon with two clean,
+ * complete scans >= RECHECK_GAP_MS apart (it can never land now); or the time cap (outcome still
+ * unknown). One request at a time, at most one every RECOVERY_INTERVAL_MS. RPC errors are not
+ * conclusions: they only cost time.
  */
 export async function recoverPendingSend(
   p: PendingSend,
@@ -185,10 +243,9 @@ export async function recoverPendingSend(
   capMs: number = RECOVERY_CAP_MS,
   intervalMs: number = RECOVERY_INTERVAL_MS,
 ): Promise<RecoveryResult> {
-  const t0 = deps.now()
-  const deadline = t0 + capMs
+  const deadline = deps.now() + capMs
   let lastCall = -Infinity
-  const startedS = Math.floor(p.startedAt / 1000)
+  let endHeight = p.endHeight
   /** Signatures already read and ruled out. */
   const ruledOut = new Set<string>()
 
@@ -208,43 +265,55 @@ export async function recoverPendingSend(
     }
   }
 
-  for (;;) {
-    // Height first, scan second: if the blockhash was already expired before a complete scan that
-    // found nothing, the transfer cannot have landed (nor land later).
-    const h = await call('getBlockHeight', [{ commitment: 'finalized' }])
-    if (h === null) return { status: 'unknown' }
-    const expired = h.ok && typeof h.result === 'number' && h.result > p.lastValidBlockHeight
-
+  /** One pass over the sender's latest signatures. complete = a miss here is proof for this window. */
+  async function scan(): Promise<{ found: string } | { complete: boolean } | null> {
     const sigs = await call('getSignaturesForAddress', [p.sender, { limit: SIGNATURE_LIMIT, commitment: 'confirmed' }])
-    if (sigs === null) return { status: 'unknown' }
-    const rows: { signature: string; err: unknown; blockTime?: number | null }[] =
-      sigs.ok && Array.isArray(sigs.result) ? sigs.result : []
-    let complete = sigs.ok && Array.isArray(sigs.result)
-    // All 10 newer than the window start: older ones may be hidden, so a miss proves nothing.
-    const oldest = rows[rows.length - 1]
-    if (rows.length >= SIGNATURE_LIMIT && oldest?.blockTime != null && oldest.blockTime >= startedS - CLOCK_SKEW_S) {
-      complete = false
-    }
-    for (const s of rows) {
-      if (ruledOut.has(s.signature) || s.err != null) continue
-      if (s.blockTime != null && s.blockTime < startedS - CLOCK_SKEW_S) continue
+    if (sigs === null) return null
+    if (!sigs.ok || !Array.isArray(sigs.result)) return { complete: false }
+    const rows: SigRow[] = sigs.result
+    // Complete only if the page reaches back past the send-start slot (a short page from a lagging
+    // node, or a full page of newer signatures, may hide ours).
+    let complete = rows.some((r) => typeof r.slot === 'number' && r.slot < p.startSlot)
+    for (const r of rows) {
+      if (typeof r.slot === 'number' && r.slot < p.startSlot) continue
+      if (ruledOut.has(r.signature) || r.err != null) continue
       const t = await call('getTransaction', [
-        s.signature,
+        r.signature,
         { encoding: 'jsonParsed', maxSupportedTransactionVersion: 1, commitment: 'confirmed' },
       ])
-      if (t === null) return { status: 'unknown' }
+      if (t === null) return null
       if (!t.ok || !t.result) {
         complete = false
         continue
       }
-      // Same blockhash = built from our request; otherwise it must be no older than the request.
-      const ours =
-        t.result.transaction?.message?.recentBlockhash === p.blockhash ||
-        (typeof t.result.blockTime === 'number' && t.result.blockTime >= startedS)
-      if (ours && hasMatchingTransfer(t.result, p)) return { status: 'found', signature: s.signature }
-      ruledOut.add(s.signature)
+      if (isOurTransfer(t.result, r, p)) return { found: r.signature }
+      ruledOut.add(r.signature)
     }
-    if (expired && complete) return { status: 'expired' }
+    return { complete }
+  }
+
+  const done = (r: RecoveryResult): RecoveryResult => (endHeight === undefined ? r : { ...r, endHeight })
+  /** Start time of the first clean, complete scan past the horizon; null until there is one. */
+  let cleanAt: number | null = null
+  for (;;) {
+    // Height first, scan second: past the horizon before a complete scan that found nothing means
+    // the transfer cannot have landed (nor land later).
+    const h = await call('getBlockHeight', [{ commitment: 'confirmed' }])
+    if (h === null) return done({ status: 'unknown' })
+    const height = h.ok && typeof h.result === 'number' ? h.result : null
+    if (height !== null && endHeight === undefined) endHeight = height
+    const expired = height !== null && endHeight !== undefined && height > expiryHorizon(p, endHeight)
+
+    const scanAt = deps.now()
+    const s = await scan()
+    if (s === null) return done({ status: 'unknown' })
+    if ('found' in s) return done({ status: 'found', signature: s.found })
+    if (!expired || !s.complete) {
+      cleanAt = null
+      continue
+    }
+    if (cleanAt === null) cleanAt = scanAt
+    else if (scanAt - cleanAt >= RECHECK_GAP_MS) return done({ status: 'expired' })
   }
 }
 

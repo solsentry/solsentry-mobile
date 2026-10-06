@@ -3,8 +3,10 @@ import { describe, expect, it } from 'vitest'
 import type { Transact } from '../src/wallet/mwa-session'
 import {
   blockedByPending,
+  expiryHorizon,
   guardAfterEdit,
   hasMatchingTransfer,
+  isOurTransfer,
   recoverPendingSend,
   sendTracked,
   SendOutcomeUnknownError,
@@ -41,9 +43,12 @@ function fakeWallet(onSend: () => string[] | Error) {
   return { transact, sends: () => sends }
 }
 
+const START_SLOT = 5_000
+
 const deps = (transact: Transact) => ({
   transact,
   getLatestBlockhash: async () => ({ blockhash: BLOCKHASH, lastValidBlockHeight: 1000 }),
+  getSlot: async () => START_SLOT,
   maxVerdictAgeMs: 300_000,
   now: () => T0,
 })
@@ -55,6 +60,7 @@ const pending: PendingSend = {
   blockhash: BLOCKHASH,
   lastValidBlockHeight: 1000,
   startedAt: T0,
+  startSlot: START_SLOT,
 }
 
 const transferIx = (lamports: number, destination = RECIPIENT) => ({
@@ -69,26 +75,65 @@ const computeBudgetIx = {
 }
 const lighthouseIx = { programId: 'L2TExMFKdjpN9kozasaurPirfHy9P8sbXoAN1qA3S95', data: 'xyz', accounts: [] }
 
-const parsedTx = (instructions: unknown[], blockTime = T0 / 1000 + 30, err: unknown = null) => ({
+const parsedTx = (
+  instructions: unknown[],
+  blockTime = T0 / 1000 + 30,
+  err: unknown = null,
+  recentBlockhash = BLOCKHASH,
+  slot = START_SLOT + 10,
+) => ({
+  slot,
   blockTime,
   meta: { err },
-  transaction: { message: { recentBlockhash: BLOCKHASH, instructions } },
+  transaction: { message: { recentBlockhash, instructions } },
 })
 
+type Row = { signature: string; slot: number; err: null; blockTime: number }
+/** A signature from before the send: makes a page reach back past the send-start slot. */
+const OLD_ROW: Row = { signature: 'old', slot: START_SLOT - 10, err: null, blockTime: T0 / 1000 - 3600 }
+const row = (signature: string, slot = START_SLOT + 10, blockTime = T0 / 1000 + 30): Row => ({
+  signature,
+  slot,
+  err: null,
+  blockTime,
+})
+
+const REC_START = T0 + 90_000 // the wallet timed out after 90 s
+/** Confirmed height when the check starts (endHeight), then one block every 400 ms. */
+const H0 = 995
+const growing = (t: number) => H0 + Math.floor((t - REC_START) / 400)
+const HORIZON = Math.max(1000, H0 + 151) + 20
+
+interface ChainView {
+  height: number
+  /** How many signature scans already ran after a getBlockHeight answer past HORIZON. */
+  scansPastHorizon: number
+}
+
 /**
- * Fake public RPC on a fake clock. Each call advances the clock by `latencyMs`; sleep advances it
- * by the requested amount. `chain(t)` describes what the chain shows at time t.
+ * Fake public RPC on a fake clock. Each call advances the clock by 200 ms; sleep advances it by the
+ * requested amount. `chain(t, view)` describes what the chain shows.
  */
-function fakeRpc(chain: (t: number) => { height: number; sigs: { signature: string; err: null; blockTime: number }[]; txs: Record<string, unknown> }) {
-  let now = T0 + 90_000 // the wallet timed out after 90 s
-  const calls: { method: string; at: number }[] = []
+function fakeRpc(
+  chain: (t: number, v: ChainView) => { height?: number; sigs: Row[]; txs: Record<string, unknown> },
+) {
+  let now = REC_START
+  let scansPastHorizon = 0
+  let lastHeight = 0
+  const calls: { method: string; at: number; height: number }[] = []
   const rpc = async (method: string, params: unknown[]) => {
-    calls.push({ method, at: now })
-    const c = chain(now)
+    const height0 = chain(now, { height: 0, scansPastHorizon }).height ?? growing(now)
+    const c = chain(now, { height: height0, scansPastHorizon })
+    calls.push({ method, at: now, height: height0 })
     now += 200
-    if (method === 'getBlockHeight') return { result: c.height }
+    if (method === 'getBlockHeight') {
+      expect(params[0]).toEqual({ commitment: 'confirmed' })
+      lastHeight = height0
+      return { result: height0 }
+    }
     if (method === 'getSignaturesForAddress') {
       expect((params[1] as { limit: number }).limit).toBe(10)
+      if (lastHeight > HORIZON) scansPastHorizon++
       return { result: c.sigs }
     }
     if (method === 'getTransaction') {
@@ -106,7 +151,7 @@ function fakeRpc(chain: (t: number) => { height: number; sigs: { signature: stri
         now += ms
       },
     },
-    elapsed: () => now - (T0 + 90_000),
+    elapsed: () => now - REC_START,
   }
 }
 
@@ -125,13 +170,12 @@ describe('wallet timeout after the request was sent', () => {
 
     const SIG = 'LNJCnhZ7mVj8fnhCXMwy71VTPQoHwxXTgHU3nQnjpTz21YtTpuPzHJS8SKDCbPBHhMJqSsCQrbBRox7ciXVT6ED'
     const rpc = fakeRpc((t) => ({
-      height: 990,
       // The transfer shows up a few seconds into the check.
-      sigs: t > T0 + 95_000 ? [{ signature: SIG, err: null, blockTime: T0 / 1000 + 40 }] : [],
+      sigs: t > REC_START + 5_000 ? [row(SIG), OLD_ROW] : [OLD_ROW],
       txs: { [SIG]: parsedTx([transferIx(Number(LAMPORTS))]) },
     }))
     const r = await recoverPendingSend(err.pending, rpc.deps)
-    expect(r).toEqual({ status: 'found', signature: SIG })
+    expect(r).toMatchObject({ status: 'found', signature: SIG, endHeight: H0 })
     spacing(rpc.calls)
   })
 
@@ -143,25 +187,44 @@ describe('wallet timeout after the request was sent', () => {
     expect(err).toBeInstanceOf(SendOutcomeUnknownError)
   })
 
-  it('timeout -> blockhash expires and nothing found -> Not sent', async () => {
+  it('timeout -> past the horizon, two clean complete scans >= 4 s apart -> Not sent', async () => {
     const other = 'OtherSig1111111111111111111111111111111111111'
-    const rpc = fakeRpc((t) => ({
-      height: t > T0 + 100_000 ? 1001 : 995,
-      sigs: [{ signature: other, err: null, blockTime: T0 / 1000 + 10 }],
+    const rpc = fakeRpc(() => ({
+      sigs: [row(other), OLD_ROW],
       // Same sender, different amount: not ours.
       txs: { [other]: parsedTx([transferIx(49_000_000)]) },
     }))
     const r = await recoverPendingSend(pending, rpc.deps)
-    expect(r).toEqual({ status: 'expired' })
+    expect(r).toEqual({ status: 'expired', endHeight: H0 })
+    // Our own blockhash died at 1000, but "Not sent" waits for the rewrite horizon too.
+    const scans = rpc.calls.filter((c) => c.method === 'getSignaturesForAddress' && c.height > HORIZON)
+    expect(scans.length).toBe(2)
+    expect(scans[1].at - scans[0].at).toBeGreaterThanOrEqual(4_000)
+    expect(rpc.calls.filter((c) => c.method === 'getSignaturesForAddress' && c.height <= HORIZON).length).toBeGreaterThan(0)
     // The other transaction was read once, then remembered.
     expect(rpc.calls.filter((c) => c.method === 'getTransaction')).toHaveLength(1)
+    expect(rpc.elapsed()).toBeLessThanOrEqual(90_000)
     spacing(rpc.calls)
   })
 
+  it('lagging RPC: first scan past the horizon misses, the re-scan finds it -> Submitted, not "Not sent"', async () => {
+    const mine = 'Mine1111111111111111111111111111111111111111'
+    const rpc = fakeRpc((_t, v) => ({
+      sigs: v.scansPastHorizon >= 1 ? [row(mine), OLD_ROW] : [OLD_ROW],
+      txs: { [mine]: parsedTx([transferIx(Number(LAMPORTS))]) },
+    }))
+    expect(await recoverPendingSend(pending, rpc.deps)).toMatchObject({ status: 'found', signature: mine })
+  })
+
+  it('a short page that does not reach back past the send-start slot proves nothing', async () => {
+    const rpc = fakeRpc(() => ({ sigs: [row('n1', START_SLOT + 3)], txs: { n1: parsedTx([computeBudgetIx]) } }))
+    expect(await recoverPendingSend(pending, rpc.deps)).toEqual({ status: 'unknown', endHeight: H0 })
+  })
+
   it('timeout -> cap hit before expiry -> unknown; Send stays held for the same recipient+amount', async () => {
-    const rpc = fakeRpc(() => ({ height: 990, sigs: [], txs: {} }))
+    const rpc = fakeRpc(() => ({ height: 990, sigs: [OLD_ROW], txs: {} }))
     const r = await recoverPendingSend(pending, rpc.deps)
-    expect(r).toEqual({ status: 'unknown' })
+    expect(r.status).toBe('unknown')
     expect(rpc.elapsed()).toBeLessThanOrEqual(90_000 + 2_000)
     expect(rpc.calls.length).toBeLessThanOrEqual(46)
     spacing(rpc.calls)
@@ -181,10 +244,40 @@ describe('wallet timeout after the request was sent', () => {
   })
 
   it('a miss with a full page of new signatures proves nothing: no "Not sent"', async () => {
-    const sigs = Array.from({ length: 10 }, (_, i) => ({ signature: `spam${i}`, err: null, blockTime: T0 / 1000 + 5 }))
+    const sigs = Array.from({ length: 10 }, (_, i) => row(`spam${i}`, START_SLOT + 1 + i))
     const txs = Object.fromEntries(sigs.map((s) => [s.signature, parsedTx([transferIx(1, SENDER_B58)])]))
-    const rpc = fakeRpc(() => ({ height: 1001, sigs, txs }))
-    expect(await recoverPendingSend(pending, rpc.deps)).toEqual({ status: 'unknown' })
+    const rpc = fakeRpc(() => ({ sigs, txs }))
+    expect((await recoverPendingSend(pending, rpc.deps)).status).toBe('unknown')
+  })
+
+  it('device clock 30 min ahead of the chain: our blockhash still binds the transfer', async () => {
+    const mine = 'Mine1111111111111111111111111111111111111111'
+    const skewed = { ...pending, startedAt: T0 + 30 * 60_000 }
+    const rpc = fakeRpc(() => ({
+      sigs: [row(mine, START_SLOT + 10, T0 / 1000 + 40), OLD_ROW],
+      txs: { [mine]: parsedTx([transferIx(Number(LAMPORTS))], T0 / 1000 + 40) },
+    }))
+    expect(await recoverPendingSend(skewed, rpc.deps)).toMatchObject({ status: 'found', signature: mine })
+  })
+})
+
+describe('wallet that rewrites the blockhash', () => {
+  const OTHER_HASH = '9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin'
+  it('accepted when the slot is at/after send start and the block time within ±10 min', () => {
+    const tx = parsedTx([transferIx(Number(LAMPORTS))], T0 / 1000 + 300, null, OTHER_HASH, START_SLOT + 1)
+    expect(isOurTransfer(tx, {}, pending)).toBe(true)
+  })
+  it('an earlier identical transfer (slot before send start) is not ours', () => {
+    const tx = parsedTx([transferIx(Number(LAMPORTS))], T0 / 1000 - 5, null, OTHER_HASH, START_SLOT - 1)
+    expect(isOurTransfer(tx, {}, pending)).toBe(false)
+  })
+  it('a block time outside ±10 min is not ours', () => {
+    const tx = parsedTx([transferIx(Number(LAMPORTS))], T0 / 1000 + 601, null, OTHER_HASH, START_SLOT + 1)
+    expect(isOurTransfer(tx, {}, pending)).toBe(false)
+  })
+  it('the expiry horizon is never earlier than our own blockhash expiry', () => {
+    expect(expiryHorizon(pending, 800)).toBeGreaterThan(pending.lastValidBlockHeight)
+    expect(expiryHorizon(pending, 995)).toBe(995 + 151 + 20)
   })
 })
 
@@ -205,17 +298,13 @@ describe('matching the transfer', () => {
   it('recovery picks the wallet-wrapped transfer out of a busy history', async () => {
     const mine = 'Mine1111111111111111111111111111111111111111'
     const rpc = fakeRpc(() => ({
-      height: 990,
-      sigs: [
-        { signature: 'noise', err: null, blockTime: T0 / 1000 + 50 },
-        { signature: mine, err: null, blockTime: T0 / 1000 + 40 },
-      ],
+      sigs: [row('noise', START_SLOT + 20), row(mine), OLD_ROW],
       txs: {
         noise: parsedTx([computeBudgetIx]),
         [mine]: parsedTx([computeBudgetIx, lighthouseIx, transferIx(Number(LAMPORTS)), lighthouseIx]),
       },
     }))
-    expect(await recoverPendingSend(pending, rpc.deps)).toEqual({ status: 'found', signature: mine })
+    expect(await recoverPendingSend(pending, rpc.deps)).toMatchObject({ status: 'found', signature: mine })
   })
 })
 
