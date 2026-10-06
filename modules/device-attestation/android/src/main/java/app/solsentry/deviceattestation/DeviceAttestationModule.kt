@@ -58,7 +58,8 @@ class DeviceAttestationModule : Module() {
 
     val tryIds = wantIds && idsSupported
     val tryStrongBox = wantStrongBox && Build.VERSION.SDK_INT >= Build.VERSION_CODES.P
-    var idsRefused = false
+    // Refusal is tracked per level: a StrongBox that refuses IDs says nothing about the TEE.
+    val idsRefusedAt = mutableSetOf<Boolean>()
     // Unrecognized failure on an attempt WITH IDs: kept verbatim so a field run shows what happened.
     var idError: String? = null
 
@@ -73,7 +74,7 @@ class DeviceAttestationModule : Module() {
     var strongBoxGone = false
     for (a in plan) {
       if (a.strongBox && strongBoxGone) continue
-      if (a.ids && idsRefused) continue
+      if (a.ids && a.strongBox in idsRefusedAt) continue
       val alias = "solsentry_attest_" + UUID.randomUUID().toString()
       val tag = (if (a.strongBox) "strongbox" else "tee") + (if (a.ids) "+ids" else "")
       try {
@@ -82,7 +83,7 @@ class DeviceAttestationModule : Module() {
           !wantIds -> "not_requested"
           !idsSupported -> "unsupported"
           a.ids -> "included"
-          idsRefused -> "refused"
+          a.strongBox in idsRefusedAt -> "refused"
           else -> "error"
         }
         val out = mutableMapOf<String, Any?>(
@@ -93,14 +94,17 @@ class DeviceAttestationModule : Module() {
         )
         if (idState == "error" && idError != null) out["idError"] = idError
         return out
-      } catch (e: StrongBoxUnavailableException) {
-        strongBoxGone = true
-        errors.add("$tag: strongbox unavailable")
       } catch (e: Exception) {
+        // StrongBoxUnavailableException is API 28+; test it behind the guard so older devices never resolve it.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P && e is StrongBoxUnavailableException) {
+          strongBoxGone = true
+          errors.add("$tag: strongbox unavailable")
+          continue
+        }
         val text = describe(e)
         errors.add("$tag: $text")
         if (a.ids) {
-          if (isIdAttestationRefusal(e)) idsRefused = true else idError = idError ?: "$tag: $text"
+          if (isIdAttestationRefusal(e)) idsRefusedAt.add(a.strongBox) else idError = idError ?: "$tag: $text"
         }
       } finally {
         deleteQuietly(alias)
@@ -109,7 +113,7 @@ class DeviceAttestationModule : Module() {
     val idState = when {
       !wantIds -> "not_requested"
       !idsSupported -> "unsupported"
-      idsRefused -> "refused"
+      idsRefusedAt.isNotEmpty() -> "refused"
       else -> "error"
     }
     return failure(errors.joinToString(" | ").ifEmpty { "attestation failed" }, idState, idError, claimed)
