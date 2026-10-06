@@ -19,7 +19,10 @@ function decodeAddress(b64: string): PublicKey {
   return new PublicKey(bytes)
 }
 
-async function authorizeIn(wallet: Web3MobileWallet, authToken?: string): Promise<WalletSession> {
+async function authorizeRaw(
+  wallet: Web3MobileWallet,
+  authToken?: string,
+): Promise<{ session: WalletSession; rawAddress: string }> {
   const auth = await wallet.authorize({
     chain: MWA_CHAIN,
     identity: APP_IDENTITY,
@@ -28,10 +31,17 @@ async function authorizeIn(wallet: Web3MobileWallet, authToken?: string): Promis
   const account = auth.accounts[0]
   if (!account) throw new Error('The wallet returned no account.')
   return {
-    address: decodeAddress(account.address).toBase58(),
-    authToken: auth.auth_token,
-    label: account.label,
+    session: {
+      address: decodeAddress(account.address).toBase58(),
+      authToken: auth.auth_token,
+      label: account.label,
+    },
+    rawAddress: account.address,
   }
+}
+
+async function authorizeIn(wallet: Web3MobileWallet, authToken?: string): Promise<WalletSession> {
+  return (await authorizeRaw(wallet, authToken)).session
 }
 
 /** Open the wallet app and authorize this app. No signing happens here. */
@@ -70,5 +80,23 @@ export async function sendSol(
     const [signature] = await wallet.signAndSendTransactions({ transactions: [tx] })
     if (!signature) throw new Error('The wallet returned no signature.')
     return { signature, from: session.address, session }
+  })
+}
+
+/**
+ * One wallet session for a sign-in message: authorize (reusing `authToken`), let `prepare` build
+ * the message for the authorized address, then ask the wallet to sign it with signMessages. Only
+ * a message is signed; no transaction is built here.
+ */
+export async function signInMessage(
+  prepare: (address: string) => Promise<Uint8Array>,
+  authToken?: string,
+): Promise<{ address: string; signedPayload: Uint8Array; session: WalletSession }> {
+  return transact(async (wallet) => {
+    const { session, rawAddress } = await authorizeRaw(wallet, authToken)
+    const payload = await prepare(session.address)
+    const [signedPayload] = await wallet.signMessages({ addresses: [rawAddress], payloads: [payload] })
+    if (!signedPayload) throw new Error('The wallet returned no signature.')
+    return { address: session.address, signedPayload, session }
   })
 }

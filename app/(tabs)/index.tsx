@@ -4,11 +4,20 @@ import { useLocalSearchParams, useRouter } from 'expo-router'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { NAME_RPC_URL, SGT_RPC_URL, SNS_PROXY_URL, solscanTx, VERDICT_MAX_AGE_MS } from '@/src/config'
+import {
+  API_BASE,
+  NAME_RPC_URL,
+  SEEKER_CLAIM_ENABLED,
+  SGT_RPC_URL,
+  SNS_PROXY_URL,
+  solscanTx,
+  VERDICT_MAX_AGE_MS,
+} from '@/src/config'
 import type { RecipientVerdict, SenderVerdict } from '@/src/guard/checks'
 import { runRecipientCheck, runSenderCheck } from '@/src/guard/service'
 import type { ResolveDeps } from '@/src/pay/names'
 import { nameBlockVerdict, resolveRecipientInput } from '@/src/pay/recipient'
+import { claimSeekerAccess, claimText, type ClaimOutcome } from '@/src/seeker/claim'
 import { fetchSgt, SGT_INFO_TEXT, sgtBadgeText, type SgtResult } from '@/src/seeker/sgt'
 import { parseScanned, unsupportedReason, type SolanaPayRequest } from '@/src/pay/solana-pay'
 import { useHistory } from '@/src/state/history'
@@ -16,7 +25,7 @@ import { useWalletState } from '@/src/state/wallet'
 import { Button, Footer, VerdictCard } from '@/src/ui/components'
 import { theme } from '@/src/ui/theme'
 import { sendEnabled, toUiState } from '@/src/ui/verdict'
-import { sendSol } from '@/src/wallet/mwa'
+import { sendSol, signInMessage } from '@/src/wallet/mwa'
 import { formatLamportsAsSol, parseSolToLamports } from '@/src/wallet/mwa-math'
 
 const NAME_DEPS: ResolveDeps = { fetch: (u, i) => globalThis.fetch(u, i), rpcUrl: NAME_RPC_URL, snsProxyUrl: SNS_PROXY_URL }
@@ -71,6 +80,26 @@ export default function CheckAndSend() {
   const [sgt, setSgt] = useState<{ address: string; result: SgtResult | null } | null>(null)
   const sgtRun = useRef(0)
   const walletAddress = wallet.session?.address ?? null
+  /** "Claim Seeker access" result, own busy flag: never shares the check/send state. */
+  const [claim, setClaim] = useState<{ address: string; outcome: ClaimOutcome } | null>(null)
+  const [claimBusy, setClaimBusy] = useState(false)
+
+  async function onClaimSeeker() {
+    const s = wallet.session
+    if (!s || claimBusy || busy !== null) return
+    setClaimBusy(true)
+    setClaim(null)
+    try {
+      const r = await claimSeekerAccess({
+        apiBase: API_BASE,
+        signIn: (prepare) => signInMessage(prepare, s.authToken),
+      })
+      if (r.session) wallet.setSession(r.session)
+      setClaim({ address: r.address ?? s.address, outcome: r.outcome })
+    } finally {
+      setClaimBusy(false)
+    }
+  }
 
   async function lookupSgt(owner: string) {
     const run = ++sgtRun.current
@@ -416,6 +445,20 @@ export default function CheckAndSend() {
                   </Text>
                   <Text style={styles.hint}>{SGT_INFO_TEXT}</Text>
                 </View>
+              )}
+              {SEEKER_CLAIM_ENABLED && (
+                <>
+                  <Button
+                    variant="secondary"
+                    title="Claim Seeker access"
+                    onPress={onClaimSeeker}
+                    busy={claimBusy}
+                    disabled={claimBusy || busy !== null}
+                  />
+                  {claim?.address === wallet.session.address && (
+                    <Text style={styles.sgtLine}>{claimText(claim.outcome)}</Text>
+                  )}
+                </>
               )}
               <Button
                 variant="secondary"

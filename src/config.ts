@@ -22,6 +22,9 @@ export const APP_IDENTITY = {
   icon: 'favicon.png',
 } as const
 
+/** "Claim Seeker access" (SIWS sign-in + /v1/seeker/claim). Off until the server side ships. */
+export const SEEKER_CLAIM_ENABLED = false
+
 /** A verdict older than this must be re-run before sending. */
 export const VERDICT_MAX_AGE_MS = 5 * 60 * 1000
 
