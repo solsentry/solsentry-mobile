@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { STOPPED_TEXT, normalizeDecision, sendEnabled, toUiState } from '../src/ui/verdict'
 import { checkRecipient } from '../src/guard/checks'
 import { upsertEntry, type HistoryEntry } from '../src/state/history-logic'
-import { formatLamportsAsSol, parseSolToLamports } from '../src/wallet/mwa-math'
+import { assertVerdictFresh, formatLamportsAsSol, parseSolToLamports } from '../src/wallet/mwa-math'
 
 describe('verdict -> UI state', () => {
   it('allow: send enabled, no review needed', () => {
@@ -105,5 +105,14 @@ describe('SOL amount parsing', () => {
     expect(formatLamportsAsSol(50_000_000n)).toBe('0.05')
     expect(formatLamportsAsSol(1_000_000_000n)).toBe('1')
     expect(formatLamportsAsSol(1n)).toBe('0.000000001')
+  })
+})
+
+describe('verdict age right before building the tx', () => {
+  it('fresh passes, stale or invalid throws', () => {
+    expect(() => assertVerdictFresh(1_000, 300_000, 1_000 + 299_000)).not.toThrow()
+    expect(() => assertVerdictFresh(1_000, 300_000, 1_000 + 300_001)).toThrow('out of date')
+    expect(() => assertVerdictFresh(0, 300_000, 1_000_000)).toThrow('out of date')
+    expect(() => assertVerdictFresh(NaN, 300_000, 5)).toThrow('out of date')
   })
 })

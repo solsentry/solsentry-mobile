@@ -16,6 +16,13 @@ export function parseSolToLamports(input: string): bigint {
   return lamports
 }
 
+export const STALE_VERDICT_MESSAGE = 'This check is out of date. Run it again before sending.'
+
+/** Throws if the verdict is older than `maxAgeMs`; called right before the transaction is built. */
+export function assertVerdictFresh(checkedAt: number, maxAgeMs: number, now: number = Date.now()): void {
+  if (!Number.isFinite(checkedAt) || now - checkedAt > maxAgeMs) throw new Error(STALE_VERDICT_MESSAGE)
+}
+
 /** Lamports back to a plain SOL string (no float), trailing zeros trimmed. */
 export function formatLamportsAsSol(lamports: bigint): string {
   const whole = lamports / LAMPORTS_PER_SOL

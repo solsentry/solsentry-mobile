@@ -132,7 +132,7 @@ export default function CheckAndSend() {
     }
     setBusy('send')
     try {
-      const r = await sendSol(trimmed, lamports, wallet.session?.authToken)
+      const r = await sendSol(trimmed, lamports, checkedAt, wallet.session?.authToken)
       wallet.setSession(r.session)
       setSent({ signature: r.signature })
     } catch (e) {
