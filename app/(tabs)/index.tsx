@@ -4,7 +4,8 @@ import { useLocalSearchParams, useRouter } from 'expo-router'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { NAME_RPC_URL, SGT_RPC_URL, SNS_PROXY_URL, solscanTx, VERDICT_MAX_AGE_MS } from '@/src/config'
+import { DEVICE_CHECK_ENABLED, NAME_RPC_URL, SGT_RPC_URL, SNS_PROXY_URL, solscanTx, VERDICT_MAX_AGE_MS } from '@/src/config'
+import { DeviceCheckSection } from '@/src/device/DeviceCheckSection'
 import type { RecipientVerdict, SenderVerdict } from '@/src/guard/checks'
 import { runRecipientCheck, runSenderCheck } from '@/src/guard/service'
 import type { ResolveDeps } from '@/src/pay/names'
@@ -430,6 +431,13 @@ export default function CheckAndSend() {
             </>
           ) : (
             <Button variant="secondary" title="Connect wallet" onPress={onConnect} busy={busy === 'connect'} disabled={busy !== null} />
+          )}
+
+          {DEVICE_CHECK_ENABLED && (
+            <>
+              <View style={styles.divider} />
+              <DeviceCheckSection />
+            </>
           )}
 
           <Footer />
