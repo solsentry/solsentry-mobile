@@ -75,7 +75,11 @@ export interface SendRequest {
   extras?: PayExtras
   cb?: AuthCallbacks
   /** Fires right before the wallet is asked to sign and send: persist the record (lock) here. */
-  onPending?: (p: PendingSend) => void
+  /**
+   * Awaited right before the wallet is asked to sign and send: persist the record (lock) here.
+   * If it throws, the send still goes on (the caller keeps its in-memory lock and warns).
+   */
+  onPending?: (p: PendingSend) => void | Promise<void>
 }
 
 /**
@@ -114,7 +118,7 @@ export async function sendTracked(
         }
         st.session = session
         try {
-          req.onPending?.(st.pending)
+          await req.onPending?.(st.pending)
         } catch {
           // Persisting the lock is best effort; the send itself goes on.
         }
@@ -140,6 +144,8 @@ export type RecoveryResult = (
 ) & {
   /** PendingSend.endHeight as used by this check; store it so a later re-check keeps the same horizon. */
   endHeight?: number
+  /** A confirmed height past the expiry horizon was seen: nothing from this request can land any more. */
+  pastHorizon?: boolean
 }
 
 /** One JSON-RPC call; returns the parsed envelope ({ result } or { error }). Throws on transport failure. */
@@ -217,13 +223,23 @@ interface SigRow {
  * was built from this request. A wallet may rewrite the blockhash; then the transfer must land at
  * or after the slot read before the request, with a block time within ±10 min of the request.
  */
-export function isOurTransfer(tx: any, row: Pick<SigRow, 'slot' | 'blockTime'>, p: PendingSend): boolean {
-  if (!hasMatchingTransfer(tx, p)) return false
-  if (tx.transaction?.message?.recentBlockhash === p.blockhash) return true
+export function classifyTransfer(
+  tx: any,
+  row: Pick<SigRow, 'slot' | 'blockTime'>,
+  p: PendingSend,
+): 'ours' | 'not-ours' | 'unknown' {
+  if (!hasMatchingTransfer(tx, p)) return 'not-ours'
+  if (tx.transaction?.message?.recentBlockhash === p.blockhash) return 'ours'
   const slot = typeof tx.slot === 'number' ? tx.slot : row.slot
   const blockTime = typeof tx.blockTime === 'number' ? tx.blockTime : row.blockTime
-  if (typeof slot !== 'number' || slot < p.startSlot || typeof blockTime !== 'number') return false
-  return Math.abs(blockTime - p.startedAt / 1000) <= REWRITTEN_BLOCKTIME_WINDOW_S
+  // The node has not filled these in yet: neither ours nor ruled out; read it again next pass.
+  if (typeof slot !== 'number' || typeof blockTime !== 'number') return 'unknown'
+  if (slot < p.startSlot) return 'not-ours'
+  return Math.abs(blockTime - p.startedAt / 1000) <= REWRITTEN_BLOCKTIME_WINDOW_S ? 'ours' : 'not-ours'
+}
+
+export function isOurTransfer(tx: any, row: Pick<SigRow, 'slot' | 'blockTime'>, p: PendingSend): boolean {
+  return classifyTransfer(tx, row, p) === 'ours'
 }
 
 /**
@@ -296,13 +312,23 @@ export async function recoverPendingSend(
         complete = false
         continue
       }
-      if (isOurTransfer(t.result, r, p)) return { found: r.signature }
+      const verdict = classifyTransfer(t.result, r, p)
+      if (verdict === 'ours') return { found: r.signature }
+      if (verdict === 'unknown') {
+        complete = false
+        continue
+      }
       ruledOut.add(r.signature)
     }
     return { complete }
   }
 
-  const done = (r: RecoveryResult): RecoveryResult => (endHeight === undefined ? r : { ...r, endHeight })
+  let pastHorizon = false
+  const done = (r: RecoveryResult): RecoveryResult => ({
+    ...r,
+    ...(endHeight === undefined ? {} : { endHeight }),
+    ...(pastHorizon ? { pastHorizon } : {}),
+  })
   /** Start time of the first clean, complete scan past the horizon; null until there is one. */
   let cleanAt: number | null = null
   for (;;) {
@@ -313,6 +339,7 @@ export async function recoverPendingSend(
     const height = h.ok && typeof h.result === 'number' ? h.result : null
     if (height !== null && endHeight === undefined) endHeight = height
     const expired = height !== null && endHeight !== undefined && height > expiryHorizon(p, endHeight)
+    if (expired) pastHorizon = true
 
     const scanAt = deps.now()
     const s = await scan()

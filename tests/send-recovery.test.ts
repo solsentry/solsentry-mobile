@@ -7,9 +7,15 @@ import {
   loadPending,
   lockedFor,
   PENDING_STORAGE_KEY,
+  CHECKED_HISTORY_LABEL,
+  markDeclined,
+  markUnsaved,
   PENDING_TTL_MS,
+  pendingMessage,
   removePending,
+  RESTORED_NOTICE,
   savePending,
+  serializePending,
   type KeyValueStore,
 } from '../src/wallet/pending-sends'
 import {
@@ -203,7 +209,7 @@ describe('wallet timeout after the request was sent', () => {
       txs: { [other]: parsedTx([transferIx(49_000_000)]) },
     }))
     const r = await recoverPendingSend(pending, rpc.deps)
-    expect(r).toEqual({ status: 'expired', endHeight: H0 })
+    expect(r).toEqual({ status: 'expired', endHeight: H0, pastHorizon: true })
     // Our own blockhash died at 1000, but "Not sent" waits for the rewrite horizon too.
     const scans = rpc.calls.filter((c) => c.method === 'getSignaturesForAddress' && c.height > HORIZON)
     expect(scans.length).toBe(2)
@@ -226,7 +232,7 @@ describe('wallet timeout after the request was sent', () => {
 
   it('a short page that does not reach back past the send-start slot proves nothing', async () => {
     const rpc = fakeRpc(() => ({ sigs: [row('n1', START_SLOT + 3)], txs: { n1: parsedTx([computeBudgetIx]) } }))
-    expect(await recoverPendingSend(pending, rpc.deps)).toEqual({ status: 'unknown', endHeight: H0 })
+    expect(await recoverPendingSend(pending, rpc.deps)).toEqual({ status: 'unknown', endHeight: H0, pastHorizon: true })
   })
 
   it('timeout -> cap hit before expiry -> unknown; Send stays held for the same recipient+amount', async () => {
@@ -245,10 +251,30 @@ describe('wallet timeout after the request was sent', () => {
     expect(lockedFor(map, RECIPIENT, LAMPORTS + 1n, now)).toBeNull()
     expect(lockedFor(map, SENDER_B58, LAMPORTS, now)).toBeNull()
     expect(lockedFor(map, RECIPIENT, LAMPORTS, now)).not.toBeNull()
-    // Only a definite answer or the TTL releases it.
+    // The device clock alone never releases it: the horizon was not seen passed (cap hit first).
+    expect(lockedFor(map, RECIPIENT, LAMPORTS, T0 + PENDING_TTL_MS + 3_600_000)).not.toBeNull()
+    // "Not sent" keeps it too (a late approval under a rewritten blockhash could still land).
+    map = applyRecovery(map, pending, { status: 'expired', endHeight: H0, pastHorizon: true })
+    expect(lockedFor(map, RECIPIENT, LAMPORTS, now)).toMatchObject({ status: 'not-seen', pastHorizon: true })
+    // Horizon passed AND 10 min on the device clock: now it may lapse.
+    expect(lockedFor(map, RECIPIENT, LAMPORTS, T0 + PENDING_TTL_MS - 1)).not.toBeNull()
     expect(lockedFor(map, RECIPIENT, LAMPORTS, T0 + PENDING_TTL_MS)).toBeNull()
-    map = applyRecovery(map, pending, { status: 'expired' })
-    expect(lockedFor(map, RECIPIENT, LAMPORTS, now)).toBeNull()
+  })
+
+  it('a match whose slot/blockTime is not filled in yet is re-read, never ruled out -> found, not "Not sent"', async () => {
+    const OTHER_HASH = '9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin'
+    const mine = 'Mine1111111111111111111111111111111111111111'
+    // Until two scans ran past the horizon (enough for a "Not sent" if it were ruled out), the
+    // node returns the transfer (under a wallet-chosen blockhash) without a block time.
+    const rpc = fakeRpc((_t, v) => {
+      const filled = v.scansPastHorizon >= 2
+      const bt = filled ? T0 / 1000 + 30 : null
+      return {
+        sigs: [{ ...row(mine), blockTime: bt as number }, OLD_ROW],
+        txs: { [mine]: { ...parsedTx([transferIx(Number(LAMPORTS))], 0, null, OTHER_HASH), blockTime: bt } },
+      }
+    })
+    expect(await recoverPendingSend(pending, rpc.deps)).toMatchObject({ status: 'found', signature: mine })
   })
 
   it('a miss with a full page of new signatures proves nothing: no "Not sent"', async () => {
@@ -366,7 +392,11 @@ describe('pending-send lock', () => {
       recipient: RECIPIENT,
       lamports: LAMPORTS,
       checkedAt: T0,
-      onPending: (p) => order.push(`pending:${p.recipient}`),
+      // The save is awaited: the wallet is not asked before it finishes.
+      onPending: async (p) => {
+        await new Promise((r) => setTimeout(r, 5))
+        order.push(`pending:${p.recipient}`)
+      },
     }).catch((e) => e)
     expect(order).toEqual([`pending:${RECIPIENT}`, 'wallet'])
     expect(err).toBeInstanceOf(SendOutcomeUnknownError)
@@ -380,10 +410,73 @@ describe('pending-send lock', () => {
     expect(data.get(PENDING_STORAGE_KEY)).toContain('"lamports":"50000000"')
 
     const restored = await loadPending(kv, T0 + 60_000)
-    const lock = lockedFor(restored, RECIPIENT, LAMPORTS, T0 + 60_000)
+    expect(restored.ok).toBe(true)
+    const lock = lockedFor(restored.map, RECIPIENT, LAMPORTS, T0 + 60_000)
     expect(lock).toMatchObject({ restored: true, lamports: LAMPORTS, endHeight: 995, startSlot: START_SLOT })
-    // Past the TTL it is gone on load.
-    expect(await loadPending(kv, T0 + PENDING_TTL_MS + 1)).toEqual({})
+    expect(pendingMessage(lock!)).toBe(RESTORED_NOTICE)
+    // Horizon never seen passed: a device clock far ahead does not drop it on load.
+    expect(Object.keys((await loadPending(kv, T0 + PENDING_TTL_MS * 10)).map)).toHaveLength(1)
+    // Horizon passed and stored: past the TTL it is gone on load.
+    await savePending(kv, applyRecovery(withEnd, pending, { status: 'expired', pastHorizon: true }))
+    expect(lockedFor((await loadPending(kv, T0 + 60_000)).map, RECIPIENT, LAMPORTS, T0 + 60_000)).toMatchObject({
+      status: 'not-seen',
+      pastHorizon: true,
+    })
+    expect((await loadPending(kv, T0 + PENDING_TTL_MS + 1)).map).toEqual({})
+  })
+
+  it('"Not sent" keeps the pair locked with the not-seen text and a release time', () => {
+    const map = applyRecovery(addPending({}, pending), pending, { status: 'expired', pastHorizon: true })
+    const lock = lockedFor(map, RECIPIENT, LAMPORTS, T0 + 100_000)!
+    expect(lock.status).toBe('not-seen')
+    const msg = pendingMessage(lock)
+    expect(msg).toContain('Not seen on the network. If you approved it in your wallet after the prompt closed, it may still land')
+    expect(msg).toMatch(/You can send again after \d\d:\d\d\.$/)
+    // "Check again" that still finds nothing keeps it; found clears it.
+    expect(lockedFor(applyRecovery(map, pending, { status: 'unknown' }), RECIPIENT, LAMPORTS, T0 + 100_000)).toMatchObject({
+      status: 'not-seen',
+    })
+    expect(lockedFor(applyRecovery(map, pending, { status: 'found', signature: 's' }), RECIPIENT, LAMPORTS, T0)).toBeNull()
+  })
+
+  it('a decline after the wallet got the request keeps the pair locked until the user releases it', () => {
+    const map = markDeclined(addPending({}, pending), RECIPIENT, LAMPORTS)
+    const lock = lockedFor(map, RECIPIENT, LAMPORTS, T0 + PENDING_TTL_MS * 10)!
+    expect(lock.status).toBe('declined')
+    expect(pendingMessage(lock)).toContain(CHECKED_HISTORY_LABEL)
+    // "I checked my wallet history" is the release.
+    expect(lockedFor(removePending(map, RECIPIENT, LAMPORTS), RECIPIENT, LAMPORTS, T0)).toBeNull()
+  })
+
+  it('fails closed on storage: a failed save throws (caller keeps the memory lock), a failed read says so', async () => {
+    const broken: KeyValueStore = {
+      getItem: async () => {
+        throw new Error('disk')
+      },
+      setItem: async () => {
+        throw new Error('disk full')
+      },
+    }
+    await expect(savePending(broken, addPending({}, pending))).rejects.toThrow('disk full')
+    expect(await loadPending(broken, T0)).toEqual({ map: {}, ok: false })
+    const m = markUnsaved(addPending({}, pending), RECIPIENT, LAMPORTS, true)
+    expect(lockedFor(m, RECIPIENT, LAMPORTS, T0)).toMatchObject({ unsaved: true })
+    // unsaved is memory-only.
+    expect(serializePending(m)).not.toContain('unsaved')
+  })
+
+  it('a save that throws before the wallet is asked does not stop the send (still tracked)', async () => {
+    const w = fakeWallet(timeoutErr)
+    const err = await sendTracked(deps(w.transact), {
+      recipient: RECIPIENT,
+      lamports: LAMPORTS,
+      checkedAt: T0,
+      onPending: async () => {
+        throw new Error('disk full')
+      },
+    }).catch((e) => e)
+    expect(w.sends()).toBe(1)
+    expect(err).toBeInstanceOf(SendOutcomeUnknownError)
   })
 
   it('"Check again" outcomes: found clears, unknown keeps, garbage in storage is ignored', async () => {
@@ -393,8 +486,8 @@ describe('pending-send lock', () => {
     expect(lockedFor(removePending(map, RECIPIENT, LAMPORTS), RECIPIENT, LAMPORTS, T0)).toBeNull()
     const { kv, data } = memoryStore()
     data.set(PENDING_STORAGE_KEY, '[{"sender":1},"x",null]')
-    expect(await loadPending(kv, T0)).toEqual({})
+    expect(await loadPending(kv, T0)).toEqual({ map: {}, ok: true })
     data.set(PENDING_STORAGE_KEY, '{not json')
-    expect(await loadPending(kv, T0)).toEqual({})
+    expect(await loadPending(kv, T0)).toEqual({ map: {}, ok: false })
   })
 })

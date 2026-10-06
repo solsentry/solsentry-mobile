@@ -23,20 +23,23 @@ import { formatLamportsAsSol, parseSolToLamports } from '@/src/wallet/mwa-math'
 import {
   addPending,
   applyRecovery,
+  CHECKED_HISTORY_LABEL,
+  LOAD_FAILED_NOTICE,
   loadPending,
   lockedFor,
+  markDeclined,
+  markUnsaved,
   pendingKey,
+  pendingMessage,
   prunePending,
   removePending,
-  RESTORED_NOTICE,
+  SAVE_FAILED_NOTICE,
   savePending,
   type PendingMap,
   type PendingRecord,
 } from '@/src/wallet/pending-sends'
 import {
   CHECKING_NETWORK,
-  COULD_NOT_CONFIRM,
-  NOT_SENT,
   publicRpc,
   recoverPendingSend,
   SendOutcomeUnknownError,
@@ -106,25 +109,43 @@ export default function CheckAndSend() {
   }
   const [sent, setSent] = useState<{ signature: string } | null>(null)
   /**
-   * Sends whose outcome is not known yet, by recipient+amount. Each locks Send for its pair until
-   * the chain answers (found / not sent) or its TTL passes; editing the form never unlocks it.
-   * Persisted, so a remount or restart keeps the lock.
+   * Sends whose outcome is not known for sure, by recipient+amount (see pending-sends.ts for when a
+   * lock lapses). Editing the form never unlocks a pair. Persisted, so a remount or restart keeps it.
+   * The ref is the source of truth (read synchronously by doSend); the state re-renders.
    */
-  const [pending, setPending] = useState<PendingMap>({})
-  /** Key of the record whose network check is running now. */
+  const pendingRef = useRef<PendingMap>({})
+  const [pending, setPendingState] = useState<PendingMap>({})
+  /** Send stays disabled until the stored locks are read (no race with a fast tap after launch). */
+  const [pendingReady, setPendingReady] = useState(false)
+  const [storageWarning, setStorageWarning] = useState<string | null>(null)
+  /** Key of the record whose send or network check is running now (its box is hidden meanwhile). */
   const [checkingKey, setCheckingKey] = useState<string | null>(null)
   /** Progress line while the network is checked; not an error. */
   const [notice, setNotice] = useState<string | null>(null)
-  const updatePending = (fn: (m: PendingMap) => PendingMap) =>
-    setPending((prev) => {
-      const next = prunePending(fn(prev), Date.now())
-      void savePending(AsyncStorage, next)
-      return next
-    })
+  const setPendingMemory = (next: PendingMap) => {
+    pendingRef.current = next
+    setPendingState(next)
+  }
+  /** Update the locks and persist them. false = the save failed: the in-memory lock stays, with a warning. */
+  async function updatePending(fn: (m: PendingMap) => PendingMap): Promise<boolean> {
+    const next = prunePending(fn(pendingRef.current), Date.now())
+    setPendingMemory(next)
+    try {
+      await savePending(AsyncStorage, next)
+      return true
+    } catch {
+      setStorageWarning(SAVE_FAILED_NOTICE)
+      return false
+    }
+  }
 
   useEffect(() => {
-    // Records written in this session win over what was stored.
-    void loadPending(AsyncStorage, Date.now()).then((stored) => setPending((prev) => ({ ...stored, ...prev })))
+    void loadPending(AsyncStorage, Date.now()).then(({ map, ok }) => {
+      // Records written in this session win over what was stored.
+      setPendingMemory({ ...map, ...pendingRef.current })
+      if (!ok) setStorageWarning(LOAD_FAILED_NOTICE)
+      setPendingReady(true)
+    })
   }, [])
   const [senderVerdict, setSenderVerdict] = useState<SenderVerdict | null>(null)
   const [senderAt, setSenderAt] = useState(0)
@@ -288,9 +309,10 @@ export default function CheckAndSend() {
       setError((e as Error).message)
       return
     }
-    const lock = lockedFor(pending, checkedTarget, lamports, Date.now())
+    if (!pendingReady) return
+    const lock = lockedFor(pendingRef.current, checkedTarget, lamports, Date.now())
     if (lock) {
-      setError(lock.restored ? RESTORED_NOTICE : COULD_NOT_CONFIRM)
+      setError(pendingMessage(lock))
       return
     }
     setBusy('send')
@@ -325,41 +347,48 @@ export default function CheckAndSend() {
           onSession: wallet.setSession,
           onTokenRejected: wallet.forgetToken,
         },
-        // Locked (and persisted) before the wallet is asked: an app kill mid-prompt keeps the lock.
-        (p) => updatePending((m) => addPending(m, p)),
+        // Locked and saved BEFORE the wallet is asked (awaited): an app kill mid-prompt keeps the lock.
+        // A failed save still sends, but the record is marked unsaved and the screen warns.
+        async (p) => {
+          setCheckingKey(pendingKey(p.recipient, p.lamports))
+          if (!(await updatePending((m) => addPending(m, p)))) {
+            setPendingMemory(markUnsaved(pendingRef.current, p.recipient, p.lamports, true))
+          }
+        },
       )
-      updatePending((m) => removePending(m, checkedTarget, lamports))
+      // A signature came back: the transfer is known, the lock goes.
+      await updatePending((m) => removePending(m, checkedTarget, lamports))
       wallet.setSession(r.session)
       setSent({ signature: r.signature })
     } catch (e) {
       if (e instanceof SendOutcomeUnknownError) {
-        await checkPendingSend(e.pending, e.session, describeError(e.cause, 'send').detail)
+        await checkPendingSend(e.pending, e.session)
       } else {
-        // Declined, or failed before reaching the wallet: nothing can be in flight.
-        updatePending((m) => removePending(m, checkedTarget, lamports))
+        // A record exists only if the request reached the wallet: then a decline keeps the pair
+        // locked (status 'declined'). A failure before the wallet got the request left no record.
+        if (lockedFor(pendingRef.current, checkedTarget, lamports, Date.now())) {
+          await updatePending((m) => markDeclined(m, checkedTarget, lamports))
+        }
         showError(e, 'send')
       }
     } finally {
+      setCheckingKey(null)
       setBusy(null)
     }
   }
 
   /** The wallet may have sent it anyway: never report a failure before the chain says so. */
-  async function checkPendingSend(p: PendingSend, session?: WalletSession, detail?: string) {
+  // The outcome (not seen / could not confirm) is shown by the record's box, which stays locked.
+  async function checkPendingSend(p: PendingSend, session?: WalletSession) {
     setCheckingKey(pendingKey(p.recipient, p.lamports))
     setNotice(CHECKING_NETWORK)
     try {
       const r = await recoverPendingSend(p, RECOVERY_DEPS)
-      updatePending((m) => applyRecovery(m, p, r))
+      await updatePending((m) => applyRecovery(m, p, r))
       if (r.status === 'found') {
         if (session) wallet.setSession(session)
         setError(null)
         setSent({ signature: r.signature })
-      } else if (r.status === 'expired') {
-        setError(NOT_SENT)
-      } else {
-        setErrorState({ message: COULD_NOT_CONFIRM, detail })
-        setShowDetail(false)
       }
     } finally {
       setNotice(null)
@@ -377,6 +406,13 @@ export default function CheckAndSend() {
       } finally {
         setBusy(null)
       }
+    })
+
+  /** The user checked the wallet history themselves: release the pair. */
+  const onCheckedHistory = (r: PendingRecord) =>
+    once(async () => {
+      await updatePending((m) => removePending(m, r.recipient, r.lamports))
+      setError(null)
     })
 
   const onConnect = () => once(doConnect)
@@ -424,8 +460,10 @@ export default function CheckAndSend() {
   const canPress = ui
     ? sendEnabled(ui, reviewed, busy !== null) &&
       verdictIsCurrent &&
+      pendingReady &&
       !lockedFor(pending, checkedTarget, parsedAmount, Date.now())
     : false
+  const unsaved = Object.values(pending).some((r) => r.unsaved)
   const openPending = Object.entries(prunePending(pending, Date.now())).filter(([k]) => k !== checkingKey)
 
   return (
@@ -505,11 +543,11 @@ export default function CheckAndSend() {
 
           {openPending.map(([key, r]) => (
             <View key={key} style={styles.pendingBox}>
-              <Text style={styles.payText}>{r.restored ? RESTORED_NOTICE : COULD_NOT_CONFIRM}</Text>
+              <Text style={styles.payText}>{pendingMessage(r)}</Text>
               <Text selectable style={styles.mono}>
                 {formatLamportsAsSol(r.lamports)} SOL to {short(r.recipient)}
               </Text>
-              <Text style={styles.hint}>Sending this amount to this address is paused until the network answers.</Text>
+              <Text style={styles.hint}>Sending this amount to this address is paused.</Text>
               <Button
                 variant="secondary"
                 title="Check again"
@@ -517,8 +555,18 @@ export default function CheckAndSend() {
                 busy={busy === 'recheck'}
                 disabled={busy !== null}
               />
+              <Button
+                variant="secondary"
+                title={CHECKED_HISTORY_LABEL}
+                onPress={() => onCheckedHistory(r)}
+                disabled={busy !== null}
+              />
             </View>
           ))}
+
+          {(storageWarning || unsaved) && (
+            <Text style={styles.stopped}>{storageWarning ?? SAVE_FAILED_NOTICE}</Text>
+          )}
 
           {error && (
             <View style={styles.errorBox}>
