@@ -17,6 +17,8 @@ describe('recipient check reads the operator profile', () => {
     const v = await screenRecipient('a', fakeGuard('safe', { risk_level: 'CRITICAL', confirmed_rugs: 13 }))
     expect(v.decision).toBe('block')
     expect(v.reasons).toContain('OPERATOR_HIGH_RISK')
+    expect(v.explanation).toContain('CRITICAL')
+    expect(v.explanation).not.toMatch(/\d/) // no per-operator counts in UI copy
   })
   it('HIGH level or >= 2 confirmed rugs -> block', async () => {
     expect((await screenRecipient('a', fakeGuard('safe', { risk_level: 'HIGH' }))).decision).toBe('block')
