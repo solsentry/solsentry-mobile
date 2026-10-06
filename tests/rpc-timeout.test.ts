@@ -31,4 +31,22 @@ describe('RPC timeout', () => {
     expect(signal).toBeDefined()
     expect(vi.getTimerCount()).toBe(0)
   })
+
+  it('headers arrive but the body stalls: still times out (Block), timer cleared', async () => {
+    const stalledBody = (async () =>
+      ({ ok: true, status: 200, statusText: 'OK', headers: new Headers(), text: () => new Promise(() => {}) }) as unknown as Response) as unknown as typeof fetch
+    const p = screenSender('a', guard, { fetch: fetchWithTimeout(stalledBody) })
+    await vi.advanceTimersByTimeAsync(10_001)
+    const v = await p
+    expect(v.decision).toBe('block')
+    expect(v.explanation).toContain('timed out')
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it('the buffered response keeps status and body', async () => {
+    const ok = (async () => new Response('{"a":1}', { status: 429 })) as unknown as typeof fetch
+    const r = await fetchWithTimeout(ok)('https://x', {})
+    expect(r.status).toBe(429)
+    expect(await r.json()).toEqual({ a: 1 })
+  })
 })

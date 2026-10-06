@@ -21,7 +21,15 @@ import {
 // Fail closed: if a check cannot run, the answer is "block".
 const POLICY: RecipientPolicy = { onCheckError: 'block' }
 
-const guard = new SolSentryGuard({ baseUrl: API_BASE, clientId: 'solsentry-guard-mobile' })
+export const RPC_TIMEOUT_MS = 10_000
+const API_TIMEOUT_MS = 10_000
+
+// The client's own 8 s timer stops at the headers; this wrapper also bounds the body read.
+const guard = new SolSentryGuard({
+  baseUrl: API_BASE,
+  clientId: 'solsentry-guard-mobile',
+  fetch: fetchWithTimeout((u, i) => globalThis.fetch(u, i), API_TIMEOUT_MS, 'SolSentry API request'),
+})
 
 function failedClosed(err: unknown, what: string): RecipientVerdict {
   return {
@@ -246,20 +254,27 @@ export async function runRecipientCheck(recipient: string, src?: ContactSources)
   return onChain.ok ? v : markContactsPartial(v)
 }
 
-export const RPC_TIMEOUT_MS = 10_000
 
-/** fetch that gives up after `ms`: a hung public RPC becomes an error (-> Block), not a frozen screen. */
-export function fetchWithTimeout(base: typeof fetch, ms: number = RPC_TIMEOUT_MS): typeof fetch {
+/**
+ * fetch that gives up after `ms`, counting the response BODY too: the body is read inside the
+ * deadline and handed back as a buffered Response. A server that sends headers and then stalls
+ * becomes an error (-> Block), not a frozen screen.
+ */
+export function fetchWithTimeout(base: typeof fetch, ms: number = RPC_TIMEOUT_MS, what = 'RPC request'): typeof fetch {
   return ((input: RequestInfo | URL, init?: RequestInit) => {
     const ctrl = new AbortController()
     let timer: ReturnType<typeof setTimeout> | undefined
     const timeout = new Promise<never>((_, reject) => {
       timer = setTimeout(() => {
         ctrl.abort()
-        reject(new Error(`RPC request timed out after ${Math.round(ms / 1000)} s`))
+        reject(new Error(`${what} timed out after ${Math.round(ms / 1000)} s`))
       }, ms)
     })
-    return Promise.race([base(input, { ...init, signal: ctrl.signal }), timeout]).finally(() => clearTimeout(timer))
+    const buffered = base(input, { ...init, signal: ctrl.signal }).then(
+      async (res) =>
+        new Response(await res.text(), { status: res.status, statusText: res.statusText, headers: res.headers }),
+    )
+    return Promise.race([buffered, timeout]).finally(() => clearTimeout(timer))
   }) as typeof fetch
 }
 
