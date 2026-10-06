@@ -4,12 +4,14 @@ import { FlatList, StyleSheet, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { runRecipientCheck } from '@/src/guard/service'
 import { useHistory, type HistoryEntry } from '@/src/state/history'
+import { useWalletState } from '@/src/state/wallet'
 import { Button, Footer } from '@/src/ui/components'
 import { theme } from '@/src/ui/theme'
 import { toUiState } from '@/src/ui/verdict'
 
 function Row({ entry }: { entry: HistoryEntry }) {
-  const { record } = useHistory()
+  const { record, entries } = useHistory()
+  const wallet = useWalletState()
   const router = useRouter()
   const [busy, setBusy] = useState(false)
   const ui = toUiState(entry)
@@ -28,7 +30,9 @@ function Row({ entry }: { entry: HistoryEntry }) {
             busy={busy}
             onPress={async () => {
               setBusy(true)
-              const v = await runRecipientCheck(entry.address)
+              // Same contact sources as the main check: without them Re-check skips the poisoning
+              // screen and a lookalike could be re-recorded as ALLOW, then serve as a "contact".
+              const v = await runRecipientCheck(entry.address, { history: entries, wallet: wallet.session?.address })
               record({
                 address: entry.address,
                 decision: toUiState(v).decision,
