@@ -6,6 +6,11 @@ export const CLUSTER: Cluster = 'mainnet-beta'
 export const RPC_URL = 'https://api.mainnet-beta.solana.com'
 export const API_BASE = 'https://api.solsentry.app'
 
+/** .skr names live on mainnet whatever CLUSTER is. */
+export const NAME_RPC_URL = 'https://api.mainnet-beta.solana.com'
+/** Official SNS REST proxy (v2); the v1 host sdk-proxy.sns.id is scheduled for retirement. */
+export const SNS_PROXY_URL = 'https://sdk-proxy-v2.sns.id'
+
 /** MWA chain identifier derived from CLUSTER. */
 export const MWA_CHAIN = CLUSTER === 'mainnet-beta' ? 'solana:mainnet' : 'solana:devnet'
 

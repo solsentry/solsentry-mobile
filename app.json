@@ -17,12 +17,13 @@
       "predictiveBackGestureEnabled": false,
       "package": "app.solsentry.guard",
       "versionCode": 1,
-      "allowBackup": false,
       "blockedPermissions": [
         "android.permission.SYSTEM_ALERT_WINDOW",
         "android.permission.READ_EXTERNAL_STORAGE",
-        "android.permission.WRITE_EXTERNAL_STORAGE"
-      ]
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.RECORD_AUDIO"
+      ],
+      "allowBackup": false
     },
     "plugins": [
       "expo-font",
@@ -37,6 +38,14 @@
         }
       ],
       "expo-web-browser",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "SolSentry Guard uses the camera to read payment QR codes.",
+          "microphonePermission": false,
+          "recordAudioAndroid": false
+        }
+      ],
       "./plugins/with-release-signing"
     ],
     "experiments": {

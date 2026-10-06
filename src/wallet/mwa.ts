@@ -1,11 +1,7 @@
-import {
-  PublicKey,
-  SystemProgram,
-  Transaction,
-  Connection,
-} from '@solana/web3.js'
+import { PublicKey, Transaction, Connection } from '@solana/web3.js'
 import { transact, type Web3MobileWallet } from '@solana-mobile/mobile-wallet-adapter-protocol-web3js'
 import { APP_IDENTITY, MWA_CHAIN, RPC_URL, VERDICT_MAX_AGE_MS } from '../config'
+import { buildSolTransferInstructions, type PayExtras } from '../pay/transfer'
 import { assertVerdictFresh } from './mwa-math'
 
 export { parseSolToLamports } from './mwa-math'
@@ -50,13 +46,15 @@ export interface SendResult {
 
 /**
  * Authorize, build one SystemProgram.transfer from the authorized account, and ask the
- * wallet to sign and send it. The app never sees a private key.
+ * wallet to sign and send it. The app never sees a private key. `extras` carries the
+ * Solana Pay reference keys and memo when the payment came from a scanned request.
  */
 export async function sendSol(
   recipient: string,
   lamports: bigint,
   checkedAt: number,
   authToken?: string,
+  extras?: PayExtras,
 ): Promise<SendResult & { session: WalletSession }> {
   const to = new PublicKey(recipient)
   const connection = new Connection(RPC_URL, 'confirmed')
@@ -67,7 +65,7 @@ export async function sendSol(
     const from = new PublicKey(session.address)
     const { blockhash } = await connection.getLatestBlockhash()
     const tx = new Transaction({ feePayer: from, recentBlockhash: blockhash }).add(
-      SystemProgram.transfer({ fromPubkey: from, toPubkey: to, lamports }),
+      ...buildSolTransferInstructions(from, to, lamports, extras),
     )
     const [signature] = await wallet.signAndSendTransactions({ transactions: [tx] })
     if (!signature) throw new Error('The wallet returned no signature.')
