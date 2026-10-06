@@ -4,7 +4,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { NAME_RPC_URL, SGT_RPC_URL, SNS_PROXY_URL, solscanTx, VERDICT_MAX_AGE_MS } from '@/src/config'
+import { NAME_RPC_URL, RPC_URL, SGT_RPC_URL, SNS_PROXY_URL, solscanTx, VERDICT_MAX_AGE_MS } from '@/src/config'
 import type { RecipientVerdict, SenderVerdict } from '@/src/guard/checks'
 import { runRecipientCheck, runSenderCheck } from '@/src/guard/service'
 import type { ResolveDeps } from '@/src/pay/names'
@@ -19,6 +19,23 @@ import { theme } from '@/src/ui/theme'
 import { sendEnabled, toUiState } from '@/src/ui/verdict'
 import { sendSol } from '@/src/wallet/mwa'
 import { formatLamportsAsSol, parseSolToLamports } from '@/src/wallet/mwa-math'
+import {
+  blockedByPending,
+  CHECKING_NETWORK,
+  COULD_NOT_CONFIRM,
+  guardAfterEdit,
+  NOT_SENT,
+  publicRpc,
+  recoverPendingSend,
+  SendOutcomeUnknownError,
+  type PendingGuard,
+} from '@/src/wallet/send-recovery'
+
+const RECOVERY_DEPS = {
+  rpc: publicRpc(RPC_URL),
+  now: () => Date.now(),
+  sleep: (ms: number) => new Promise<void>((r) => setTimeout(r, ms)),
+}
 
 const NAME_DEPS: ResolveDeps = { fetch: (u, i) => globalThis.fetch(u, i), rpcUrl: NAME_RPC_URL, snsProxyUrl: SNS_PROXY_URL }
 
@@ -76,6 +93,10 @@ export default function CheckAndSend() {
     setShowDetail(false)
   }
   const [sent, setSent] = useState<{ signature: string } | null>(null)
+  /** A send whose outcome is unknown (wallet timed out): holds Send for that recipient+amount. */
+  const [pendingGuard, setPendingGuard] = useState<PendingGuard | null>(null)
+  /** Progress line while the network is checked; not an error. */
+  const [notice, setNotice] = useState<string | null>(null)
   const [senderVerdict, setSenderVerdict] = useState<SenderVerdict | null>(null)
   const [senderAt, setSenderAt] = useState(0)
   /** Seeker Genesis Token of the connected wallet only (never shown for a recipient). */
@@ -122,6 +143,7 @@ export default function CheckAndSend() {
     setReviewed(false)
     setError(null)
     setSent(null)
+    setPendingGuard(guardAfterEdit)
   }
 
   /** Fill the form from a QR / link and run the recipient check. It never skips the check. */
@@ -227,6 +249,10 @@ export default function CheckAndSend() {
       return
     }
     if (!sendEnabled(ui, reviewed, false) || !checkedTarget) return
+    if (blockedByPending(pendingGuard, checkedTarget, parsedAmount)) {
+      setError(COULD_NOT_CONFIRM)
+      return
+    }
     if (payBlocked) {
       setError(payBlocked)
       return
@@ -267,9 +293,33 @@ export default function CheckAndSend() {
       wallet.setSession(r.session)
       setSent({ signature: r.signature })
     } catch (e) {
-      showError(e, 'send')
+      if (e instanceof SendOutcomeUnknownError) await checkPendingSend(e)
+      else showError(e, 'send')
     } finally {
       setBusy(null)
+    }
+  }
+
+  /** The wallet may have sent it anyway: never report a failure before the chain says so. */
+  async function checkPendingSend(e: SendOutcomeUnknownError) {
+    const p = e.pending
+    setPendingGuard({ recipient: p.recipient, lamports: p.lamports, phase: 'checking' })
+    setNotice(CHECKING_NETWORK)
+    try {
+      const r = await recoverPendingSend(p, RECOVERY_DEPS)
+      if (r.status === 'found') {
+        setPendingGuard(null)
+        setSent({ signature: r.signature })
+      } else if (r.status === 'expired') {
+        setPendingGuard(null)
+        setError(NOT_SENT)
+      } else {
+        setPendingGuard((g) => (g ? { ...g, phase: 'unconfirmed' } : g))
+        setErrorState({ message: COULD_NOT_CONFIRM, detail: describeError(e.cause, 'send').detail })
+        setShowDetail(false)
+      }
+    } finally {
+      setNotice(null)
     }
   }
 
@@ -315,7 +365,11 @@ export default function CheckAndSend() {
   }
 
   const senderUi = senderVerdict ? toUiState(senderVerdict) : null
-  const canPress = ui ? sendEnabled(ui, reviewed, busy !== null) && verdictIsCurrent : false
+  const canPress = ui
+    ? sendEnabled(ui, reviewed, busy !== null) &&
+      verdictIsCurrent &&
+      !blockedByPending(pendingGuard, checkedTarget, parsedAmount)
+    : false
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -379,7 +433,10 @@ export default function CheckAndSend() {
           <TextInput
             style={styles.input}
             value={amount}
-            onChangeText={setAmount}
+            onChangeText={(t) => {
+              setAmount(t)
+              setPendingGuard(guardAfterEdit)
+            }}
             placeholder="0.05"
             placeholderTextColor={theme.muted}
             keyboardType="decimal-pad"
@@ -389,6 +446,8 @@ export default function CheckAndSend() {
           )}
 
           <Button title="Check recipient" onPress={onCheck} busy={busy === 'check'} disabled={busy !== null || !trimmed} />
+
+          {notice && <Text style={styles.notice}>{notice}</Text>}
 
           {error && (
             <View style={styles.errorBox}>
@@ -511,6 +570,7 @@ const styles = StyleSheet.create({
     color: theme.text,
   },
   hint: { color: theme.muted, fontSize: 13 },
+  notice: { color: theme.text, fontSize: 14, fontWeight: '600' },
   sgtBox: { gap: 2 },
   sgtLine: { color: theme.text, fontSize: 14, fontWeight: '600' },
   sgtRetry: { color: theme.accent, fontWeight: '700' },

@@ -1,8 +1,8 @@
-import { PublicKey, Transaction, Connection } from '@solana/web3.js'
+import { Connection } from '@solana/web3.js'
 import { transact } from '@solana-mobile/mobile-wallet-adapter-protocol-web3js'
 import { RPC_URL, VERDICT_MAX_AGE_MS } from '../config'
-import { buildSolTransferInstructions, type PayExtras } from '../pay/transfer'
-import { assertVerdictFresh } from './mwa-math'
+import type { PayExtras } from '../pay/transfer'
+import { sendTracked } from './send-recovery'
 import { disconnectWallet, withAuthorizedWallet, type AuthCallbacks, type WalletSession } from './mwa-session'
 
 export { parseSolToLamports } from './mwa-math'
@@ -31,7 +31,12 @@ export interface SendResult {
  * wallet to sign and send it. The app never sees a private key. `extras` carries the
  * Solana Pay reference keys and memo when the payment came from a scanned request.
  * `cb.onSession` fires as soon as the wallet authorizes, so a fresh token is kept even if
- * the user then cancels the signature.
+ * the user then cancels the signature. A non-decline failure after the request reached the
+ * wallet throws SendOutcomeUnknownError (see send-recovery.ts): the caller must check the chain.
+ *
+ * The MWA response timeout cannot be raised from JS: it is CLIENT_TIMEOUT_MS = 90000, a private
+ * constant in the library's Android module (SolanaMobileWalletAdapterModule.kt), and transact()
+ * only accepts { baseUri }.
  */
 export async function sendSol(
   recipient: string,
@@ -41,23 +46,9 @@ export async function sendSol(
   extras?: PayExtras,
   cb?: AuthCallbacks,
 ): Promise<SendResult & { session: WalletSession }> {
-  const to = new PublicKey(recipient)
   const connection = new Connection(RPC_URL, 'confirmed')
-  return withAuthorizedWallet(
-    transact,
-    authToken,
-    async (wallet, session) => {
-      // The user may sit on the wallet prompt for minutes: re-check the verdict age right before building.
-      assertVerdictFresh(checkedAt, VERDICT_MAX_AGE_MS)
-      const from = new PublicKey(session.address)
-      const { blockhash } = await connection.getLatestBlockhash()
-      const tx = new Transaction({ feePayer: from, recentBlockhash: blockhash }).add(
-        ...buildSolTransferInstructions(from, to, lamports, extras),
-      )
-      const [signature] = await wallet.signAndSendTransactions({ transactions: [tx] })
-      if (!signature) throw new Error('The wallet returned no signature.')
-      return { signature, from: session.address, session }
-    },
-    cb,
+  return sendTracked(
+    { transact, getLatestBlockhash: () => connection.getLatestBlockhash(), maxVerdictAgeMs: VERDICT_MAX_AGE_MS },
+    { recipient, lamports, checkedAt, authToken, extras, cb },
   )
 }
