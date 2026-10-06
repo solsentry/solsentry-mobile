@@ -26,8 +26,8 @@ Config lives in `src/config.ts`: `CLUSTER` (default `mainnet-beta`), `RPC_URL` (
 ## Limits
 
 - **Risk signals, not guarantees.** A clean result means no signal was found, not that a recipient is trustworthy.
-- **Catalogued drainers only.** Blocks come from addresses and patterns SolSentry already knows about.
-- **Unknown addresses produce a warning, not a block.**
+- **Known signals only.** Blocks come from catalogued drainers plus wallets whose deployer profile in SolSentry's records is HIGH or CRITICAL risk (MEDIUM risk shows a Warning). Anything SolSentry has not seen is not flagged.
+- **Allow is not a guarantee.** Allow means no signal was found. An address with no on-chain history shows as a Warning, but a real wallet with no known risk shows as Allow.
 - **Source of funds is one hop.** Only the wallet's first funder is looked up; long histories (more than 5,000 signatures) and wallets without a plain funding transfer come back as "not determined".
 - The public Solana RPC is rate limited. If it refuses the source-of-funds lookup, the check fails closed.
 - SOL transfers only in this version. The Mobile Wallet Adapter path was not exercised end to end in CI: it needs a wallet app on a device.

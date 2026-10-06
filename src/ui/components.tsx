@@ -4,7 +4,7 @@ import { theme } from './theme'
 import type { UiState } from './verdict'
 
 export const ABOUT_TEXT =
-  'Risk signals, not guarantees. Unknown addresses produce a warning, not a block. SolSentry never holds your keys; your wallet signs.'
+  'Risk signals, not guarantees. Allow means no risk signal was found, not that the recipient is safe. An address with no on-chain history shows as a Warning. SolSentry never holds your keys; your wallet signs.'
 
 export function Button({
   title,
