@@ -14,7 +14,7 @@ import { Button, Footer, VerdictCard } from '@/src/ui/components'
 import { theme } from '@/src/ui/theme'
 import { sendEnabled, toUiState } from '@/src/ui/verdict'
 import { sendSol } from '@/src/wallet/mwa'
-import { parseSolToLamports } from '@/src/wallet/mwa-math'
+import { formatLamportsAsSol, parseSolToLamports } from '@/src/wallet/mwa-math'
 
 function isValidAddress(s: string): boolean {
   try {
@@ -68,7 +68,14 @@ export default function CheckAndSend() {
 
   const trimmed = address.trim()
   const ui = useMemo(() => (verdict ? toUiState(verdict) : null), [verdict])
-  const verdictIsCurrent = !!verdict && checkedFor === trimmed
+  const parsedAmount = useMemo(() => {
+    try {
+      return parseSolToLamports(amount)
+    } catch {
+      return null
+    }
+  }, [amount])
+  const verdictIsCurrent =!!verdict && checkedFor === trimmed
 
   // React state (busy) lags a render behind a fast double tap; a ref does not.
   const inFlight = useRef(false)
@@ -199,6 +206,7 @@ export default function CheckAndSend() {
             placeholderTextColor={theme.muted}
             keyboardType="decimal-pad"
           />
+          {parsedAmount !== null && <Text style={styles.hint}>You will send {formatLamportsAsSol(parsedAmount)} SOL</Text>}
 
           <Button title="Check recipient" onPress={onCheck} busy={busy === 'check'} disabled={busy !== null || !trimmed} />
 
@@ -276,6 +284,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: theme.text,
   },
+  hint: { color: theme.muted, fontSize: 13 },
   error: { color: theme.stop, fontSize: 14, lineHeight: 20 },
   stopped: { color: theme.stop, fontSize: 15, fontWeight: '700' },
   reviewRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
