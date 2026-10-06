@@ -30,7 +30,8 @@
           "backgroundColor": "#FBFAFE"
         }
       ],
-      "expo-web-browser"
+      "expo-web-browser",
+      "./plugins/with-release-signing"
     ],
     "experiments": {
       "typedRoutes": true
