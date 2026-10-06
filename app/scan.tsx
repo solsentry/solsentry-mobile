@@ -1,7 +1,7 @@
 import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'expo-camera'
 import { useRouter } from 'expo-router'
-import React, { useRef } from 'react'
-import { StyleSheet, Text, View } from 'react-native'
+import React, { useRef, useState } from 'react'
+import { Linking, StyleSheet, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Button } from '@/src/ui/components'
 import { theme } from '@/src/ui/theme'
@@ -14,6 +14,7 @@ export default function Scan() {
   const router = useRouter()
   const [permission, requestPermission] = useCameraPermissions()
   const done = useRef(false)
+  const [cameraError, setCameraError] = useState<string | null>(null)
 
   function onScanned({ data }: BarcodeScanningResult) {
     if (done.current || !data) return
@@ -27,8 +28,22 @@ export default function Scan() {
     return (
       <SafeAreaView style={[styles.safe, styles.center]}>
         <Text style={styles.text}>The camera is used only to read a payment QR code. Nothing is recorded or uploaded.</Text>
-        <Button title="Allow camera" onPress={requestPermission} />
+        {permission.canAskAgain ? (
+          <Button title="Allow camera" onPress={requestPermission} />
+        ) : (
+          // Android stops showing the prompt after a permanent denial; only Settings can re-enable it.
+          <Button title="Open settings" onPress={() => void Linking.openSettings()} />
+        )}
         <Button variant="secondary" title="Cancel" onPress={() => router.back()} />
+      </SafeAreaView>
+    )
+  }
+
+  if (cameraError) {
+    return (
+      <SafeAreaView style={[styles.safe, styles.center]}>
+        <Text style={styles.text}>The camera could not start ({cameraError}). Paste the address instead.</Text>
+        <Button variant="secondary" title="Back" onPress={() => router.back()} />
       </SafeAreaView>
     )
   }
@@ -36,6 +51,7 @@ export default function Scan() {
   return (
     <View style={styles.safe}>
       <CameraView
+        onMountError={(e) => setCameraError(e.message)}
         style={StyleSheet.absoluteFill}
         facing="back"
         barcodeScannerSettings={{ barcodeTypes: ['qr'] }}

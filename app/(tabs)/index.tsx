@@ -37,6 +37,12 @@ function fundingLine(v: SenderVerdict): string | null {
   return null
 }
 
+const CLIP_LEN = 80
+
+function clip(text: string): string {
+  return text.length > CLIP_LEN ? `${text.slice(0, CLIP_LEN)}…` : text
+}
+
 export default function CheckAndSend() {
   const params = useLocalSearchParams<{ address?: string; pay?: string; t?: string }>()
   const router = useRouter()
@@ -271,8 +277,9 @@ export default function CheckAndSend() {
               <Text style={styles.payTitle}>
                 {payRequest.kind === 'transaction' ? 'Transaction request' : 'Solana Pay request'}
               </Text>
-              {!!payRequest.label && <Text style={styles.payText}>From: {payRequest.label}</Text>}
-              {!!payRequest.message && <Text style={styles.payText}>{payRequest.message}</Text>}
+              {/* label/message are free text chosen by whoever made the QR: say so, and keep them short. */}
+              {!!payRequest.label && <Text style={styles.payText}>Label (set by the QR, not verified): {clip(payRequest.label)}</Text>}
+              {!!payRequest.message && <Text style={styles.payText}>Message: {clip(payRequest.message)}</Text>}
               {payRequest.kind === 'transfer' && (
                 <Text style={styles.payText}>
                   Requested: {payRequest.amount ?? 'any amount'} {payRequest.splToken ? 'tokens' : 'SOL'}
@@ -324,7 +331,9 @@ export default function CheckAndSend() {
             placeholderTextColor={theme.muted}
             keyboardType="decimal-pad"
           />
-          {parsedAmount !== null && <Text style={styles.hint}>You will send {formatLamportsAsSol(parsedAmount)} SOL</Text>}
+          {parsedAmount !== null && !(payRequest?.kind === 'transfer' && payRequest.splToken) && (
+            <Text style={styles.hint}>You will send {formatLamportsAsSol(parsedAmount)} SOL</Text>
+          )}
 
           <Button title="Check recipient" onPress={onCheck} busy={busy === 'check'} disabled={busy !== null || !trimmed} />
 
