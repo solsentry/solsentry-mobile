@@ -30,11 +30,16 @@ Package id `app.solsentry.guard`. Built with Expo / React Native and Solana Mobi
 
 Config lives in `src/config.ts`: `CLUSTER` (default `mainnet-beta`), `RPC_URL` (`https://api.mainnet-beta.solana.com`) and `API_BASE` (`https://api.solsentry.app`).
 
-## Device check (optional, off by default)
+## Device check (optional, on in this build)
 
-Behind `DEVICE_CHECK_ENABLED` in `src/config.ts` (default `false`). With the flag off the
-section does not render and the native module is never called. It is informational only:
-it never changes a recipient/sender verdict or the send button.
+Behind `DEVICE_CHECK_ENABLED` in `src/config.ts` (`true` in this build). The user starts it
+with "Run device check"; nothing runs on launch. With the flag off the section does not render
+and the native module is never called. It is informational only: it never changes a
+recipient/sender verdict or the send button.
+
+On a Solana Mobile Seeker (Android 16 / API 36) it reads "Genuine Solana Mobile Inc. Seeker
+with a hardware-backed key." The server checks the chain against Google's hardware
+attestation roots and Google's attestation revocation list.
 
 The local Expo module `modules/device-attestation` (Kotlin, autolinked, Android only) creates a
 throwaway EC P-256 key in the Android Keystore over a 32-byte server-issued challenge (StrongBox first, then
