@@ -36,8 +36,8 @@ const all = (v: { headline: string; claims: string[]; proves: string[]; notes: s
   [v.headline, ...v.claims, ...v.proves, ...v.notes].join('\n')
 
 describe('device check flag', () => {
-  it('is off by default', () => {
-    expect(DEVICE_CHECK_ENABLED).toBe(false)
+  it('is on for the Clock In build (server route deployed with the Seeker StrongBox fix)', () => {
+    expect(DEVICE_CHECK_ENABLED).toBe(true)
   })
 })
 

@@ -31,8 +31,8 @@ export function solscanTx(signature: string): string {
 }
 
 /**
- * Optional "Device check" (Android hardware key attestation). Off by default: with false the
+ * Optional "Device check" (Android hardware key attestation). With false the
  * section does not render and the native module is never called. Turn on only once the
  * server route /v1/device-attestation/verify is deployed.
  */
-export const DEVICE_CHECK_ENABLED: boolean = false
+export const DEVICE_CHECK_ENABLED: boolean = true
