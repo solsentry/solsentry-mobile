@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { REVOKE_ENABLED, RPC_URL, solscanTx } from '@/src/config'
 import { APPROVALS_TEXT, confirmText, kindLabel } from '@/src/revoke/copy'
 import { fetchDelegations, type Delegation } from '@/src/revoke/delegations'
+import { DevApprove } from '@/src/revoke/DevApprove'
 import { useWalletState } from '@/src/state/wallet'
 import { Button } from '@/src/ui/components'
 import { describeError } from '@/src/ui/errors'
@@ -183,6 +184,8 @@ function ApprovalsScreen() {
             {load.status !== 'loading' && !revoking && (
               <Button variant="secondary" title="Refresh" onPress={() => void refresh(owner)} />
             )}
+
+            {__DEV__ && <DevApprove owner={owner} authToken={wallet.session?.authToken} onDone={() => void refresh(owner)} />}
           </>
         )}
 

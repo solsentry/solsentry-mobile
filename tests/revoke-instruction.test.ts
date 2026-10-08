@@ -1,6 +1,7 @@
 import { PublicKey, Transaction } from '@solana/web3.js'
 import { describe, expect, it } from 'vitest'
 import { TOKEN_2022_PROGRAM, TOKEN_PROGRAM, type Delegation } from '../src/revoke/delegations'
+import { buildTestApproveInstruction } from '../src/revoke/dev-approve'
 import { buildRevokeInstruction } from '../src/revoke/instruction'
 import { CONFIRM_ATTEMPTS, WRONG_WALLET, revokeDelegation, type RevokeDeps } from '../src/revoke/revoke'
 import type { Transact } from '../src/wallet/mwa-session'
@@ -26,6 +27,20 @@ describe('buildRevokeInstruction', () => {
   it('refuses any program that is not Token or Token-2022', () => {
     expect(() => buildRevokeInstruction(ACCOUNT, OWNER, new PublicKey('11111111111111111111111111111111'))).toThrow('Not a token program')
     expect(() => buildRevokeInstruction(ACCOUNT, OWNER, OTHER)).toThrow('Not a token program')
+  })
+})
+
+describe('buildTestApproveInstruction (debug builds only)', () => {
+  it('data [4, amount u64 LE], accounts [token account (writable), delegate, owner (signer)]', () => {
+    const ix = buildTestApproveInstruction(ACCOUNT, OTHER, OWNER, new PublicKey(TOKEN_2022_PROGRAM), 1n)
+    expect([...ix.data]).toEqual([4, 1, 0, 0, 0, 0, 0, 0, 0])
+    expect(ix.programId.toBase58()).toBe(TOKEN_2022_PROGRAM)
+    expect(ix.keys.map((k) => [k.pubkey.toBase58(), k.isSigner, k.isWritable])).toEqual([
+      [ACCOUNT.toBase58(), false, true],
+      [OTHER.toBase58(), false, false],
+      [OWNER.toBase58(), true, false],
+    ])
+    expect(() => buildTestApproveInstruction(ACCOUNT, OTHER, OWNER, OTHER, 1n)).toThrow('Not a token program')
   })
 })
 
