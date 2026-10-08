@@ -6,12 +6,18 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { REVOKE_ENABLED, RPC_URL, solscanTx } from '@/src/config'
 import { APPROVALS_TEXT, confirmText, kindLabel } from '@/src/revoke/copy'
 import { fetchDelegations, type Delegation } from '@/src/revoke/delegations'
-import { DevApprove } from '@/src/revoke/DevApprove'
 import { useWalletState } from '@/src/state/wallet'
 import { Button } from '@/src/ui/components'
 import { describeError } from '@/src/ui/errors'
 import { theme } from '@/src/ui/theme'
 import { revokeApproval } from '@/src/wallet/mwa'
+
+// Debug builds only. A conditional require (not an import) so the release bundle does not even
+// contain the module: Metro folds __DEV__ to false and drops the dead branch with its dependency.
+const DevApprove: typeof import('@/src/revoke/DevApprove').DevApprove | null = __DEV__
+  ? // eslint-disable-next-line @typescript-eslint/no-require-imports
+    require('@/src/revoke/DevApprove').DevApprove
+  : null
 
 type Load = { status: 'loading' } | { status: 'error'; detail: string } | { status: 'ready'; rows: Delegation[] }
 type Outcome = { tone: 'ok' | 'note'; text: string; signature?: string; detail?: string }
@@ -185,7 +191,7 @@ function ApprovalsScreen() {
               <Button variant="secondary" title="Refresh" onPress={() => void refresh(owner)} />
             )}
 
-            {__DEV__ && <DevApprove owner={owner} authToken={wallet.session?.authToken} onDone={() => void refresh(owner)} />}
+            {DevApprove && <DevApprove owner={owner} authToken={wallet.session?.authToken} onDone={() => void refresh(owner)} />}
           </>
         )}
 
