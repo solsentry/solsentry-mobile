@@ -71,8 +71,8 @@ const styles = StyleSheet.create({
   text: { color: theme.text, fontSize: 15, lineHeight: 21, textAlign: 'center' },
   overlay: { flex: 1, justifyContent: 'space-between', padding: 16 },
   hint: {
-    color: theme.white,
-    backgroundColor: 'rgba(28,21,67,0.7)',
+    color: theme.text,
+    backgroundColor: theme.scrim,
     borderRadius: 10,
     padding: 12,
     fontSize: 15,

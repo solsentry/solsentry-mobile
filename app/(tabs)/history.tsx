@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { runRecipientCheck } from '@/src/guard/service'
 import { useHistory, type HistoryEntry } from '@/src/state/history'
 import { useWalletState } from '@/src/state/wallet'
-import { Button, Footer } from '@/src/ui/components'
+import { Button, Footer, VerdictBadge } from '@/src/ui/components'
 import { theme } from '@/src/ui/theme'
 import { toUiState } from '@/src/ui/verdict'
 
@@ -17,9 +17,7 @@ function Row({ entry }: { entry: HistoryEntry }) {
   const ui = toUiState(entry)
   return (
     <View style={styles.row}>
-      <Text style={[styles.decision, { color: ui.tone === 'accent' ? theme.accent : theme.stop }]}>
-        {ui.label.toUpperCase()}
-      </Text>
+      <VerdictBadge state={ui} />
       <Text selectable style={styles.addr}>{entry.address}</Text>
       <Text style={styles.meta}>Checked {new Date(entry.checkedAt).toLocaleString()}</Text>
       <View style={styles.actions}>
@@ -86,8 +84,7 @@ const styles = StyleSheet.create({
   body: { padding: 16, gap: 12 },
   intro: { color: theme.muted, fontSize: 14, lineHeight: 20 },
   empty: { color: theme.muted, textAlign: 'center', paddingVertical: 32 },
-  row: { backgroundColor: theme.white, borderColor: theme.border, borderWidth: 1, borderRadius: 12, padding: 14, gap: 6 },
-  decision: { fontSize: 14, fontWeight: '800', letterSpacing: 1 },
+  row: { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1, borderRadius: 12, padding: 14, gap: 6 },
   addr: { color: theme.text, fontSize: 13, fontFamily: 'monospace' },
   meta: { color: theme.muted, fontSize: 12 },
   actions: { flexDirection: 'row', gap: 8, marginTop: 4 },

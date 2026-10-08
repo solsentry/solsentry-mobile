@@ -1,11 +1,18 @@
+// Brand palette: dark surfaces, amber for actions. Verdict colors are separate tokens:
+// allow = teal, warn = amber, block = red (red is used for Block only).
 export const theme = {
-  accent: '#5B3FD6',
-  bg: '#FBFAFE',
-  text: '#1C1543',
-  stop: '#C2550F',
-  stopTint: '#FCEFE6',
-  accentTint: '#EFEBFB',
-  muted: '#6B6590',
-  border: '#DDD7F3',
-  white: '#FFFFFF',
+  bg: '#100E0A',
+  surface: '#18150F',
+  border: '#2A251C',
+  text: '#F2EDE4',
+  muted: '#B8B0A0',
+  action: '#C17D0E',
+  allow: '#2A7A7A',
+  warn: '#C17D0E',
+  block: '#FF4444',
+  /** Text on amber and on red (white fails contrast on both). */
+  ink: '#100E0A',
+  /** Text on teal. Teal itself is only for borders, badges and large text on dark. */
+  onAllow: '#FFFFFF',
+  scrim: 'rgba(16,14,10,0.7)',
 } as const

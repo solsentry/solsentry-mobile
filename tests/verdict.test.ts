@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { theme } from '../src/ui/theme'
 import { STOPPED_TEXT, normalizeDecision, sendEnabled, toUiState } from '../src/ui/verdict'
 import { checkRecipient } from '../src/guard/checks'
 import { upsertEntry, type HistoryEntry } from '../src/state/history-logic'
@@ -38,6 +39,33 @@ describe('verdict -> UI state', () => {
       expect(sendEnabled(s, true, false)).toBe(false)
     }
     expect(normalizeDecision('ALLOW')).toBe('block')
+  })
+})
+
+describe('verdict colors and icons', () => {
+  const allow = toUiState({ decision: 'allow' })
+  const warn = toUiState({ decision: 'warn' })
+  const block = toUiState({ decision: 'block', reasons: ['KNOWN_DRAINER'] })
+  const failed = toUiState({ decision: 'block', reasons: ['CHECK_FAILED'] })
+
+  it('each decision has its own color and red is used for block only', () => {
+    expect(new Set([allow.color, warn.color, block.color]).size).toBe(3)
+    expect(block.color).toBe(theme.block)
+    for (const s of [allow, warn]) {
+      expect([s.color, s.background, s.textColor, s.onColor]).not.toContain(theme.block)
+    }
+  })
+
+  it('text on amber and on red is dark', () => {
+    expect(warn.onColor).toBe(theme.ink)
+    expect(block.onColor).toBe(theme.ink)
+    expect(block.textColor).toBe(theme.ink)
+  })
+
+  it('every state has a different icon; a check that could not run is not shown as a finding', () => {
+    expect(new Set([allow.icon, warn.icon, block.icon, failed.icon]).size).toBe(4)
+    expect(failed.label).toBe('Block')
+    for (const v of [null, {}, { decision: 'safe' }]) expect(toUiState(v as never).icon).toBe(failed.icon)
   })
 })
 

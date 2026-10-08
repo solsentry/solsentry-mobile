@@ -8,8 +8,9 @@ export default function TabsLayout() {
       screenOptions={{
         headerStyle: { backgroundColor: theme.bg },
         headerTitleStyle: { color: theme.text },
+        headerTintColor: theme.text,
         headerShadowVisible: false,
-        tabBarActiveTintColor: theme.accent,
+        tabBarActiveTintColor: theme.action,
         tabBarInactiveTintColor: theme.muted,
         tabBarStyle: { backgroundColor: theme.bg, borderTopColor: theme.border },
       }}
@@ -18,7 +19,7 @@ export default function TabsLayout() {
         name="index"
         options={{
           title: 'Check & Send',
-          tabBarIcon: ({ color, size }) => <Ionicons name="shield-checkmark-outline" color={color} size={size} />,
+          tabBarIcon: ({ color, size }) => <Ionicons name="scan-outline" color={color} size={size} />,
         }}
       />
       <Tabs.Screen

@@ -6,10 +6,11 @@
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "solsentryguard",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#100E0A",
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#5B3FD6",
+        "backgroundColor": "#100E0A",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
@@ -34,7 +35,7 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 160,
           "resizeMode": "contain",
-          "backgroundColor": "#FBFAFE"
+          "backgroundColor": "#100E0A"
         }
       ],
       "expo-web-browser",

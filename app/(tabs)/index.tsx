@@ -610,7 +610,7 @@ export default function CheckAndSend() {
 
           {loadGate === 'failed' && (
             <View style={styles.pendingBox}>
-              <Text style={styles.stopped}>{LOAD_FAILED_NOTICE}</Text>
+              <Text style={styles.caution}>{LOAD_FAILED_NOTICE}</Text>
               <Text style={styles.payText}>{LOAD_FAILED_LOCK_NOTICE}</Text>
               <Button
                 variant="secondary"
@@ -624,7 +624,7 @@ export default function CheckAndSend() {
           )}
 
           {(storageWarning || unsaved) && (
-            <Text style={styles.stopped}>{storageWarning ?? SAVE_FAILED_NOTICE}</Text>
+            <Text style={styles.caution}>{storageWarning ?? SAVE_FAILED_NOTICE}</Text>
           )}
 
           {error && (
@@ -661,8 +661,8 @@ export default function CheckAndSend() {
                   <Switch
                     value={reviewed}
                     onValueChange={setReviewed}
-                    trackColor={{ true: theme.accent, false: theme.border }}
-                    thumbColor={theme.white}
+                    trackColor={{ true: theme.action, false: theme.border }}
+                    thumbColor={theme.text}
                   />
                   <Text style={styles.reviewText}>I reviewed this recipient</Text>
                 </View>
@@ -746,7 +746,7 @@ const styles = StyleSheet.create({
   h2: { color: theme.text, fontSize: 17, fontWeight: '700' },
   label: { color: theme.text, fontSize: 14, fontWeight: '600', marginTop: 4 },
   input: {
-    backgroundColor: theme.white,
+    backgroundColor: theme.surface,
     borderColor: theme.border,
     borderWidth: 1,
     borderRadius: 10,
@@ -756,25 +756,26 @@ const styles = StyleSheet.create({
   },
   hint: { color: theme.muted, fontSize: 13 },
   notice: { color: theme.text, fontSize: 14, fontWeight: '600' },
-  pendingBox: { borderColor: theme.stop, borderWidth: 1.5, borderRadius: 12, padding: 14, gap: 6, backgroundColor: theme.white },
+  pendingBox: { borderColor: theme.warn, borderWidth: 1.5, borderRadius: 12, padding: 14, gap: 6, backgroundColor: theme.surface },
   sgtBox: { gap: 2 },
   sgtLine: { color: theme.text, fontSize: 14, fontWeight: '600' },
-  sgtRetry: { color: theme.accent, fontWeight: '700' },
-  error: { color: theme.stop, fontSize: 14, lineHeight: 20 },
+  sgtRetry: { color: theme.action, fontWeight: '700' },
+  error: { color: theme.warn, fontSize: 14, lineHeight: 20 },
   errorBox: { gap: 4 },
   errorToggle: { color: theme.muted, fontSize: 12, textDecorationLine: 'underline' },
   errorDetail: { color: theme.muted, fontSize: 12, fontFamily: Platform.select({ android: 'monospace', default: 'Courier' }) },
-  stopped: { color: theme.stop, fontSize: 15, fontWeight: '700' },
+  stopped: { color: theme.block, fontSize: 15, fontWeight: '700' },
+  caution: { color: theme.warn, fontSize: 15, fontWeight: '700' },
   reviewRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   reviewText: { color: theme.text, fontSize: 15, flex: 1 },
-  sentBox: { backgroundColor: theme.accentTint, borderRadius: 12, padding: 14, gap: 8 },
+  sentBox: { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1, borderRadius: 12, padding: 14, gap: 8 },
   sentTitle: { color: theme.text, fontWeight: '700' },
   mono: { color: theme.text, fontFamily: Platform.select({ android: 'monospace', default: 'Courier' }), fontSize: 12 },
   divider: { height: 1, backgroundColor: theme.border, marginVertical: 8 },
-  payBox: { backgroundColor: theme.accentTint, borderRadius: 12, padding: 14, gap: 6 },
+  payBox: { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1, borderRadius: 12, padding: 14, gap: 6 },
   payTitle: { color: theme.text, fontWeight: '700', fontSize: 15 },
   payText: { color: theme.text, fontSize: 14, lineHeight: 20 },
-  resolvedBox: { borderColor: theme.accent, borderWidth: 1.5, borderRadius: 12, padding: 14, gap: 6, backgroundColor: theme.white },
+  resolvedBox: { borderColor: theme.action, borderWidth: 1.5, borderRadius: 12, padding: 14, gap: 6, backgroundColor: theme.surface },
   resolvedTitle: { color: theme.text, fontWeight: '700', fontSize: 14 },
   resolvedAddr: {
     color: theme.text,

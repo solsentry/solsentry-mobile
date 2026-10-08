@@ -29,7 +29,7 @@ export function DeviceCheckSection() {
     }
   }
 
-  const tone = view?.status === 'verified' ? theme.accent : view?.status === 'not_verified' ? theme.stop : theme.muted
+  const tone = view?.status === 'verified' ? theme.allow : view?.status === 'not_verified' ? theme.warn : theme.muted
   return (
     <View style={styles.box}>
       <Text style={styles.h2}>Device check</Text>
@@ -37,7 +37,7 @@ export function DeviceCheckSection() {
       <Button variant="secondary" title="Run device check" onPress={onRun} busy={busy} disabled={busy} />
       {view && (
         <View accessibilityLiveRegion="polite" style={[styles.card, { borderColor: tone }]}>
-          <Text style={[styles.headline, { color: tone }]}>{view.headline}</Text>
+          <Text style={[styles.headline, { color: view.status === 'verified' ? theme.text : tone }]}>{view.headline}</Text>
           <Text style={styles.label}>What the phone claims</Text>
           {view.claims.map((l) => (
             <Text key={l} style={styles.text}>
@@ -64,7 +64,7 @@ export function DeviceCheckSection() {
 const styles = StyleSheet.create({
   box: { gap: 8 },
   h2: { color: theme.text, fontSize: 17, fontWeight: '700' },
-  card: { borderWidth: 1.5, borderRadius: 12, padding: 14, gap: 4, backgroundColor: theme.white },
+  card: { borderWidth: 1.5, borderRadius: 12, padding: 14, gap: 4, backgroundColor: theme.surface },
   headline: { fontSize: 16, fontWeight: '700', marginBottom: 4 },
   label: { color: theme.text, fontSize: 14, fontWeight: '600', marginTop: 6 },
   text: { color: theme.text, fontSize: 14, lineHeight: 20 },

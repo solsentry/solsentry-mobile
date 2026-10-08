@@ -1,4 +1,5 @@
 import React from 'react'
+import { Ionicons } from '@expo/vector-icons'
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native'
 import { theme } from './theme'
 import type { UiState } from './verdict'
@@ -35,9 +36,9 @@ export function Button({
       ]}
     >
       {busy ? (
-        <ActivityIndicator color={primary ? theme.white : theme.accent} />
+        <ActivityIndicator color={primary ? theme.ink : theme.action} />
       ) : (
-        <Text style={[styles.btnText, { color: primary ? theme.white : theme.accent }]}>{title}</Text>
+        <Text style={[styles.btnText, { color: primary ? theme.ink : theme.action }]}>{title}</Text>
       )}
     </Pressable>
   )
@@ -52,19 +53,28 @@ export function VerdictCard({
   checkedAt: number
   extra?: string | null
 }) {
-  const border = state.tone === 'accent' ? theme.accent : theme.stop
   return (
     <View
       accessibilityLiveRegion="polite"
-      style={[styles.card, { backgroundColor: state.background, borderColor: border }]}
+      style={[styles.card, { backgroundColor: state.background, borderColor: state.color }]}
     >
-      <Text style={[styles.cardLabel, { color: state.tone === 'stop' ? theme.white : state.color }]}>
-        {state.label.toUpperCase()}
-      </Text>
+      <VerdictBadge state={state} large />
       {!!state.message && <Text style={[styles.cardText, { color: state.textColor }]}>{state.message}</Text>}
       {!!extra && <Text style={[styles.cardText, { color: state.textColor }]}>{extra}</Text>}
-      <Text style={[styles.cardTime, { color: state.tone === 'stop' ? theme.white : theme.muted }]}>
+      <Text style={[styles.cardTime, { color: state.tone === 'stop' ? state.textColor : theme.muted }]}>
         Checked {new Date(checkedAt).toLocaleString()}
+      </Text>
+    </View>
+  )
+}
+
+/** Decision as icon + word on the verdict color. */
+export function VerdictBadge({ state, large }: { state: UiState; large?: boolean }) {
+  return (
+    <View style={[styles.badge, { backgroundColor: state.color }]}>
+      <Ionicons name={state.icon} size={large ? 22 : 16} color={state.onColor} />
+      <Text style={[large ? styles.cardLabel : styles.badgeText, { color: state.onColor }]}>
+        {state.label.toUpperCase()}
       </Text>
     </View>
   )
@@ -76,12 +86,22 @@ export function Footer() {
 
 export const styles = StyleSheet.create({
   btn: { minHeight: 48, borderRadius: 10, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },
-  btnPrimary: { backgroundColor: theme.accent },
-  btnSecondary: { backgroundColor: theme.white, borderWidth: 1.5, borderColor: theme.accent },
+  btnPrimary: { backgroundColor: theme.action },
+  btnSecondary: { backgroundColor: theme.surface, borderWidth: 1.5, borderColor: theme.action },
   btnOff: { opacity: 0.4 },
   btnText: { fontSize: 16, fontWeight: '600' },
   card: { borderWidth: 1.5, borderRadius: 12, padding: 16, gap: 6 },
   cardLabel: { fontSize: 20, fontWeight: '800', letterSpacing: 1 },
+  badge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 6,
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  badgeText: { fontSize: 14, fontWeight: '800', letterSpacing: 1 },
   cardText: { fontSize: 15, lineHeight: 21 },
   cardTime: { fontSize: 12, marginTop: 4 },
   footer: { color: theme.muted, fontSize: 12, lineHeight: 17, textAlign: 'center', paddingVertical: 16 },

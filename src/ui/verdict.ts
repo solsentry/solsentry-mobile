@@ -14,8 +14,12 @@ export interface UiState {
   label: string
   /** Explanation text from the guard (or a fail-closed reason). */
   message: string
-  tone: 'accent' | 'warn' | 'stop'
+  tone: 'allow' | 'warn' | 'stop'
+  /** Icon shown next to the label, so the decision never depends on color alone. */
+  icon: 'checkmark-circle' | 'warning' | 'close-circle' | 'cloud-offline'
   color: string
+  /** Text and icon color on top of `color` (the label badge). */
+  onColor: string
   background: string
   textColor: string
   /** Send button is enabled only when the user can proceed (warn also needs a review). */
@@ -41,20 +45,22 @@ export function toUiState(v: VerdictLike | null | undefined): UiState {
   switch (decision) {
     case 'allow':
       return {
-        decision, label: 'Allow', message, tone: 'accent',
-        color: theme.accent, background: theme.accentTint, textColor: theme.text,
+        decision, label: 'Allow', message, tone: 'allow', icon: 'checkmark-circle',
+        color: theme.allow, onColor: theme.onAllow, background: theme.surface, textColor: theme.text,
         canSend: true, requiresReview: false, stoppedText: null,
       }
     case 'warn':
       return {
-        decision, label: 'Warning', message, tone: 'warn',
-        color: theme.stop, background: theme.stopTint, textColor: theme.text,
+        decision, label: 'Warning', message, tone: 'warn', icon: 'warning',
+        color: theme.warn, onColor: theme.ink, background: theme.surface, textColor: theme.text,
         canSend: true, requiresReview: true, stoppedText: null,
       }
     default:
       return {
         decision: 'block', label: 'Block', message, tone: 'stop',
-        color: theme.stop, background: theme.stop, textColor: theme.white,
+        // A check that could not run is still a block, but it is not a finding: different icon.
+        icon: v?.decision !== 'block' || v.reasons?.includes('CHECK_FAILED') ? 'cloud-offline' : 'close-circle',
+        color: theme.block, onColor: theme.ink, background: theme.block, textColor: theme.ink,
         canSend: false, requiresReview: false, stoppedText: STOPPED_TEXT,
       }
   }
