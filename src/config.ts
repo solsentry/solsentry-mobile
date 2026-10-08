@@ -36,3 +36,9 @@ export function solscanTx(signature: string): string {
  * server route /v1/device-attestation/verify is deployed.
  */
 export const DEVICE_CHECK_ENABLED: boolean = true
+
+/**
+ * "Approvals" tab (list and revoke SPL token delegates). With false the tab is not shown and
+ * the screen redirects to Check & Send; nothing in it runs.
+ */
+export const REVOKE_ENABLED: boolean = true

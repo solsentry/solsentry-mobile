@@ -2,7 +2,7 @@
 // the main line: it goes to `detail`, shown collapsed under the human sentence.
 import { STALE_VERDICT_MESSAGE } from '../wallet/mwa-math'
 
-export type WalletAction = 'send' | 'connect' | 'sender' | 'disconnect'
+export type WalletAction = 'send' | 'connect' | 'sender' | 'disconnect' | 'revoke'
 
 export interface UserError {
   message: string
@@ -14,9 +14,15 @@ export interface UserError {
 
 export const CANCELLED_SEND = 'Cancelled in your wallet. Nothing was sent.'
 export const CANCELLED_CONNECT = 'Cancelled in your wallet. Not connected.'
+export const CANCELLED_REVOKE = 'Cancelled in your wallet. The approval is still active.'
 
 /** Our own errors that are already written for the user: shown as they are. */
-const HUMAN = new Set([STALE_VERDICT_MESSAGE, 'The wallet returned no account.', 'The wallet returned no signature.'])
+const HUMAN = new Set([
+  STALE_VERDICT_MESSAGE,
+  'The wallet returned no account.',
+  'The wallet returned no signature.',
+  'The wallet authorized a different account. Nothing was signed.',
+])
 
 // MWA protocol codes (SolanaMobileWalletAdapterProtocolErrorCode).
 const AUTHORIZATION_FAILED = -1
@@ -52,6 +58,7 @@ const FALLBACK: Record<WalletAction, string> = {
   connect: 'Could not connect to your wallet. Try again.',
   sender: 'The source-of-funds check could not run. Try again.',
   disconnect: 'The wallet did not confirm the disconnect. This app has forgotten the wallet anyway.',
+  revoke: 'The revoke did not start. Nothing was signed. Try again.',
 }
 
 /** Map any wallet/send/check error to a short sentence plus the technical detail. */
@@ -64,6 +71,7 @@ export function describeError(e: unknown, action: WalletAction): UserError {
   if (CANCEL_CODES.has(code) || CANCEL_TEXT.test(message)) {
     if (action === 'send') return { message: CANCELLED_SEND, detail, cancelled: true }
     if (action === 'connect') return { message: CANCELLED_CONNECT, detail, cancelled: true }
+    if (action === 'revoke') return { message: CANCELLED_REVOKE, detail, cancelled: true }
     return { message: 'Cancelled in your wallet.', detail, cancelled: true }
   }
   if (code === 'ERROR_WALLET_NOT_FOUND') {

@@ -1,5 +1,7 @@
 import { Tabs } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
+import { REVOKE_ENABLED } from '@/src/config'
+import { APPROVALS_TEXT, approvalsTabHref } from '@/src/revoke/copy'
 import { theme } from '@/src/ui/theme'
 
 export default function TabsLayout() {
@@ -20,6 +22,14 @@ export default function TabsLayout() {
         options={{
           title: 'Check & Send',
           tabBarIcon: ({ color, size }) => <Ionicons name="scan-outline" color={color} size={size} />,
+        }}
+      />
+      <Tabs.Screen
+        name="approvals"
+        options={{
+          title: APPROVALS_TEXT.tab,
+          href: approvalsTabHref(REVOKE_ENABLED),
+          tabBarIcon: ({ color, size }) => <Ionicons name="key-outline" color={color} size={size} />,
         }}
       />
       <Tabs.Screen

@@ -2,6 +2,8 @@ import { Connection } from '@solana/web3.js'
 import { transact } from '@solana-mobile/mobile-wallet-adapter-protocol-web3js'
 import { RPC_URL, VERDICT_MAX_AGE_MS } from '../config'
 import type { PayExtras } from '../pay/transfer'
+import { hasActiveDelegate, type Delegation } from '../revoke/delegations'
+import { revokeDelegation, type RevokeResult } from '../revoke/revoke'
 import { sendTracked, type PendingSend } from './send-recovery'
 import { disconnectWallet, withAuthorizedWallet, type AuthCallbacks, type WalletSession } from './mwa-session'
 
@@ -56,5 +58,30 @@ export async function sendSol(
       maxVerdictAgeMs: VERDICT_MAX_AGE_MS,
     },
     { recipient, lamports, checkedAt, authToken, extras, cb, onPending },
+  )
+}
+
+/**
+ * Ask the wallet to sign and send one Revoke for `d`, then read the token account again.
+ * `owner` is the wallet whose approvals are listed; another authorized account is refused.
+ */
+export async function revokeApproval(
+  d: Delegation,
+  owner: string,
+  authToken?: string,
+  cb?: AuthCallbacks,
+): Promise<RevokeResult & { session?: WalletSession }> {
+  const connection = new Connection(RPC_URL, 'confirmed')
+  return revokeDelegation(
+    {
+      transact,
+      getLatestBlockhash: () => connection.getLatestBlockhash(),
+      hasActiveDelegate: (account) => hasActiveDelegate(account, RPC_URL),
+      sleep: (ms) => new Promise((r) => setTimeout(r, ms)),
+    },
+    d,
+    owner,
+    authToken,
+    cb,
   )
 }
