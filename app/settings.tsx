@@ -119,7 +119,6 @@ export default function SettingsScreen() {
 
         <View style={styles.card}>
           <Button variant="secondary" title={TEXT.clear} onPress={confirmClear} />
-          {SELFTEST_BUILD && <Button variant="secondary" title="Vector self-test" onPress={() => router.push('/selftest')} />}
         </View>
 
         <Text style={styles.muted}>{TEXT.about}</Text>
