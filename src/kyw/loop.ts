@@ -1,10 +1,10 @@
 // The validation loop: one task at a time, a pause between tasks, a longer wait when the network,
 // the server or the RPC pushes back, and a hold while a user condition (Wi-Fi, charging) is not met.
 import type { RunResult } from './run'
+import type { Settings } from './types'
 
 /** A turn may end without a record when the RPC setup changed under it. */
 export type TurnResult = RunResult | { record: null; retryAfterS: null; backoff: false }
-import type { Settings } from './types'
 
 export const BACKOFF_START_S = 5
 export const BACKOFF_MAX_S = 120

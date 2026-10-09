@@ -1,8 +1,7 @@
 // One validation: get a task, read the transaction, compute the fact, send the result.
 // Every failure ends as a record with verdict `unknown` and a reason; nothing here throws.
 import { READ_PARAMS, buildEnvelope, parseTask, readOutcome, shortId, utf8, type ReadOutcome, type Task } from '../kyw-core'
-import type { Endpoint } from './providers'
-import type { ProviderId } from './providers'
+import type { Endpoint, ProviderId } from './providers'
 import type { TaskRecord, Verdict } from './types'
 
 export const HTTP_TIMEOUT_MS = 10_000
