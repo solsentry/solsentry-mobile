@@ -1,9 +1,10 @@
 // Every string the validation screens show. Kept in one file so the wording can be reviewed and
 // tested: "verify" and "validate" only, and an accepted result says what was compared, no more.
+import brand from '../../brand.json'
 import type { TaskRecord, Verdict } from './types'
 
 export const TEXT = {
-  appName: 'SolSentry KYW',
+  appName: brand.appName,
   tagline: 'Verify public Solana transactions on your phone.',
   toggle: 'Validation',
   on: 'On',

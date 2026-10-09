@@ -9,7 +9,7 @@ answers `accepted`, `diverged` or `unknown`. An accepted result reads "Matched S
 reference read." It says nothing about any wallet, token or person. Nothing is paid or earned in
 this version.
 
-Package id `app.solsentry.kyw`. Expo / React Native, Android only. It is a sibling of SolSentry
+Package id `app.solsentry.kyw`. The public name, slug, scheme and package id are set in `brand.json` only (the name is under review: rename there in one commit). Expo / React Native, Android only. It is a sibling of SolSentry
 Guard (`app.solsentry.guard`) and installs next to it.
 
 ## What it does

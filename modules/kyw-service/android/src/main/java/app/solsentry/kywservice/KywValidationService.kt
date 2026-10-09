@@ -86,7 +86,7 @@ class KywValidationService : HeadlessJsTaskService() {
       }
       return NotificationCompat.Builder(context, CHANNEL_ID)
         .setSmallIcon(R.drawable.ic_kyw_stat)
-        .setContentTitle("SolSentry KYW")
+        .setContentTitle(context.applicationInfo.loadLabel(context.packageManager))
         .setContentText(text)
         .setOngoing(true)
         .setOnlyAlertOnce(true)
