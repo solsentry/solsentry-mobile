@@ -5,8 +5,8 @@ import { describe, expect, it } from 'vitest'
 import { FACT_TYPE, READ_PARAMS, SPEC_VERSION, readOutcome, sha256Hex } from '../src/kyw-core'
 
 const DIR = join(__dirname, 'fixtures', 'kyw_tx_core')
-/** sha256 of manifest.json as copied from the server branch (wt/kyw-v0, 6b1229af). */
-const MANIFEST_SHA256 = 'bf9710bf7537d3c517c5a5a63aa4d44a5711aa37880ba5348353fe66fdbe3559'
+/** sha256 of manifest.json as copied from the server branch (wt/kyw-v0, 716195e9). */
+const MANIFEST_SHA256 = 'd103d4cb07378a68e97b08dd7d1a3bf8e330c3204b97ee9e9b7a8267f52579ca'
 
 interface Vector {
   name: string
@@ -32,7 +32,7 @@ describe('kyw tx.core vectors', () => {
     expect(manifest.fact_type).toBe(FACT_TYPE)
     expect(manifest.spec_version).toBe(SPEC_VERSION)
     expect(manifest.read_params).toEqual(READ_PARAMS)
-    expect(manifest.vectors).toHaveLength(44)
+    expect(manifest.vectors).toHaveLength(48)
   })
 
   it.each(manifest.vectors.map((v) => [v.name, v] as const))('%s', (_name, v) => {

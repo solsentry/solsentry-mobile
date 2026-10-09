@@ -8,6 +8,16 @@
  "spec_version": "0",
  "vectors": [
   {
+   "fact_digest": null,
+   "failed": null,
+   "file": "raw/synthetic_body_list.json",
+   "name": "synthetic_body_list",
+   "raw_sha256": "f386906c8d13b5e09e9f52b6ae186d68b1544a90f12e7e3cc352a8f465213d30",
+   "status": "unknown",
+   "synthetic": true,
+   "unknown_reason": "invalid_response"
+  },
+  {
    "fact_digest": "2d6820fcb937958c9cd307ac9cb8afb5c409e29e37c84cc2f11ac7cc88b29931",
    "failed": true,
    "file": "raw/synthetic_err_other_wording.json",
@@ -16,6 +26,16 @@
    "status": "ok",
    "synthetic": true,
    "unknown_reason": null
+  },
+  {
+   "fact_digest": null,
+   "failed": null,
+   "file": "raw/synthetic_error_text.json",
+   "name": "synthetic_error_text",
+   "raw_sha256": "ed5ce32d1f19d04e6343792f98e540a63db7db0d62cbbc9042e0809bc410f709",
+   "status": "unknown",
+   "synthetic": true,
+   "unknown_reason": "rpc_error"
   },
   {
    "fact_digest": null,
@@ -36,6 +56,26 @@
    "status": "ok",
    "synthetic": true,
    "unknown_reason": null
+  },
+  {
+   "fact_digest": null,
+   "failed": null,
+   "file": "raw/synthetic_meta_null.json",
+   "name": "synthetic_meta_null",
+   "raw_sha256": "c5c5f6648257334b7ff020a826f1de7f7bb3373ef526076d50b9fd81927a26b0",
+   "status": "unknown",
+   "synthetic": true,
+   "unknown_reason": "invalid_response"
+  },
+  {
+   "fact_digest": null,
+   "failed": null,
+   "file": "raw/synthetic_nan_id.json",
+   "name": "synthetic_nan_id",
+   "raw_sha256": "2389965ab6691d6350f50231d5aaad0cbb13ae724156bd74370634902c799f0f",
+   "status": "unknown",
+   "synthetic": true,
+   "unknown_reason": "invalid_response"
   },
   {
    "fact_digest": null,

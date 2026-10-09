@@ -354,21 +354,27 @@
   "name": "meta_null",
   "raw": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"result\": {\"slot\": 1, \"blockTime\": 2, \"meta\": null, \"transaction\": {\"message\": {\"accountKeys\": [\"A\", \"B\", \"P\"], \"instructions\": [{\"programIdIndex\": 2}]}}}}",
   "expected": {
-   "reference_raised": "AttributeError"
+   "status": "unknown",
+   "unknown_reason": "invalid_response",
+   "fact_digest": null
   }
  },
  {
   "name": "raw_error_not_object",
   "raw": "{\"error\":\"boom\"}",
   "expected": {
-   "reference_raised": "AttributeError"
+   "status": "unknown",
+   "unknown_reason": "rpc_error",
+   "fact_digest": null
   }
  },
  {
   "name": "raw_top_level_list",
   "raw": "[]",
   "expected": {
-   "reference_raised": "AttributeError"
+   "status": "unknown",
+   "unknown_reason": "invalid_response",
+   "fact_digest": null
   }
  },
  {

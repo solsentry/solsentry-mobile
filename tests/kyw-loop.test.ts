@@ -154,8 +154,9 @@ describe('self-test bundle', () => {
   })
 
   it('passes all vectors and reports a failure when one is tampered with', () => {
-    expect(runSelfTest(vectors)).toMatchObject({ total: 44, passed: 44, failures: [] })
-    const tampered = vectors.map((v, i) => (i === 7 ? { ...v, raw: v.raw.replace(/"fee":\d+/, '"fee":1') } : v))
-    expect(runSelfTest(tampered).failures).toEqual([vectors[7].name])
+    expect(runSelfTest(vectors)).toMatchObject({ total: 48, passed: 48, failures: [] })
+    const target = vectors.findIndex((v) => v.name.startsWith('tx_'))
+    const tampered = vectors.map((v, i) => (i === target ? { ...v, raw: v.raw.replace(/"fee":\d+/, '"fee":1') } : v))
+    expect(runSelfTest(tampered).failures).toEqual([vectors[target].name])
   })
 })
