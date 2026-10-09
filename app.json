@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "SolSentry KYW",
-    "slug": "solsentry-kyw",
+    "name": "SolSentry",
+    "slug": "solsentry-mobile",
     "version": "0.1.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "solsentrykyw",
+    "scheme": "solsentry",
     "userInterfaceStyle": "dark",
     "backgroundColor": "#100E0A",
     "android": {
@@ -16,7 +16,7 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "app.solsentry.kyw",
+      "package": "app.solsentry.mobile",
       "versionCode": 1,
       "blockedPermissions": [
         "android.permission.SYSTEM_ALERT_WINDOW",

@@ -1,6 +1,6 @@
 {
-  "appName": "SolSentry KYW",
-  "slug": "solsentry-kyw",
-  "scheme": "solsentrykyw",
-  "androidPackage": "app.solsentry.kyw"
+  "appName": "SolSentry",
+  "slug": "solsentry-mobile",
+  "scheme": "solsentry",
+  "androidPackage": "app.solsentry.mobile"
 }
