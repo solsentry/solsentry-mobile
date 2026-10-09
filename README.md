@@ -44,8 +44,8 @@ page or a Node CLI. It mirrors the Python reference of the SolSentry server:
 A result is `ok` or `unknown` with a reason (`not_available`, `rpc_error`, `rate_limited`,
 `version`, `timeout`, `invalid_response`). Unknown is a result, never an empty fact.
 
-`tests/fixtures/kyw_tx_core/` holds the 41 vectors shared with the server (35 public transactions
-and 6 synthetic cases). The client is correct only when it reproduces the manifest for every one.
+`tests/fixtures/kyw_tx_core/` holds the 44 vectors shared with the server (35 public transactions
+and 9 synthetic cases). The client is correct only when it reproduces the manifest for every one.
 `tests/fixtures/kyw_edge_cases.json` adds hand-made bodies with the answer of the Python reference
 (`tools/kyw_edge_cases.py` regenerates it).
 
@@ -66,7 +66,7 @@ cd android && ./gradlew assembleRelease
 ```
 
 Self-test build: set `EXPO_PUBLIC_KYW_SELFTEST=1` (and optionally `EXPO_PUBLIC_KYW_API_BASE`)
-for both commands. It adds a screen that runs the 41 vectors on the device and lets the app talk to
+for both commands. It adds a screen that runs the 44 vectors on the device and lets the app talk to
 a local server. A normal build contains neither the screen nor the vectors.
 
 ## Guard code

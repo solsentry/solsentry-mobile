@@ -153,7 +153,7 @@ describe('self-test bundle', () => {
   })
 
   it('passes all vectors and reports a failure when one is tampered with', () => {
-    expect(runSelfTest(vectors)).toMatchObject({ total: 41, passed: 41, failures: [] })
+    expect(runSelfTest(vectors)).toMatchObject({ total: 44, passed: 44, failures: [] })
     const tampered = vectors.map((v, i) => (i === 7 ? { ...v, raw: v.raw.replace(/"fee":\d+/, '"fee":1') } : v))
     expect(runSelfTest(tampered).failures).toEqual([vectors[7].name])
   })

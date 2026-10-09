@@ -8,6 +8,16 @@
  "spec_version": "0",
  "vectors": [
   {
+   "fact_digest": "2d6820fcb937958c9cd307ac9cb8afb5c409e29e37c84cc2f11ac7cc88b29931",
+   "failed": true,
+   "file": "raw/synthetic_err_other_wording.json",
+   "name": "synthetic_err_other_wording",
+   "raw_sha256": "3526c68661401fe376c2af2ee4f543cac85c90f2d88a3f7de4e515956dd49ec4",
+   "status": "ok",
+   "synthetic": true,
+   "unknown_reason": null
+  },
+  {
    "fact_digest": null,
    "failed": null,
    "file": "raw/synthetic_float_fee.json",
@@ -16,6 +26,16 @@
    "status": "unknown",
    "synthetic": true,
    "unknown_reason": "invalid_response"
+  },
+  {
+   "fact_digest": "2d6820fcb937958c9cd307ac9cb8afb5c409e29e37c84cc2f11ac7cc88b29931",
+   "failed": true,
+   "file": "raw/synthetic_lookup_unexpanded.json",
+   "name": "synthetic_lookup_unexpanded",
+   "raw_sha256": "fb5d0e16c8e9699881b4177d5ae23bafab091689b4729d5c49563b4838e904c3",
+   "status": "ok",
+   "synthetic": true,
+   "unknown_reason": null
   },
   {
    "fact_digest": null,
@@ -46,6 +66,16 @@
    "status": "unknown",
    "synthetic": true,
    "unknown_reason": "rpc_error"
+  },
+  {
+   "fact_digest": "2b9ff0d7958251049dbd84a0e419ae7c7213052e1fde5aeac905c6f58a73842b",
+   "failed": true,
+   "file": "raw/synthetic_token_owner_absent.json",
+   "name": "synthetic_token_owner_absent",
+   "raw_sha256": "53f3b247ed404eb969ec783f992ab0b5e6890f3ce1a1c131e60a69f730e80bb7",
+   "status": "ok",
+   "synthetic": true,
+   "unknown_reason": null
   },
   {
    "fact_digest": "1d3377a662fa78d83c1b0f2022a3c52a7c65794cebd172812d1f093f4366d921",
