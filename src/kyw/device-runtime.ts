@@ -5,7 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import * as Attestation from '@/modules/device-attestation'
 import { fetchWithTimeout } from '../guard/fetch-timeout'
 import { KYW_API_BASE } from './config'
-import { ensureDevice, signResult, type DeviceIdentity, type DeviceNative } from './device'
+import { DEVICE_ALIAS, ensureDevice, signResult, type DeviceIdentity, type DeviceNative } from './device'
 
 const STORAGE_KEY = 'kyw.device.v1'
 const native: DeviceNative | null = Attestation.isAvailable() ? Attestation : null
@@ -29,4 +29,16 @@ export function getDevice(): Promise<DeviceIdentity> {
 
 export function signWithDevice(identity: DeviceIdentity) {
   return (r: { task_id: string; status: string; fact_digest: string | null; rpc_host: string }) => signResult(native, identity, r)
+}
+
+/** Install key over arbitrary bytes (base64 in), or null without a hardware key. */
+export function signMessageWithDevice(identity: DeviceIdentity) {
+  return async (dataB64: string): Promise<string | null> => {
+    if (!native || identity.kind !== 'key') return null
+    try {
+      return await native.sign(DEVICE_ALIAS, dataB64)
+    } catch {
+      return null
+    }
+  }
 }

@@ -68,13 +68,21 @@ const isCancel = (e: unknown) => /cancel|declin|reject|denied/i.test(e instanceo
  * One link ceremony. The address is not known before the wallet opens, so the message names it only
  * after authorization: the caller's signWithWallet authorizes, then signs what we build here.
  */
-export async function linkWallet(deps: LinkDeps, address: string, signed: () => Promise<Uint8Array>, message: string): Promise<LinkResult> {
+export async function linkWallet(
+  deps: LinkDeps,
+  address: string,
+  signed: () => Promise<Uint8Array>,
+  message: string,
+  /** When the address is only known after the wallet authorizes (MWA), returns what was signed. */
+  late?: () => { address: string; message: string },
+): Promise<LinkResult> {
   let raw: Uint8Array
   try {
     raw = await signed()
   } catch (e) {
     return isCancel(e) ? { ok: false, reason: 'cancelled' } : { ok: false, reason: 'failed', detail: String(e).slice(0, 200) }
   }
+  if (late) ({ address, message } = late())
   const msg = utf8(message)
   let pubkey: Uint8Array
   try {

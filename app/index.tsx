@@ -2,11 +2,11 @@ import Ionicons from '@expo/vector-icons/Ionicons'
 import Constants from 'expo-constants'
 import { useRouter } from 'expo-router'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { Alert, AppState, PermissionsAndroid, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native'
+import { Alert, AppState, Modal, PermissionsAndroid, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
 import { KYW_API_BASE } from '@/src/kyw/config'
-import { TEXT, VERDICT_LABEL, formatBytes, readingViaText, switchProviderPrompt, probeProblemText, probeReportLines, probeTestedText, resultSentence } from '@/src/kyw/copy'
+import { ACCOUNT_TEXT, TEXT, VERDICT_LABEL, formatBytes, readingViaText, switchProviderPrompt, probeProblemText, probeReportLines, probeTestedText, resultSentence } from '@/src/kyw/copy'
 import { mode, startValidation, statusText, stopValidation } from '@/src/kyw/engine'
 import { Grid, VERDICT_COLOR } from '@/src/kyw/Grid'
 import { tasksPerHour } from '@/src/kyw/history'
@@ -32,6 +32,7 @@ export default function ValidateScreen() {
   const kyw = useKyw()
   const { settings, history, running, status } = kyw
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [rpcMenu, setRpcMenu] = useState(false)
   const provider = providerInfo(settings.provider)
   const [probing, setProbing] = useState<ProviderId | null>(null)
   const probeInFlight = useRef(false)
@@ -106,14 +107,61 @@ export default function ValidateScreen() {
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
+        <View style={styles.topBar}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={ACCOUNT_TEXT.rpcMenuTitle}
+            hitSlop={12}
+            onPress={() => setRpcMenu(true)}
+            style={styles.topLeft}
+          >
+            <Ionicons name="git-network-outline" size={22} color={theme.text} />
+            <Text style={styles.topLabel}>{provider.label}</Text>
+            <Ionicons name="chevron-down" size={14} color={theme.muted} />
+          </Pressable>
+          <View style={styles.topRight}>
+            <Pressable accessibilityRole="button" accessibilityLabel={ACCOUNT_TEXT.title} hitSlop={12} onPress={() => router.push('/account')} style={styles.pointsPill}>
+              <Text style={styles.pointsText}>
+                {ACCOUNT_TEXT.pointsUnknown} {ACCOUNT_TEXT.pointsLabel}
+              </Text>
+            </Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel={TEXT.settings} hitSlop={12} onPress={() => router.push('/settings')}>
+              <Ionicons name="settings-outline" size={22} color={theme.text} />
+            </Pressable>
+          </View>
+        </View>
+
+        <Modal visible={rpcMenu} transparent animationType="fade" onRequestClose={() => setRpcMenu(false)}>
+          <Pressable style={styles.menuBackdrop} onPress={() => setRpcMenu(false)}>
+            <View style={styles.menu}>
+              <Text style={styles.cardTitle}>{ACCOUNT_TEXT.rpcMenuTitle}</Text>
+              {PROVIDERS.map((p) => (
+                <Pressable
+                  key={p.id}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: p.id === settings.provider }}
+                  onPress={() => {
+                    setRpcMenu(false)
+                    chooseProvider(p.id)
+                  }}
+                  style={styles.menuItem}
+                >
+                  <Text style={[styles.chipText, p.id === settings.provider && { color: theme.action }]}>
+                    {p.id === settings.provider ? '● ' : '○ '}
+                    {p.label}
+                    {p.beta ? ` · ${TEXT.beta}` : ''}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          </Pressable>
+        </Modal>
+
         <View style={styles.header}>
           <View style={{ flex: 1 }}>
             <Text style={styles.title}>{TEXT.appName}</Text>
             <Text style={styles.muted}>{TEXT.tagline}</Text>
           </View>
-          <Pressable accessibilityRole="button" accessibilityLabel={TEXT.settings} hitSlop={12} onPress={() => router.push('/settings')}>
-            <Ionicons name="settings-outline" size={24} color={theme.text} />
-          </Pressable>
         </View>
 
         <View style={[styles.card, running && { borderColor: theme.action }]}>
@@ -286,6 +334,15 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   label: { color: theme.text, fontSize: 14, fontWeight: '600' },
+  topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  topLeft: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  topLabel: { color: theme.text, fontSize: 14, fontWeight: '600' },
+  topRight: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  pointsPill: { borderWidth: 1, borderColor: theme.action, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 4 },
+  pointsText: { color: theme.text, fontSize: 14, fontWeight: '700' },
+  menuBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', paddingTop: 80, paddingHorizontal: 16 },
+  menu: { backgroundColor: theme.bg, borderWidth: 1, borderColor: theme.border, borderRadius: 16, padding: 16, gap: 6, alignSelf: 'flex-start', minWidth: 240 },
+  menuItem: { paddingVertical: 10 },
   input: {
     minHeight: 48,
     borderRadius: 10,

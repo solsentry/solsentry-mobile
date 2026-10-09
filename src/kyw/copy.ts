@@ -120,6 +120,31 @@ const REASON_TEXT: Record<string, string> = {
   wrong_fact_type: 'This app version does not compute this kind of fact.',
 }
 
+export const ACCOUNT_TEXT = {
+  title: 'Points',
+  pointsLabel: 'points',
+  pointsUnknown: '—',
+  pendingNote:
+    'Points are held for this install only. Link a wallet to keep them (one with a Seeker Genesis Token is Genesis). Uninstalling or clearing the app loses them.',
+  pointsSoon: 'Points start counting once SolSentry turns them on.',
+  link: 'Link wallet',
+  linking: 'Waiting for the wallet…',
+  linked: 'Linked wallet',
+  unlink: 'Unlink on this phone',
+  genesis: 'Genesis: this wallet holds a Seeker Genesis Token.',
+  noGenesis: 'No Seeker Genesis Token on this wallet.',
+  genesisUnknown: 'Could not check the Seeker Genesis Token right now.',
+  notSynced: 'Saved on this phone; sent to SolSentry when that opens.',
+  deviceNotVerified: 'This phone did not pass the hardware check, so it does not earn points.',
+  cancelled: 'Linking was cancelled in the wallet.',
+  badSignature: 'The wallet signature did not check out. Nothing was linked.',
+  failed: 'Could not open the wallet.',
+  redeemTitle: 'Redeem',
+  redeemNote: 'Coming later. Nothing can be redeemed yet and points have no set value.',
+  redeemItems: ['API access', 'Partner rewards', 'Tokens'],
+  rpcMenuTitle: 'RPC for the read',
+}
+
 /** Settings: what the install identity is and what the hardware check said. */
 export function deviceLines(d: { id: string; kind: 'key' | 'random'; check: string; headline: string | null } | null): string[] {
   if (!d) return ['Checking this device…']
