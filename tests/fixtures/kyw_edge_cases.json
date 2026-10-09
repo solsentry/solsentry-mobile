@@ -1,0 +1,404 @@
+[
+ {
+  "name": "base",
+  "raw": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"result\": {\"slot\": 1, \"blockTime\": 2, \"meta\": {\"err\": null, \"fee\": 5000, \"preBalances\": [10, 20, 30], \"postBalances\": [5, 25, 30], \"preTokenBalances\": [], \"postTokenBalances\": [], \"innerInstructions\": []}, \"transaction\": {\"message\": {\"accountKeys\": [\"A\", \"B\", \"P\"], \"instructions\": [{\"programIdIndex\": 2}]}}}}",
+  "expected": {
+   "status": "ok",
+   "unknown_reason": null,
+   "fact_digest": "6fb364574a2cca623155077018b5f097dc816274f5536450988f1008c2abb828"
+  }
+ },
+ {
+  "name": "failed",
+  "raw": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"result\": {\"slot\": 1, \"blockTime\": 2, \"meta\": {\"err\": {\"InstructionError\": [0, {\"Custom\": 1}]}, \"fee\": 5000, \"preBalances\": [10, 20, 30], \"postBalances\": [5, 25, 30], \"preTokenBalances\": [], \"postTokenBalances\": [], \"innerInstructions\": []}, \"transaction\": {\"message\": {\"accountKeys\": [\"A\", \"B\", \"P\"], \"instructions\": [{\"programIdIndex\": 2}]}}}}",
+  "expected": {
+   "status": "ok",
+   "unknown_reason": null,
+   "fact_digest": "780255139f4e7d37356b3a2f69b13c89c6646af096a6d7ec15b8f11a2f3dfb3b"
+  }
+ },
+ {
+  "name": "blocktime_null",
+  "raw": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"result\": {\"slot\": 1, \"blockTime\": null, \"meta\": {\"err\": null, \"fee\": 5000, \"preBalances\": [10, 20, 30], \"postBalances\": [5, 25, 30], \"preTokenBalances\": [], \"postTokenBalances\": [], \"innerInstructions\": []}, \"transaction\": {\"message\": {\"accountKeys\": [\"A\", \"B\", \"P\"], \"instructions\": [{\"programIdIndex\": 2}]}}}}",
+  "expected": {
+   "status": "ok",
+   "unknown_reason": null,
+   "fact_digest": "8103965e81ab8b8303f269489b534990932808081184e15c744ae97e62294b50"
+  }
+ },
+ {
+  "name": "blocktime_missing",
+  "raw": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"result\": {\"slot\": 1, \"meta\": {\"err\": null, \"fee\": 5000, \"preBalances\": [10, 20, 30], \"postBalances\": [5, 25, 30], \"preTokenBalances\": [], \"postTokenBalances\": [], \"innerInstructions\": []}, \"transaction\": {\"message\": {\"accountKeys\": [\"A\", \"B\", \"P\"], \"instructions\": [{\"programIdIndex\": 2}]}}}}",
+  "expected": {
+   "status": "ok",
+   "unknown_reason": null,
+   "fact_digest": "8103965e81ab8b8303f269489b534990932808081184e15c744ae97e62294b50"
+  }
+ },
+ {
+  "name": "token_lists_null",
+  "raw": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"result\": {\"slot\": 1, \"blockTime\": 2, \"meta\": {\"err\": null, \"fee\": 5000, \"preBalances\": [10, 20, 30], \"postBalances\": [5, 25, 30], \"preTokenBalances\": null, \"postTokenBalances\": [], \"innerInstructions\": null}, \"transaction\": {\"message\": {\"accountKeys\": [\"A\", \"B\", \"P\"], \"instructions\": [{\"programIdIndex\": 2}]}}}}",
+  "expected": {
+   "status": "ok",
+   "unknown_reason": null,
+   "fact_digest": "6fb364574a2cca623155077018b5f097dc816274f5536450988f1008c2abb828"
+  }
+ },
+ {
+  "name": "token_lists_missing",
+  "raw": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"result\": {\"slot\": 1, \"blockTime\": 2, \"meta\": {\"err\": null, \"fee\": 5000, \"preBalances\": [10, 20, 30], \"postBalances\": [5, 25, 30]}, \"transaction\": {\"message\": {\"accountKeys\": [\"A\", \"B\", \"P\"], \"instructions\": [{\"programIdIndex\": 2}]}}}}",
+  "expected": {
+   "status": "ok",
+   "unknown_reason": null,
+   "fact_digest": "6fb364574a2cca623155077018b5f097dc816274f5536450988f1008c2abb828"
+  }
+ },
+ {
+  "name": "token_sort_and_owner",
+  "raw": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"result\": {\"slot\": 1, \"blockTime\": 2, \"meta\": {\"err\": null, \"fee\": 5000, \"preBalances\": [10, 20, 30], \"postBalances\": [5, 25, 30], \"preTokenBalances\": [], \"postTokenBalances\": [{\"accountIndex\": 2, \"mint\": \"MintB\", \"uiTokenAmount\": {\"amount\": \"10\", \"decimals\": 6, \"uiAmount\": 1.5}, \"owner\": \"OwnerZ\"}, {\"accountIndex\": 1, \"mint\": \"MintA\", \"uiTokenAmount\": {\"amount\": \"7\", \"decimals\": 6, \"uiAmount\": 1.5}}, {\"accountIndex\": 10, \"mint\": \"MintA\", \"uiTokenAmount\": {\"amount\": \"0\", \"decimals\": 6, \"uiAmount\": 1.5}, \"owner\": null}, {\"accountIndex\": 1, \"mint\": \"MintA\", \"uiTokenAmount\": {\"amount\": \"7\", \"decimals\": 6, \"uiAmount\": 1.5}, \"owner\": \"OwnerA\"}], \"innerInstructions\": []}, \"transaction\": {\"message\": {\"accountKeys\": [\"A\", \"B\", \"P\"], \"instructions\": [{\"programIdIndex\": 2}]}}}}",
+  "expected": {
+   "status": "ok",
+   "unknown_reason": null,
+   "fact_digest": "d0ca39866e063387c7335741c1ef9bf1ae1ad696a4c6588caf03837a1fe9c45b"
+  }
+ },
+ {
+  "name": "token_amount_number",
+  "raw": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"result\": {\"slot\": 1, \"blockTime\": 2, \"meta\": {\"err\": null, \"fee\": 5000, \"preBalances\": [10, 20, 30], \"postBalances\": [5, 25, 30], \"preTokenBalances\": [{\"accountIndex\": 1, \"mint\": \"M\", \"uiTokenAmount\": {\"amount\": 7}}], \"postTokenBalances\": [], \"innerInstructions\": []}, \"transaction\": {\"message\": {\"accountKeys\": [\"A\", \"B\", \"P\"], \"instructions\": [{\"programIdIndex\": 2}]}}}}",
+  "expected": {
+   "status": "unknown",
+   "unknown_reason": "invalid_response",
+   "fact_digest": null
+  }
+ },
+ {
+  "name": "token_float_index",
+  "raw": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"result\": {\"slot\": 1, \"blockTime\": 2, \"meta\": {\"err\": null, \"fee\": 5000, \"preBalances\": [10, 20, 30], \"postBalances\": [5, 25, 30], \"preTokenBalances\": [{\"accountIndex\": 1.0, \"mint\": \"M\", \"uiTokenAmount\": {\"amount\": \"7\"}}], \"postTokenBalances\": [], \"innerInstructions\": []}, \"transaction\": {\"message\": {\"accountKeys\": [\"A\", \"B\", \"P\"], \"instructions\": [{\"programIdIndex\": 2}]}}}}",
+  "expected": {
+   "status": "unknown",
+   "unknown_reason": "invalid_response",
+   "fact_digest": null
+  }
+ },
+ {
+  "name": "inner_sorted",
+  "raw": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"result\": {\"slot\": 1, \"blockTime\": 2, \"meta\": {\"err\": null, \"fee\": 5000, \"preBalances\": [10, 20, 30], \"postBalances\": [5, 25, 30], \"preTokenBalances\": [], \"postTokenBalances\": [], \"innerInstructions\": [{\"index\": 10, \"instructions\": [{\"programId\": \"X\"}]}, {\"index\": 2, \"instructions\": [{\"programIdIndex\": 0}, {\"programId\": \"Y\", \"parsed\": {\"a\": 1.5}}]}]}, \"transaction\": {\"message\": {\"accountKeys\": [\"A\", \"B\", \"P\"], \"instructions\": [{\"programIdIndex\": 2}]}}}}",
+  "expected": {
+   "status": "ok",
+   "unknown_reason": null,
+   "fact_digest": "b44f8f9fc31700f6ed72bb964c69271fecbe81d62f74b2e7c87e17cff37aad99"
+  }
+ },
+ {
+  "name": "parsed_keys",
+  "raw": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"result\": {\"slot\": 1, \"blockTime\": 2, \"meta\": {\"err\": null, \"fee\": 5000, \"preBalances\": [10, 20, 30], \"postBalances\": [5, 25, 30], \"preTokenBalances\": [], \"postTokenBalances\": [], \"innerInstructions\": []}, \"transaction\": {\"message\": {\"accountKeys\": [{\"pubkey\": \"A\", \"signer\": true, \"source\": \"transaction\", \"writable\": true}, {\"pubkey\": \"B\", \"signer\": false, \"source\": \"transaction\", \"writable\": true}, {\"pubkey\": \"L\", \"signer\": false, \"source\": \"lookupTable\", \"writable\": false}], \"instructions\": [{\"programIdIndex\": 2}]}}}}",
+  "expected": {
+   "status": "ok",
+   "unknown_reason": null,
+   "fact_digest": "efcf73f417ab177df07201e2566fbbdda8e3977b5193e7cdad70117f882a8de7"
+  }
+ },
+ {
+  "name": "loaded_appended",
+  "raw": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"result\": {\"slot\": 1, \"blockTime\": 2, \"meta\": {\"err\": null, \"fee\": 5000, \"preBalances\": [10, 20, 30], \"postBalances\": [5, 25, 30], \"preTokenBalances\": [], \"postTokenBalances\": [], \"innerInstructions\": [], \"loadedAddresses\": {\"writable\": [\"W\"], \"readonly\": [\"R\"]}}, \"transaction\": {\"message\": {\"accountKeys\": [\"A\", \"B\", \"P\"], \"instructions\": [{\"programIdIndex\": 2}]}}}}",
+  "expected": {
+   "status": "ok",
+   "unknown_reason": null,
+   "fact_digest": "fd501b571381dff4bec3e4aaca85403e4dd4d6c70318d46191c0ad314fcd1f88"
+  }
+ },
+ {
+  "name": "loaded_already_expanded",
+  "raw": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"result\": {\"slot\": 1, \"blockTime\": 2, \"meta\": {\"err\": null, \"fee\": 5000, \"preBalances\": [10, 20, 30], \"postBalances\": [5, 25, 30], \"preTokenBalances\": [], \"postTokenBalances\": [], \"innerInstructions\": [], \"loadedAddresses\": {\"writable\": [\"B\"], \"readonly\": [\"P\"]}}, \"transaction\": {\"message\": {\"accountKeys\": [\"A\", \"B\", \"P\"], \"instructions\": [{\"programIdIndex\": 2}]}}}}",
+  "expected": {
+   "status": "ok",
+   "unknown_reason": null,
+   "fact_digest": "6fb364574a2cca623155077018b5f097dc816274f5536450988f1008c2abb828"
+  }
+ },
+ {
+  "name": "loaded_with_lookup_source",
+  "raw": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"result\": {\"slot\": 1, \"blockTime\": 2, \"meta\": {\"err\": null, \"fee\": 5000, \"preBalances\": [10, 20, 30], \"postBalances\": [5, 25, 30], \"preTokenBalances\": [], \"postTokenBalances\": [], \"innerInstructions\": [], \"loadedAddresses\": {\"writable\": [\"L\"], \"readonly\": []}}, \"transaction\": {\"message\": {\"accountKeys\": [{\"pubkey\": \"A\"}, {\"pubkey\": \"L\", \"source\": \"lookupTable\"}], \"instructions\": [{\"programIdIndex\": 1}]}}}}",
+  "expected": {
+   "status": "ok",
+   "unknown_reason": null,
+   "fact_digest": "67d341ab2e0d3a2d73ff08b2f88048be07bdc3e26f1257dca95abcf75b8cd0a9"
+  }
+ },
+ {
+  "name": "loaded_empty",
+  "raw": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"result\": {\"slot\": 1, \"blockTime\": 2, \"meta\": {\"err\": null, \"fee\": 5000, \"preBalances\": [10, 20, 30], \"postBalances\": [5, 25, 30], \"preTokenBalances\": [], \"postTokenBalances\": [], \"innerInstructions\": [], \"loadedAddresses\": {\"writable\": [], \"readonly\": []}}, \"transaction\": {\"message\": {\"accountKeys\": [\"A\", \"B\", \"P\"], \"instructions\": [{\"programIdIndex\": 2}]}}}}",
+  "expected": {
+   "status": "ok",
+   "unknown_reason": null,
+   "fact_digest": "6fb364574a2cca623155077018b5f097dc816274f5536450988f1008c2abb828"
+  }
+ },
+ {
+  "name": "loaded_null",
+  "raw": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"result\": {\"slot\": 1, \"blockTime\": 2, \"meta\": {\"err\": null, \"fee\": 5000, \"preBalances\": [10, 20, 30], \"postBalances\": [5, 25, 30], \"preTokenBalances\": [], \"postTokenBalances\": [], \"innerInstructions\": [], \"loadedAddresses\": null}, \"transaction\": {\"message\": {\"accountKeys\": [\"A\", \"B\", \"P\"], \"instructions\": [{\"programIdIndex\": 2}]}}}}",
+  "expected": {
+   "status": "ok",
+   "unknown_reason": null,
+   "fact_digest": "6fb364574a2cca623155077018b5f097dc816274f5536450988f1008c2abb828"
+  }
+ },
+ {
+  "name": "program_index_out_of_range",
+  "raw": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"result\": {\"slot\": 1, \"blockTime\": 2, \"meta\": {\"err\": null, \"fee\": 5000, \"preBalances\": [10, 20, 30], \"postBalances\": [5, 25, 30], \"preTokenBalances\": [], \"postTokenBalances\": [], \"innerInstructions\": []}, \"transaction\": {\"message\": {\"accountKeys\": [\"A\", \"B\", \"P\"], \"instructions\": [{\"programIdIndex\": 9}]}}}}",
+  "expected": {
+   "status": "unknown",
+   "unknown_reason": "invalid_response",
+   "fact_digest": null
+  }
+ },
+ {
+  "name": "program_index_negative",
+  "raw": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"result\": {\"slot\": 1, \"blockTime\": 2, \"meta\": {\"err\": null, \"fee\": 5000, \"preBalances\": [10, 20, 30], \"postBalances\": [5, 25, 30], \"preTokenBalances\": [], \"postTokenBalances\": [], \"innerInstructions\": []}, \"transaction\": {\"message\": {\"accountKeys\": [\"A\", \"B\", \"P\"], \"instructions\": [{\"programIdIndex\": -1}]}}}}",
+  "expected": {
+   "status": "ok",
+   "unknown_reason": null,
+   "fact_digest": "6fb364574a2cca623155077018b5f097dc816274f5536450988f1008c2abb828"
+  }
+ },
+ {
+  "name": "program_index_missing",
+  "raw": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"result\": {\"slot\": 1, \"blockTime\": 2, \"meta\": {\"err\": null, \"fee\": 5000, \"preBalances\": [10, 20, 30], \"postBalances\": [5, 25, 30], \"preTokenBalances\": [], \"postTokenBalances\": [], \"innerInstructions\": []}, \"transaction\": {\"message\": {\"accountKeys\": [\"A\", \"B\", \"P\"], \"instructions\": [{}]}}}}",
+  "expected": {
+   "status": "unknown",
+   "unknown_reason": "invalid_response",
+   "fact_digest": null
+  }
+ },
+ {
+  "name": "missing_fee",
+  "raw": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"result\": {\"slot\": 1, \"blockTime\": 2, \"meta\": {\"err\": null, \"preBalances\": [10, 20, 30], \"postBalances\": [5, 25, 30], \"preTokenBalances\": [], \"postTokenBalances\": [], \"innerInstructions\": []}, \"transaction\": {\"message\": {\"accountKeys\": [\"A\", \"B\", \"P\"], \"instructions\": [{\"programIdIndex\": 2}]}}}}",
+  "expected": {
+   "status": "unknown",
+   "unknown_reason": "invalid_response",
+   "fact_digest": null
+  }
+ },
+ {
+  "name": "missing_err",
+  "raw": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"result\": {\"slot\": 1, \"blockTime\": 2, \"meta\": {\"fee\": 5000, \"preBalances\": [10, 20, 30], \"postBalances\": [5, 25, 30], \"preTokenBalances\": [], \"postTokenBalances\": [], \"innerInstructions\": []}, \"transaction\": {\"message\": {\"accountKeys\": [\"A\", \"B\", \"P\"], \"instructions\": [{\"programIdIndex\": 2}]}}}}",
+  "expected": {
+   "status": "unknown",
+   "unknown_reason": "invalid_response",
+   "fact_digest": null
+  }
+ },
+ {
+  "name": "missing_slot",
+  "raw": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"result\": {\"blockTime\": 2, \"meta\": {\"err\": null, \"fee\": 5000, \"preBalances\": [10, 20, 30], \"postBalances\": [5, 25, 30], \"preTokenBalances\": [], \"postTokenBalances\": [], \"innerInstructions\": []}, \"transaction\": {\"message\": {\"accountKeys\": [\"A\", \"B\", \"P\"], \"instructions\": [{\"programIdIndex\": 2}]}}}}",
+  "expected": {
+   "status": "unknown",
+   "unknown_reason": "invalid_response",
+   "fact_digest": null
+  }
+ },
+ {
+  "name": "missing_transaction",
+  "raw": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"result\": {\"slot\": 1, \"blockTime\": 2, \"meta\": {\"err\": null, \"fee\": 5000, \"preBalances\": [10, 20, 30], \"postBalances\": [5, 25, 30], \"preTokenBalances\": [], \"postTokenBalances\": [], \"innerInstructions\": []}}}",
+  "expected": {
+   "status": "unknown",
+   "unknown_reason": "invalid_response",
+   "fact_digest": null
+  }
+ },
+ {
+  "name": "unicode_and_escapes",
+  "raw": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"result\": {\"slot\": 1, \"blockTime\": 2, \"meta\": {\"err\": null, \"fee\": 5000, \"preBalances\": [10, 20, 30], \"postBalances\": [5, 25, 30], \"preTokenBalances\": [], \"postTokenBalances\": [], \"innerInstructions\": []}, \"transaction\": {\"message\": {\"accountKeys\": [\"é 😀\", \"a\\\"b\\\\c\\n\\t\\u0001\", \"￿\"], \"instructions\": [{\"programIdIndex\": 2}]}}}}",
+  "expected": {
+   "status": "ok",
+   "unknown_reason": null,
+   "fact_digest": "370d13cf629ca3ce9e3df468157adb79a76ec41af06ee3b314c214b56c88e4c5"
+  }
+ },
+ {
+  "name": "big_ints",
+  "raw": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"result\": {\"slot\": 1, \"blockTime\": 2, \"meta\": {\"err\": null, \"fee\": 9223372036854775808, \"preBalances\": [18446744073709551615, 0, 9007199254740993], \"postBalances\": [5, 25, 30], \"preTokenBalances\": [], \"postTokenBalances\": [], \"innerInstructions\": []}, \"transaction\": {\"message\": {\"accountKeys\": [\"A\", \"B\", \"P\"], \"instructions\": [{\"programIdIndex\": 2}]}}}}",
+  "expected": {
+   "status": "ok",
+   "unknown_reason": null,
+   "fact_digest": "c6d683d042f1592b642cf51e101d88e13841e034376d15ec12b38c1d2d05c4bb"
+  }
+ },
+ {
+  "name": "raw_negative_zero",
+  "raw": "{\"result\":{\"slot\":-0,\"blockTime\":null,\"meta\":{\"err\":null,\"fee\":0,\"preBalances\":[],\"postBalances\":[]},\"transaction\":{\"message\":{\"accountKeys\":[],\"instructions\":[]}}}}",
+  "expected": {
+   "status": "ok",
+   "unknown_reason": null,
+   "fact_digest": "3f33de4c6756430e50f8fa6b4f212ee0fc1c2ef49620cd0f10fee99dcab69922"
+  }
+ },
+ {
+  "name": "raw_exponent",
+  "raw": "{\"result\":{\"slot\":1e3,\"blockTime\":null,\"meta\":{\"err\":null,\"fee\":0,\"preBalances\":[],\"postBalances\":[]},\"transaction\":{\"message\":{\"accountKeys\":[],\"instructions\":[]}}}}",
+  "expected": {
+   "status": "unknown",
+   "unknown_reason": "invalid_response",
+   "fact_digest": null
+  }
+ },
+ {
+  "name": "raw_float_outside_fact",
+  "raw": "{\"result\":{\"slot\":1,\"blockTime\":null,\"version\":0.5,\"meta\":{\"err\":null,\"fee\":0,\"computeUnitsConsumed\":1.5,\"preBalances\":[],\"postBalances\":[]},\"transaction\":{\"message\":{\"accountKeys\":[],\"instructions\":[]}}}}",
+  "expected": {
+   "status": "ok",
+   "unknown_reason": null,
+   "fact_digest": "9b7dc9fbc7f1aaba989c9a5b6be84f19e6cb2cce650fdb6ab9d416f69758f672"
+  }
+ },
+ {
+  "name": "raw_duplicate_key",
+  "raw": "{\"result\":{\"slot\":1,\"slot\":2,\"blockTime\":null,\"meta\":{\"err\":null,\"fee\":0,\"preBalances\":[],\"postBalances\":[]},\"transaction\":{\"message\":{\"accountKeys\":[],\"instructions\":[]}}}}",
+  "expected": {
+   "status": "ok",
+   "unknown_reason": null,
+   "fact_digest": "8fb5e82cf4191039b1b3fe31cc2296406aa4a6908579ee74eb927ca096125568"
+  }
+ },
+ {
+  "name": "raw_whitespace",
+  "raw": " \n{\"result\" : {\"slot\":1,\"blockTime\":null,\"meta\":{\"err\":null,\"fee\":0,\"preBalances\":[ ],\"postBalances\":[]},\"transaction\":{\"message\":{\"accountKeys\":[],\"instructions\":[]}}}}\r\n",
+  "expected": {
+   "status": "ok",
+   "unknown_reason": null,
+   "fact_digest": "9b7dc9fbc7f1aaba989c9a5b6be84f19e6cb2cce650fdb6ab9d416f69758f672"
+  }
+ },
+ {
+  "name": "raw_result_null",
+  "raw": "{\"jsonrpc\":\"2.0\",\"result\":null,\"id\":1}",
+  "expected": {
+   "status": "unknown",
+   "unknown_reason": "not_available",
+   "fact_digest": null
+  }
+ },
+ {
+  "name": "raw_no_result",
+  "raw": "{\"jsonrpc\":\"2.0\",\"id\":1}",
+  "expected": {
+   "status": "unknown",
+   "unknown_reason": "not_available",
+   "fact_digest": null
+  }
+ },
+ {
+  "name": "raw_error_plain",
+  "raw": "{\"error\":{\"code\":-32000,\"message\":\"Node is behind\"}}",
+  "expected": {
+   "status": "unknown",
+   "unknown_reason": "rpc_error",
+   "fact_digest": null
+  }
+ },
+ {
+  "name": "raw_error_version",
+  "raw": "{\"error\":{\"code\":-32015,\"message\":\"Transaction version (0) is not supported\"}}",
+  "expected": {
+   "status": "unknown",
+   "unknown_reason": "version",
+   "fact_digest": null
+  }
+ },
+ {
+  "name": "raw_error_429",
+  "raw": "{\"error\":{\"code\":429,\"message\":\"Too many requests\"}}",
+  "expected": {
+   "status": "unknown",
+   "unknown_reason": "rate_limited",
+   "fact_digest": null
+  }
+ },
+ {
+  "name": "raw_error_rate_text",
+  "raw": "{\"error\":{\"code\":-32005,\"message\":\"Rate limit exceeded\"}}",
+  "expected": {
+   "status": "unknown",
+   "unknown_reason": "rate_limited",
+   "fact_digest": null
+  }
+ },
+ {
+  "name": "raw_error_and_result",
+  "raw": "{\"error\":{\"code\":1,\"message\":\"x\"},\"result\":{}}",
+  "expected": {
+   "status": "unknown",
+   "unknown_reason": "rpc_error",
+   "fact_digest": null
+  }
+ },
+ {
+  "name": "raw_result_string",
+  "raw": "{\"result\":\"abc\"}",
+  "expected": {
+   "status": "unknown",
+   "unknown_reason": "invalid_response",
+   "fact_digest": null
+  }
+ },
+ {
+  "name": "raw_result_empty_object",
+  "raw": "{\"result\":{}}",
+  "expected": {
+   "status": "unknown",
+   "unknown_reason": "invalid_response",
+   "fact_digest": null
+  }
+ },
+ {
+  "name": "meta_null",
+  "raw": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"result\": {\"slot\": 1, \"blockTime\": 2, \"meta\": null, \"transaction\": {\"message\": {\"accountKeys\": [\"A\", \"B\", \"P\"], \"instructions\": [{\"programIdIndex\": 2}]}}}}",
+  "expected": {
+   "reference_raised": "AttributeError"
+  }
+ },
+ {
+  "name": "raw_error_not_object",
+  "raw": "{\"error\":\"boom\"}",
+  "expected": {
+   "reference_raised": "AttributeError"
+  }
+ },
+ {
+  "name": "raw_top_level_list",
+  "raw": "[]",
+  "expected": {
+   "reference_raised": "AttributeError"
+  }
+ },
+ {
+  "name": "raw_not_json",
+  "raw": "<html>502 Bad Gateway</html>",
+  "expected": {
+   "status": "unknown",
+   "unknown_reason": "invalid_response",
+   "fact_digest": null,
+   "note": "not JSON"
+  }
+ },
+ {
+  "name": "raw_truncated",
+  "raw": "{\"result\":{\"slot\":1,\"meta\":{\"err\":nul",
+  "expected": {
+   "status": "unknown",
+   "unknown_reason": "invalid_response",
+   "fact_digest": null,
+   "note": "not JSON"
+  }
+ },
+ {
+  "name": "raw_empty",
+  "raw": "",
+  "expected": {
+   "status": "unknown",
+   "unknown_reason": "invalid_response",
+   "fact_digest": null,
+   "note": "not JSON"
+  }
+ }
+]
