@@ -130,7 +130,8 @@ export function deviceLines(d: { id: string; kind: 'key' | 'random'; check: stri
   } else {
     lines.push('No hardware key on this phone: results are not signed.')
   }
-  lines.push(`Install ID: ${d.id.slice(0, 12)}…`)
+  // The start of every P-256 public key is the same DER header: show the end, which differs per install.
+  lines.push(`Install ID: …${d.id.slice(-10)}`)
   lines.push('A new install gets a new ID. No wallet, serial or phone number is used.')
   return lines
 }
