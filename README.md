@@ -65,9 +65,9 @@ npx expo prebuild -p android --clean
 cd android && ./gradlew assembleRelease
 ```
 
-Self-test build: set `EXPO_PUBLIC_KYW_SELFTEST=1` (and optionally `EXPO_PUBLIC_KYW_API_BASE`)
+Self-test build: set `EXPO_PUBLIC_KYW_SELFTEST=1`
 for both commands. It adds a screen that runs the 48 vectors on the device and lets the app talk to
-a local server. A normal build contains neither the screen nor the vectors.
+a server on the PC (`adb reverse tcp:8092 tcp:8092`). A normal build contains neither the screen nor the vectors.
 
 ## Guard code
 
