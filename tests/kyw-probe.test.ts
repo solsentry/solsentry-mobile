@@ -53,7 +53,7 @@ const healthy: Rpc = (method, params) => {
 }
 
 describe('capability probe', () => {
-  it('a full endpoint: every class full, the shortest pace, 7 calls, nothing secret in the report', async () => {
+  it('a full endpoint: every class full, the shortest pace, 8 calls, nothing secret in the report', async () => {
     const h = harness(healthy)
     const report = await runProbe(h.deps)
     expect(report.capabilities).toEqual({
@@ -67,12 +67,15 @@ describe('capability probe', () => {
     expect(report).toMatchObject({ probe_version: '0', rpc_host: 'rpc.example.test', client: { kind: 'android', version: '0.1.0' } })
     expect(JSON.stringify(report)).not.toContain(SECRET)
     expect(h.calls.map((c) => c.method)).toEqual([
-      'getTransaction', 'getTransaction', 'getSignaturesForAddress', 'getSignaturesForAddress', 'getAccountInfo', 'getSlot', 'getSlot',
+      'getTransaction', 'getTransaction', 'getSignaturesForAddress', 'getSignaturesForAddress', 'getAccountInfo',
+      'getTransaction', 'getTransaction', 'getTransaction',
     ])
     expect(h.calls[0].params).toEqual([TARGETS.recent_signature, TARGETS.read])
     expect(h.calls[2].params).toEqual([TARGETS.page_address, { limit: PAGE_LIMIT }])
     expect(h.calls[3].params).toEqual([TARGETS.page_address, { limit: 10, before: TARGETS.page_before_signature }])
     expect(h.calls[4].params).toEqual([TARGETS.account, { encoding: 'base64' }])
+    expect(h.calls[7].params).toEqual([TARGETS.recent_signature, TARGETS.read])
+    expect(h.sleeps).toEqual([250, 250, 250])
   })
 
   it('a null result is "not here", an error is "none", and neither is confused with the other', async () => {
@@ -110,9 +113,9 @@ describe('capability probe', () => {
       return healthy(method, params, 0)
     })
     const { capabilities: c } = await runProbe(h.deps)
-    expect(c.C1).toEqual({ class: 'rate_limited' })
-    expect(c.C2).toEqual({ class: 'version' })
-    expect(c.C3).toEqual({ class: 'rate_limited' })
+    expect(c.C1).toEqual({ class: 'rate_limited', reason: 'rate_limited' })
+    expect(c.C2).toEqual({ class: 'version', reason: 'version' })
+    expect(c.C3).toEqual({ class: 'rate_limited', reason: 'rate_limited' })
     expect(c.C5).toEqual({ class: 'none', reason: 'http_error' })
   })
 
@@ -130,15 +133,22 @@ describe('capability probe', () => {
   })
 
   it('finds the shortest pace without a 429, and null when every pace is limited', async () => {
-    // The second getSlot of the 250 ms burst is limited; the 600 ms burst is clean.
-    const h = harness((method, params, n) => (method === 'getSlot' && n === 2 ? { status: 429, text: '' } : healthy(method, params, n)))
+    // getTransaction calls 1-2 are C1 and C2. In the 250 ms burst (calls 3-5) the last one is limited;
+    // the 600 ms burst (calls 6-8) is clean.
+    const h = harness((method, params, n) => (method === 'getTransaction' && n === 5 ? { status: 429, text: '' } : healthy(method, params, n)))
     expect((await runProbe(h.deps)).capabilities.C6).toEqual({ min_interval_ms: 600 })
-    expect(h.calls.filter((c) => c.method === 'getSlot')).toHaveLength(4)
+    expect(h.calls).toHaveLength(11)
     const never = harness((method, params, n) =>
-      method === 'getSlot' ? { body: { error: { code: 429, message: 'Too many requests' } } } : healthy(method, params, n),
+      method === 'getTransaction' && n > 2 ? { body: { error: { code: 429, message: 'Too many requests' } } } : healthy(method, params, n),
     )
     expect((await runProbe(never.deps)).capabilities.C6).toEqual({ min_interval_ms: null })
-    expect(never.calls).toHaveLength(11)
+    // A burst stops at its first 429: 5 + 1 + 1 + 1.
+    expect(never.calls).toHaveLength(8)
+  })
+
+  it('a pace burst that fails for another reason is not a rate limit', async () => {
+    const h = harness((method, params, n) => (method === 'getTransaction' && n > 2 ? ok(null) : healthy(method, params, n)))
+    expect((await runProbe(h.deps)).capabilities.C6).toEqual({ min_interval_ms: 250 })
   })
 })
 

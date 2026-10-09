@@ -21,7 +21,7 @@ export interface Capability {
   ms?: number
   page_size?: number
   /** Short fixed code. Never an endpoint, a URL or a response body. */
-  reason?: 'rpc_error' | 'http_error' | 'timeout' | 'not_available' | 'empty_page' | 'invalid_response'
+  reason?: 'rpc_error' | 'http_error' | 'timeout' | 'not_available' | 'empty_page' | 'invalid_response' | 'rate_limited' | 'version'
 }
 
 export interface ProbeReport {
@@ -54,14 +54,16 @@ export interface ProbeDeps {
 
 export const PROBE_VERSION = '0'
 export const PAGE_LIMIT = 1000
-/** Gaps tried between two calls, shortest first (spec section 5). */
+/** Calls per pace burst. */
+export const PACE_BURST = 3
+/** Gaps tried between the calls of a burst, shortest first (spec section 5). */
 export const PACE_GAPS_MS = [250, 600, 1200] as const
 /** A class is good for this long, then the phone is treated as C1-only until it probes again. */
 export const PROBE_TTL_MS = 6 * 60 * 60 * 1000
 
 type Outcome =
   | { kind: 'result'; result: unknown; ms: number }
-  | { kind: 'fail'; capability: Capability }
+  | { kind: 'fail'; capability: Capability; noAnswer?: boolean }
 
 async function call(deps: ProbeDeps, method: string, params: unknown[]): Promise<Outcome> {
   const started = deps.now()
@@ -76,10 +78,10 @@ async function call(deps: ProbeDeps, method: string, params: unknown[]): Promise
     text = await res.text()
   } catch (e) {
     const timeout = e instanceof Error && /timed out/i.test(e.message)
-    return { kind: 'fail', capability: { class: 'none', reason: timeout ? 'timeout' : 'rpc_error' } }
+    return { kind: 'fail', capability: { class: 'none', reason: timeout ? 'timeout' : 'rpc_error' }, noAnswer: true }
   }
   const ms = Math.max(0, Math.round(deps.now() - started))
-  if (res.status === 429) return { kind: 'fail', capability: { class: 'rate_limited' } }
+  if (res.status === 429) return { kind: 'fail', capability: { class: 'rate_limited', reason: 'rate_limited' } }
   let body: { error?: { code?: unknown; message?: unknown }; result?: unknown } | null = null
   try {
     const parsed: unknown = JSON.parse(text)
@@ -89,8 +91,8 @@ async function call(deps: ProbeDeps, method: string, params: unknown[]): Promise
   }
   if (body && body.error !== undefined && body.error !== null) {
     const message = typeof body.error.message === 'string' ? body.error.message.toLowerCase() : ''
-    if (body.error.code === 429 || message.includes('rate')) return { kind: 'fail', capability: { class: 'rate_limited' } }
-    if (message.includes('version')) return { kind: 'fail', capability: { class: 'version' } }
+    if (body.error.code === 429 || message.includes('rate')) return { kind: 'fail', capability: { class: 'rate_limited', reason: 'rate_limited' } }
+    if (message.includes('version')) return { kind: 'fail', capability: { class: 'version', reason: 'version' } }
     return { kind: 'fail', capability: { class: 'none', reason: 'rpc_error' } }
   }
   if (!res.ok) return { kind: 'fail', capability: { class: 'none', reason: 'http_error' } }
@@ -117,12 +119,22 @@ async function page(deps: ProbeDeps, params: unknown[], limit: number, shortIsLi
   return { class: 'full', ms: out.ms }
 }
 
-/** Two getSlot calls `gap` apart; true when neither was rate limited. */
+/**
+ * Three reads of the recent transaction, `gap` apart, with the task's own method and options: a
+ * light call such as getSlot does not trigger the limit a real task triggers. True when none of
+ * the three was rate limited and the endpoint answered at least once.
+ */
 async function paceHolds(deps: ProbeDeps, gap: number): Promise<boolean> {
-  const first = await call(deps, 'getSlot', [])
-  await deps.sleep(gap)
-  const second = await call(deps, 'getSlot', [])
-  return [first, second].every((o) => o.kind === 'result')
+  const params = [deps.targets.recent_signature, { ...deps.targets.read }]
+  let answered = false
+  for (let i = 0; i < PACE_BURST; i++) {
+    if (i > 0) await deps.sleep(gap)
+    const out = await call(deps, 'getTransaction', params)
+    if (out.kind === 'fail' && out.capability.class === 'rate_limited') return false
+    if (!(out.kind === 'fail' && out.noAnswer)) answered = true
+  }
+  // An endpoint that never answered says nothing about its pace.
+  return answered
 }
 
 export async function runProbe(deps: ProbeDeps): Promise<ProbeReport> {
