@@ -13,7 +13,7 @@ vi.mock('@react-native-async-storage/async-storage', () => ({
     removeItem: vi.fn(async (key: string) => { storage.delete(key) }),
   },
 }))
-vi.mock('expo-secure-store', () => ({ getItemAsync: vi.fn(async () => null) }))
+vi.mock('expo-secure-store', () => ({ getItemAsync: vi.fn(async () => null), setItemAsync: vi.fn(async () => {}), deleteItemAsync: vi.fn(async () => {}) }))
 
 type FetchFn = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
 
@@ -37,7 +37,8 @@ function harness(provider: ProviderId = 'quicknode', secret = SECRET_URL) {
     if (init?.method === 'GET') return Response.json(TARGETS)
     const { method, params } = JSON.parse(String(init?.body))
     return Response.json({ result: method === 'getSignaturesForAddress'
-      ? Array.from({ length: params[1].limit }, () => ({ signature: 'public' })) : { slot: 1 } })
+      ? Array.from({ length: params[1].limit }, () => ({ signature: 'public' }))
+      : method === 'getAccountInfo' ? { context: { slot: 1 }, value: { lamports: 1 } } : { slot: 1 } })
   })
   return { fetch, apiBase: API, provider, secret, clientVersion: '0.1.0', now: () => AT, sleep: async () => {} }
 }

@@ -27,7 +27,7 @@ function isRecord(r: unknown): r is TaskRecord {
     typeof x.at === 'number' &&
     typeof x.short === 'string' &&
     (x.verdict === 'accepted' || x.verdict === 'diverged' || x.verdict === 'unknown') &&
-    (x.reason === null || typeof x.reason === 'string') &&
+    (x.reason === null || (typeof x.reason === 'string' && /^[a-z_]{1,40}$/.test(x.reason) && x.reason !== '__proto__')) &&
     typeof x.host === 'string' &&
     typeof x.ms === 'number' &&
     typeof x.bytes === 'number'

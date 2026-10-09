@@ -109,6 +109,16 @@ async function present(deps: ProbeDeps, method: string, params: unknown[]): Prom
   return out.kind === 'fail' ? out.capability : { class: 'full', ms: out.ms }
 }
 
+/** getAccountInfo wraps the account in {context, value}; value null means this endpoint has no account. */
+async function accountState(deps: ProbeDeps, account: string): Promise<Capability> {
+  const out = await call(deps, 'getAccountInfo', [account, { encoding: 'base64' }])
+  if (out.kind === 'fail') return out.capability
+  const value = typeof out.result === 'object' && out.result !== null ? (out.result as { value?: unknown }).value : undefined
+  if (value === undefined) return { class: 'none', reason: 'invalid_response' }
+  if (value === null) return { class: 'none', reason: 'not_available' }
+  return { class: 'full', ms: out.ms }
+}
+
 async function page(deps: ProbeDeps, params: unknown[], limit: number, shortIsLimited: boolean): Promise<Capability> {
   const out = await call(deps, 'getSignaturesForAddress', params)
   if (out.kind === 'fail') return out.capability
@@ -144,7 +154,7 @@ export async function runProbe(deps: ProbeDeps): Promise<ProbeReport> {
   const C2 = await present(deps, 'getTransaction', [t.archival_signature, read])
   const C3 = await page(deps, [t.page_address, { limit: PAGE_LIMIT }], PAGE_LIMIT, true)
   const C4 = await page(deps, [t.page_address, { limit: 10, before: t.page_before_signature }], 10, false)
-  const C5 = await present(deps, 'getAccountInfo', [t.account, { encoding: 'base64' }])
+  const C5 = await accountState(deps, t.account)
   let minInterval: number | null = null
   for (const gap of PACE_GAPS_MS) {
     await deps.sleep(gap)

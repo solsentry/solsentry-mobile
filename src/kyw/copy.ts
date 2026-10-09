@@ -121,7 +121,9 @@ const REASON_TEXT: Record<string, string> = {
 export function resultSentence(record: Pick<TaskRecord, 'verdict' | 'reason'>): string {
   if (record.verdict === 'accepted') return "Matched SolSentry's reference read."
   if (record.verdict === 'diverged') return "Did not match SolSentry's reference read. The result was recorded."
-  return REASON_TEXT[record.reason ?? ''] ?? 'No result for this task.'
+  const reason = record.reason ?? ''
+  // Own keys only: a stored reason such as "__proto__" must not reach the prototype.
+  return Object.prototype.hasOwnProperty.call(REASON_TEXT, reason) ? REASON_TEXT[reason] : 'No result for this task.'
 }
 
 export function formatBytes(bytes: number): string {

@@ -17,6 +17,8 @@ const CLIENT_VERSION = Constants.expoConfig?.version ?? '0'
 const API_HOST = KYW_API_BASE.replace(/^https?:\/\//, '').replace(/[:/].*$/, '')
 
 let stopRequested = true
+/** What the user last asked for. The service's task may start later than the request. */
+let wanted = false
 let loopActive = false
 let wake: (() => void) | null = null
 
@@ -121,6 +123,11 @@ async function loop(): Promise<void> {
 
 /** Entry point of the headless task started by the foreground service. */
 export async function validationTask(): Promise<void> {
+  // Switched off between the start request and this task: end the service, run nothing.
+  if (!wanted) {
+    KywService.stop()
+    return
+  }
   stopRequested = false
   try {
     await loop()
@@ -130,6 +137,7 @@ export async function validationTask(): Promise<void> {
 }
 
 export async function startValidation(): Promise<void> {
+  wanted = true
   if (loopActive) return
   stopRequested = false
   if (mode() === 'service') {
@@ -150,6 +158,7 @@ export async function startValidation(): Promise<void> {
 }
 
 export function stopValidation(): void {
+  wanted = false
   stopRequested = true
   wake?.()
   // If the task never started (service refused), make sure nothing is left behind.

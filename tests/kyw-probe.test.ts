@@ -48,7 +48,7 @@ const page = (n: number) => ok(Array.from({ length: n }, (_, i) => ({ signature:
 
 const healthy: Rpc = (method, params) => {
   if (method === 'getSignaturesForAddress') return page((params[1] as { limit: number }).limit)
-  if (method === 'getSlot') return ok(1)
+  if (method === 'getAccountInfo') return ok({ context: { slot: 1 }, value: { lamports: 1, data: ['', 'base64'] } })
   return ok({ slot: 1 })
 }
 
@@ -149,6 +149,17 @@ describe('capability probe', () => {
   it('a pace burst that fails for another reason is not a rate limit', async () => {
     const h = harness((method, params, n) => (method === 'getTransaction' && n > 2 ? ok(null) : healthy(method, params, n)))
     expect((await runProbe(h.deps)).capabilities.C6).toEqual({ min_interval_ms: 250 })
+  })
+})
+
+describe('account state', () => {
+  it('an account the endpoint does not have is not_available, and a bare result is unusable', async () => {
+    const missing = harness((method, params, n) =>
+      method === 'getAccountInfo' ? ok({ context: { slot: 1 }, value: null }) : healthy(method, params, n),
+    )
+    expect((await runProbe(missing.deps)).capabilities.C5).toEqual({ class: 'none', reason: 'not_available' })
+    const bare = harness((method, params, n) => (method === 'getAccountInfo' ? ok({ slot: 1 }) : healthy(method, params, n)))
+    expect((await runProbe(bare.deps)).capabilities.C5).toEqual({ class: 'none', reason: 'invalid_response' })
   })
 })
 

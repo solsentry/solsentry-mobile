@@ -154,6 +154,8 @@ export function load(): Promise<void> {
       }
     }
     set({ loaded: true, history, settings, secrets, probeReports })
+    // A delete that failed earlier is retried here: with saving off, nothing stays stored.
+    if (!settings.saveKey) await syncStoredSecrets()
   })()
   return loading
 }
@@ -188,28 +190,46 @@ async function forgetStoredSecrets(): Promise<void> {
   }
 }
 
+let secretQueue: Promise<void> = Promise.resolve()
+
+/**
+ * Bring the Keystore in line with the state as it is when this runs (not when it was queued).
+ * Runs one at a time, so a slow "save" can never land after a later "forget".
+ */
+function syncStoredSecrets(): Promise<void> {
+  secretQueue = secretQueue.then(async () => {
+    if (!state.settings.saveKey) return forgetStoredSecrets()
+    for (const p of PROVIDERS) {
+      if (!p.secretLabel) continue
+      const value = state.secrets[p.id]
+      if (value) await SecureStore.setItemAsync(secretKey(p.id), value).catch(() => {})
+      else await SecureStore.deleteItemAsync(secretKey(p.id)).catch(() => {})
+    }
+  })
+  return secretQueue
+}
+
 export async function updateSettings(patch: Partial<Settings>): Promise<void> {
   const settings = { ...state.settings, ...patch }
   const saveKeyChanged = settings.saveKey !== state.settings.saveKey
   set({ settings })
   await AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)).catch(() => {})
-  if (!saveKeyChanged) return
-  if (settings.saveKey) {
-    for (const [id, value] of Object.entries(state.secrets)) {
-      if (value) await SecureStore.setItemAsync(secretKey(id as ProviderId), value).catch(() => {})
-    }
-  } else {
-    // Off means gone from storage now; the typed value stays in memory until the app closes.
-    await forgetStoredSecrets()
-  }
+  // Off means gone from storage now; the typed value stays in memory until the app closes.
+  if (saveKeyChanged) await syncStoredSecrets()
 }
 
 export async function setSecret(id: ProviderId, value: string): Promise<void> {
   const trimmed = value.trim()
+  const changed = (state.secrets[id] ?? '') !== trimmed
   set({ secrets: { ...state.secrets, [id]: trimmed } })
-  if (!state.settings.saveKey) return
-  if (trimmed) await SecureStore.setItemAsync(secretKey(id), trimmed).catch(() => {})
-  else await SecureStore.deleteItemAsync(secretKey(id)).catch(() => {})
+  if (changed && state.probeReports[id]) {
+    // A report describes the endpoint the old key or URL pointed at, not the new one.
+    const probeReports = { ...state.probeReports }
+    delete probeReports[id]
+    set({ probeReports })
+    await AsyncStorage.setItem(PROBE_KEY, JSON.stringify(probeReports)).catch(() => {})
+  }
+  await syncStoredSecrets()
 }
 
 export function setRunning(running: boolean): void {
