@@ -7,12 +7,83 @@ import * as SecureStore from 'expo-secure-store'
 
 import { EMPTY, addRecord, parsePersisted, parseSettings, type Persisted } from './history'
 import type { LoopStatus } from './loop'
+import { PROBE_VERSION, type Capability, type ProbeReport } from './probe'
 import { PROVIDERS, type ProviderId } from './providers'
 import { DEFAULT_SETTINGS, type Settings, type TaskRecord } from './types'
 
 const HISTORY_KEY = 'solsentry-kyw/history/v1'
 const SETTINGS_KEY = 'solsentry-kyw/settings/v1'
+const PROBE_KEY = 'solsentry-kyw/probe/v1'
 const secretKey = (id: ProviderId) => `solsentry-kyw.rpc.${id}`
+
+export type ProbeReports = Partial<Record<ProviderId, ProbeReport>>
+
+function object(value: unknown): Record<string, unknown> | null {
+  return typeof value === 'object' && value !== null && !Array.isArray(value) ? value as Record<string, unknown> : null
+}
+
+function nonnegative(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0
+}
+
+function parseCapability(value: unknown): Capability | null {
+  const c = object(value)
+  if (!c || typeof c.class !== 'string' || !['full', 'limited', 'none', 'rate_limited', 'version'].includes(c.class)) return null
+  const result: Capability = { class: c.class as Capability['class'] }
+  if (c.ms !== undefined) {
+    if (!nonnegative(c.ms)) return null
+    result.ms = c.ms
+  }
+  if (c.page_size !== undefined) {
+    if (!nonnegative(c.page_size) || !Number.isInteger(c.page_size)) return null
+    result.page_size = c.page_size
+  }
+  if (result.class === 'limited' && result.page_size === undefined) return null
+  if (c.reason !== undefined) {
+    if (typeof c.reason !== 'string' || !['rpc_error', 'http_error', 'timeout', 'not_available', 'empty_page', 'invalid_response', 'rate_limited', 'version'].includes(c.reason)) return null
+    result.reason = c.reason as Capability['reason']
+  }
+  return result
+}
+
+/** Allowlisted fields only: never persist endpoints, credentials or arbitrary response text. */
+function parseReport(value: unknown, provider: ProviderId): ProbeReport | null {
+  const r = object(value)
+  if (!r || r.probe_version !== PROBE_VERSION || typeof r.rpc_host !== 'string') return null
+  const hostMatches = provider === 'helius' ? r.rpc_host === 'mainnet.helius-rpc.com'
+    : provider === 'solami' ? r.rpc_host === 'rpc.solami.dev'
+      : provider === 'quicknode' && /^(?:[a-z0-9-]+\.)*quiknode\.pro$/.test(r.rpc_host)
+  if (!hostMatches || typeof r.measured_at !== 'string' || !Number.isFinite(Date.parse(r.measured_at))) return null
+  const client = object(r.client)
+  if (!client || client.kind !== 'android' || typeof client.version !== 'string' || !/^\d+(?:\.\d+){0,3}$/.test(client.version)) return null
+  const c = object(r.capabilities)
+  if (!c) return null
+  const C1 = parseCapability(c.C1), C2 = parseCapability(c.C2), C3 = parseCapability(c.C3)
+  const C4 = parseCapability(c.C4), C5 = parseCapability(c.C5), C6 = object(c.C6)
+  if (!C1 || !C2 || !C3 || !C4 || !C5 || !C6) return null
+  if (C6.min_interval_ms !== null && !nonnegative(C6.min_interval_ms)) return null
+  return {
+    probe_version: PROBE_VERSION,
+    rpc_host: r.rpc_host,
+    measured_at: new Date(r.measured_at).toISOString(),
+    capabilities: { C1, C2, C3, C4, C5, C6: { min_interval_ms: C6.min_interval_ms } },
+    client: { kind: 'android', version: client.version },
+  }
+}
+
+export function parseProbeReports(raw: string | null): ProbeReports {
+  try {
+    const data = object(JSON.parse(raw ?? 'null'))
+    const reports: ProbeReports = {}
+    for (const { id } of PROVIDERS) {
+      const report = parseReport(data?.[id], id)
+      if (report) reports[id] = report
+    }
+    return reports
+  } catch {
+    return {}
+  }
+}
 
 export interface KywState {
   loaded: boolean
@@ -20,6 +91,7 @@ export interface KywState {
   settings: Settings
   /** Keys and endpoint URLs typed by the user, per provider. Memory only unless saveKey is on. */
   secrets: Partial<Record<ProviderId, string>>
+  probeReports: ProbeReports
   running: boolean
   status: LoopStatus
 }
@@ -29,6 +101,7 @@ let state: KywState = {
   history: EMPTY,
   settings: DEFAULT_SETTINGS,
   secrets: {},
+  probeReports: {},
   running: false,
   status: { kind: 'idle' },
 }
@@ -56,11 +129,17 @@ export function load(): Promise<void> {
   loading ??= (async () => {
     let history = EMPTY
     let settings = DEFAULT_SETTINGS
+    let probeReports: ProbeReports = {}
     try {
       history = parsePersisted(await AsyncStorage.getItem(HISTORY_KEY))
       settings = parseSettings(await AsyncStorage.getItem(SETTINGS_KEY))
     } catch {
       // Defaults.
+    }
+    try {
+      probeReports = parseProbeReports(await AsyncStorage.getItem(PROBE_KEY))
+    } catch {
+      // A failed report read does not affect history or settings.
     }
     const secrets: KywState['secrets'] = {}
     if (settings.saveKey) {
@@ -74,7 +153,7 @@ export function load(): Promise<void> {
         }
       }
     }
-    set({ loaded: true, history, settings, secrets })
+    set({ loaded: true, history, settings, secrets, probeReports })
   })()
   return loading
 }
@@ -87,6 +166,15 @@ export async function recordResult(record: TaskRecord): Promise<void> {
   } catch {
     // Kept in memory; the next result writes again.
   }
+}
+
+export async function recordProbeReport(provider: ProviderId, report: ProbeReport): Promise<void> {
+  await load()
+  const safe = parseReport(report, provider)
+  if (!safe) return
+  const probeReports = { ...state.probeReports, [provider]: safe }
+  set({ probeReports })
+  await AsyncStorage.setItem(PROBE_KEY, JSON.stringify(probeReports)).catch(() => {})
 }
 
 export async function clearHistory(): Promise<void> {

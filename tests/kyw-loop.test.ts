@@ -2,7 +2,8 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-import { resultSentence, TEXT, VERDICT_LABEL } from '../src/kyw/copy'
+import { PROBE_LABELS, PROBE_REASONS, probeCapabilityText, probePaceText, probeProblemText, probeTestedText, resultSentence, TEXT, VERDICT_LABEL } from '../src/kyw/copy'
+import type { Capability } from '../src/kyw/probe'
 import { MAX_RECORDS, EMPTY, addRecord, parsePersisted, parseSettings, tasksPerHour } from '../src/kyw/history'
 import { BACKOFF_MAX_S, HOLD_RECHECK_S, nextBackoff, runLoop, type LoopStatus, type TurnResult } from '../src/kyw/loop'
 import { runSelfTest, type SelfTestVector } from '../src/kyw/selftest/run'
@@ -119,6 +120,13 @@ describe('wording', () => {
   const all = [
     ...Object.values(TEXT),
     ...Object.values(VERDICT_LABEL),
+    ...Object.values(PROBE_LABELS),
+    ...Object.values(PROBE_REASONS),
+    probeCapabilityText({ class: 'full' }),
+    probeCapabilityText({ class: 'limited', page_size: 314 }),
+    ...Object.keys(PROBE_REASONS).map((reason) => probeCapabilityText({ class: 'none', reason: reason as Capability['reason'] })),
+    probePaceText(600), probePaceText(null), probeTestedText('2026-10-09T12:00:00Z'),
+    ...['no_targets', 'network', 'http_404'].map(probeProblemText),
     ...['accepted', 'diverged'].map((v) => resultSentence({ verdict: v as 'accepted', reason: null })),
     ...[
       'not_available', 'rpc_error', 'rate_limited', 'version', 'timeout', 'invalid_response', 'submit_failed',
@@ -132,7 +140,7 @@ describe('wording', () => {
 
   it('never uses mining words or claims beyond the comparison', () => {
     expect(all).not.toMatch(/\bmin(e|es|ed|er|ers|ing)\b/i)
-    expect(all).not.toMatch(/verified (wallet|device)|\bcorrect\b|independent sources|proof of work|\bPoW\b|reward|\bearn(s|ing)?\b(?! in this version)/i)
+    expect(all).not.toMatch(/\bverified\b|\bguaranteed\b|\bcorrect\b|independent sources|proof of work|\bPoW\b|reward|\bearn(s|ing)?\b(?! in this version)/i)
     expect(all).not.toMatch(/\d\s?%|accuracy/i)
   })
 })

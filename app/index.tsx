@@ -1,17 +1,21 @@
 import Ionicons from '@expo/vector-icons/Ionicons'
+import Constants from 'expo-constants'
 import { useRouter } from 'expo-router'
-import React, { useMemo, useState } from 'react'
-import { PermissionsAndroid, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { AppState, PermissionsAndroid, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
-import { TEXT, VERDICT_LABEL, formatBytes, resultSentence } from '@/src/kyw/copy'
+import { KYW_API_BASE } from '@/src/kyw/config'
+import { TEXT, VERDICT_LABEL, formatBytes, probeProblemText, probeReportLines, probeTestedText, resultSentence } from '@/src/kyw/copy'
 import { mode, startValidation, statusText, stopValidation } from '@/src/kyw/engine'
 import { Grid, VERDICT_COLOR } from '@/src/kyw/Grid'
 import { tasksPerHour } from '@/src/kyw/history'
-import { PROVIDERS, providerInfo } from '@/src/kyw/providers'
-import { setSecret, updateSettings } from '@/src/kyw/store'
+import { chosenRpcProbeIsStale, probeChosenRpc } from '@/src/kyw/probe-client'
+import { PROVIDERS, providerInfo, type ProviderId } from '@/src/kyw/providers'
+import { recordProbeReport, setSecret, updateSettings } from '@/src/kyw/store'
 import type { Verdict } from '@/src/kyw/types'
 import { useKyw } from '@/src/kyw/useKyw'
+import { Button } from '@/src/ui/components'
 import { theme } from '@/src/ui/theme'
 
 async function askNotificationPermission(): Promise<void> {
@@ -29,6 +33,47 @@ export default function ValidateScreen() {
   const { settings, history, running, status } = kyw
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const provider = providerInfo(settings.provider)
+  const [probing, setProbing] = useState<ProviderId | null>(null)
+  const probeInFlight = useRef(false)
+  const [probeProblem, setProbeProblem] = useState<{ provider: ProviderId; text: string } | null>(null)
+  const [probeNow, setProbeNow] = useState(Date.now)
+  const report = kyw.probeReports[provider.id]
+  const reportStale = chosenRpcProbeIsStale(report ?? null, provider.id, kyw.secrets[provider.id] ?? '', probeNow)
+
+  useEffect(() => {
+    const refresh = () => setProbeNow(Date.now())
+    const timer = setInterval(refresh, 30_000)
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') refresh()
+    })
+    return () => {
+      clearInterval(timer)
+      subscription.remove()
+    }
+  }, [])
+
+  const testRpc = async () => {
+    if (probeInFlight.current) return
+    probeInFlight.current = true
+    const id = provider.id
+    setProbing(id)
+    setProbeProblem(null)
+    try {
+      const result = await probeChosenRpc({
+        fetch,
+        apiBase: KYW_API_BASE,
+        provider: id,
+        secret: kyw.secrets[id] ?? '',
+        clientVersion: Constants.expoConfig?.version ?? '0',
+      })
+      if (!result.ok) setProbeProblem({ provider: id, text: probeProblemText(result.problem) })
+      else if (result.kind === 'report') await recordProbeReport(id, result.report)
+    } finally {
+      setProbeNow(Date.now())
+      setProbing(null)
+      probeInFlight.current = false
+    }
+  }
   const records = history.records
   const selected = useMemo(
     () => records.find((r) => r.id === selectedId) ?? records[records.length - 1] ?? null,
@@ -153,6 +198,23 @@ export default function ValidateScreen() {
                 />
               </View>
               <Text style={styles.muted}>{TEXT.rpcNote}</Text>
+              <Button
+                variant="secondary"
+                title={TEXT.probeButton}
+                busy={probing === provider.id}
+                disabled={!kyw.loaded || probing !== null}
+                onPress={() => void testRpc()}
+              />
+              <View accessibilityLiveRegion="polite" style={{ gap: 4 }}>
+                {probeProblem?.provider === provider.id && <Text style={styles.muted}>{probeProblem.text}</Text>}
+                {report && (
+                  <>
+                    {probeReportLines(report).map((line) => <Text key={line} style={styles.muted}>{line}</Text>)}
+                    <Text style={styles.muted}>{probeTestedText(report.measured_at)}</Text>
+                    {reportStale && <Text style={styles.label}>{TEXT.probeStale}</Text>}
+                  </>
+                )}
+              </View>
             </>
           )}
         </View>

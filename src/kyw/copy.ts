@@ -1,6 +1,7 @@
 // Every string the validation screens show. Kept in one file so the wording can be reviewed and
 // tested: "verify" and "validate" only, and an accepted result says what was compared, no more.
 import brand from '../../brand.json'
+import type { Capability, ProbeReport } from './probe'
 import type { TaskRecord, Verdict } from './types'
 
 export const TEXT = {
@@ -15,6 +16,8 @@ export const TEXT = {
   gridEmpty: 'Turn validation on to fill this grid. One square is one task.',
   latest: 'Selected task',
   rpcTitle: 'RPC for the read',
+  probeButton: 'Test this RPC',
+  probeStale: 'Out of date, test again',
   rpcNote:
     'Your key stays on this phone. It is sent only to the RPC provider you chose. SolSentry receives the provider host name, never the key.',
   saveKey: 'Save my key',
@@ -37,6 +40,58 @@ export const TEXT = {
   about:
     'A matched result means your phone and SolSentry computed the same digest for the same public transaction. It says nothing about any wallet, token or person.',
 } as const
+
+export const PROBE_LABELS = {
+  C1: 'Recent transactions',
+  C2: 'Old transactions',
+  C3: 'Address history (first page)',
+  C4: 'Old address history',
+  C5: 'Account state',
+  C6: 'Safe pace',
+} as const
+
+export const PROBE_REASONS: Record<NonNullable<Capability['reason']>, string> = {
+  rpc_error: 'network or RPC error',
+  http_error: 'HTTP error',
+  timeout: 'request timed out',
+  not_available: 'no data returned',
+  empty_page: 'empty page',
+  invalid_response: 'unusable response',
+  rate_limited: 'rate limited',
+  version: 'transaction version unsupported',
+}
+
+export function probeCapabilityText(capability: Capability): string {
+  if (capability.class === 'full') return 'full'
+  if (capability.class === 'limited') return `limited (${capability.page_size ?? 0} entries per page)`
+  const reason = capability.reason ?? (capability.class === 'rate_limited' || capability.class === 'version'
+    ? capability.class : 'not_available')
+  return `not available (${PROBE_REASONS[reason]})`
+}
+
+export function probePaceText(intervalMs: number | null): string {
+  return intervalMs === null ? PROBE_REASONS.rate_limited : `1 request every ${intervalMs} ms`
+}
+
+export function probeReportLines(report: ProbeReport): string[] {
+  return (Object.keys(PROBE_LABELS) as (keyof typeof PROBE_LABELS)[]).map((id) =>
+    `${PROBE_LABELS[id]}: ${id === 'C6'
+      ? probePaceText(report.capabilities.C6.min_interval_ms)
+      : probeCapabilityText(report.capabilities[id])}`,
+  )
+}
+
+export function probeTestedText(measuredAt: string): string {
+  return `Tested ${new Date(measuredAt).toLocaleString('en-US')}`
+}
+
+export function probeProblemText(problem: string): string {
+  if (problem === 'no_targets') return 'RPC test targets are not available.'
+  if (problem === 'network') return 'Could not load RPC test targets. Try again.'
+  if (/^http_\d+$/.test(problem)) return `Could not load RPC test targets (HTTP ${problem.slice(5)}).`
+  // resolveEndpoint supplies fixed, user-facing problems without echoing the input.
+  return problem
+}
 
 export const VERDICT_LABEL: Record<Verdict, string> = {
   accepted: 'Matched',

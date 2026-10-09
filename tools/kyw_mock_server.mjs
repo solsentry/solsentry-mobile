@@ -15,10 +15,21 @@ const pool = manifest.vectors
   .filter((v) => !v.synthetic)
   .map((v) => {
     const raw = readFileSync(join(dir, v.file))
-    return { raw, digest: v.fact_digest, signature: JSON.parse(raw).result.transaction.signatures[0] }
+    return { name: v.name, raw, digest: v.fact_digest, signature: JSON.parse(raw).result.transaction.signatures[0] }
   })
 const tasks = new Map()
 const READ = { ...manifest.read_params, method: 'getTransaction' }
+const recent = pool.find((v) => /^tx_0\d$/.test(v.name))
+const archival = pool.find((v) => v.name === 'tx_20')
+const PROBE_TARGETS = {
+  probe_version: '0',
+  recent_signature: recent.signature,
+  archival_signature: archival.signature,
+  page_address: JSON.parse(archival.raw).result.transaction.message.instructions[0].programId,
+  page_before_signature: archival.signature,
+  account: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+  read: { encoding: 'jsonParsed', maxSupportedTransactionVersion: 1, commitment: 'finalized' },
+}
 
 const send = (res, status, body, raw = false) => {
   res.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' })
@@ -36,6 +47,7 @@ createServer((req, res) => {
     } catch {
       return send(res, 400, { error: 'invalid_json' })
     }
+    if (req.method === 'GET' && path === '/v1/kyw/probe') return send(res, 200, PROBE_TARGETS)
     if (req.method === 'GET' && path === '/v1/kyw/task') {
       const item = pool[Math.floor(Math.random() * pool.length)]
       const task_id = randomBytes(16).toString('base64url')
