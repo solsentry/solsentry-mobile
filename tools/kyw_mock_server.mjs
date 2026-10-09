@@ -1,7 +1,7 @@
 // Stand-in for the SolSentry KYW routes, for development without the real server: it hands out the
 // 35 public vectors as tasks, serves their raw bodies as the RPC read, and compares the digest
 // with the manifest. Not shipped in the app.
-// Usage: node tools/kyw_mock_server.mjs [port]   (then `adb reverse tcp:<port> tcp:<port>`)
+// Usage: node tools/kyw_mock_server.mjs [port] [every-Nth-read-is-429]   (then `adb reverse tcp:<port> tcp:<port>`)
 import { createServer } from 'node:http'
 import { randomBytes } from 'node:crypto'
 import { readFileSync } from 'node:fs'
@@ -9,6 +9,9 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const port = Number(process.argv[2] ?? 8091)
+// Optional: answer every Nth read with HTTP 429 (Retry-After 7), to test back-off on a device.
+const every429 = Number(process.argv[3] ?? 0)
+let reads = 0
 const dir = join(dirname(fileURLToPath(import.meta.url)), '../tests/fixtures/kyw_tx_core')
 const manifest = JSON.parse(readFileSync(join(dir, 'manifest.json'), 'utf8'))
 const pool = manifest.vectors
@@ -61,6 +64,10 @@ createServer((req, res) => {
     const task = tasks.get(body.task_id)
     if (req.method === 'POST' && path === '/v1/kyw/rpc') {
       if (!task || task.done || body.params?.[0] !== task.item.signature) return send(res, 400, { error: 'invalid_task' })
+      if (every429 > 0 && ++reads % every429 === 0) {
+        res.writeHead(429, { 'Content-Type': 'application/json', 'Retry-After': '7' })
+        return res.end(JSON.stringify({ jsonrpc: '2.0', error: { code: 429, message: 'Too many requests' }, id: 1 }))
+      }
       return send(res, 200, task.item.raw, true)
     }
     if (req.method === 'POST' && path === '/v1/kyw/result') {
