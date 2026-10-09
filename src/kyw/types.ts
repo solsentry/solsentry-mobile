@@ -43,4 +43,4 @@ export interface Counters {
   unknown: number
 }
 
-export type LocalReason = UnknownReason | 'submit_failed' | 'unsupported_task'
+export type LocalReason = UnknownReason | 'submit_failed' | 'unsupported_task' | 'server_unreachable' | 'server_busy'

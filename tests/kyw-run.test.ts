@@ -121,12 +121,19 @@ describe('runOneTask', () => {
     expect(out.record.verdict).toBe('diverged')
   })
 
-  it('no network (airplane mode): unknown/rpc_error, never a match', async () => {
+  it('no network (airplane mode): the task fetch fails, blamed on SolSentry, never a match', async () => {
     const out = await runOneTask(
-      deps((async () => Promise.reject(new TypeError('Network request failed'))) as typeof fetch, PROXY),
+      deps((async () => Promise.reject(new TypeError('Network request failed'))) as typeof fetch, HELIUS),
     )
-    expect(out.record).toMatchObject({ verdict: 'unknown', reason: 'rpc_error', short: '' })
+    expect(out.record).toMatchObject({ verdict: 'unknown', reason: 'server_unreachable', short: '', host: 'api.example.test' })
     expect(out.backoff).toBe(true)
+  })
+
+  it('task server down: reason and host name SolSentry, not the RPC', async () => {
+    const down = world({ task: () => new Response('Bad Gateway', { status: 502 }) })
+    const out = await runOneTask(deps(down.fetchFn, HELIUS))
+    expect(out.record).toMatchObject({ reason: 'server_unreachable', host: 'api.example.test' })
+    expect(down.calls).toHaveLength(1)
   })
 
   it('network drops after the task: the read is unknown/rpc_error and the result cannot be sent', async () => {
@@ -165,12 +172,12 @@ describe('runOneTask', () => {
     expect(out.backoff).toBe(true)
   })
 
-  it('the task endpoint answers 429: nothing is read', async () => {
+  it('the task endpoint answers 429: nothing is read, and SolSentry (not the RPC) is named', async () => {
     const w = world({ task: () => json({ error: 'rate_limited' }, 429, { 'Retry-After': '9' }) })
-    const out = await runOneTask(deps(w.fetchFn, PROXY))
+    const out = await runOneTask(deps(w.fetchFn, HELIUS))
     expect(w.calls).toHaveLength(1)
     expect(out).toMatchObject({ backoff: true, retryAfterS: 9 })
-    expect(out.record).toMatchObject({ verdict: 'unknown', reason: 'rate_limited' })
+    expect(out.record).toMatchObject({ verdict: 'unknown', reason: 'server_busy', host: 'api.example.test' })
   })
 
   it('an HTML error page from the RPC is rpc_error, not invalid_response', async () => {

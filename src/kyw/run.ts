@@ -30,6 +30,14 @@ function isTimeout(e: unknown): boolean {
   return e instanceof Error && /timed out/i.test(e.message)
 }
 
+function hostOf(url: string): string {
+  try {
+    return new URL(url).host
+  } catch {
+    return url
+  }
+}
+
 function retryAfter(res: Response): number | null {
   const s = Number(res.headers.get('Retry-After'))
   return Number.isFinite(s) && s > 0 ? Math.min(s, 300) : null
@@ -96,16 +104,17 @@ export async function runOneTask(deps: RunDeps): Promise<RunResult> {
     bytes,
   })
 
-  // 1. Task.
+  // 1. Task. A failure here is SolSentry's server, not the user's RPC: say so and show our host.
+  const server = (reason: string): TaskRecord => ({ ...local(reason), host: hostOf(deps.apiBase) })
   let task: Task | null
   try {
     const res = await deps.fetch(`${deps.apiBase}/v1/kyw/task`, { headers: { Accept: 'application/json' } })
-    if (res.status === 429) return { record: local('rate_limited'), retryAfterS: retryAfter(res), backoff: true }
-    if (res.status === 503) return { record: local('no_task'), retryAfterS: 30, backoff: true }
-    if (!res.ok) return { record: local('rpc_error'), retryAfterS: null, backoff: true }
+    if (res.status === 429) return { record: server('server_busy'), retryAfterS: retryAfter(res), backoff: true }
+    if (res.status === 503) return { record: server('no_task'), retryAfterS: 30, backoff: true }
+    if (!res.ok) return { record: server('server_unreachable'), retryAfterS: null, backoff: true }
     task = parseTask(await res.json())
-  } catch (e) {
-    return { record: local(isTimeout(e) ? 'timeout' : 'rpc_error'), retryAfterS: null, backoff: true }
+  } catch {
+    return { record: server('server_unreachable'), retryAfterS: null, backoff: true }
   }
   if (!task) return { record: local('unsupported_task'), retryAfterS: 60, backoff: true }
   const short = shortId(task.signature)

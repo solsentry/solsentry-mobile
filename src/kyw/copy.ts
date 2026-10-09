@@ -110,6 +110,8 @@ const REASON_TEXT: Record<string, string> = {
   key_rejected: 'The RPC provider refused your key. Check the key below.',
   unsupported_task: 'This app version cannot do the task it received.',
   no_task: 'No task available right now.',
+  server_unreachable: 'Could not reach SolSentry for a task. Your RPC was not used. The next try waits longer.',
+  server_busy: 'SolSentry asked the app to slow down. The next try waits longer.',
   expired: 'The task expired before the result arrived.',
   unknown_task: 'SolSentry did not recognise the task.',
   already_answered: 'This task was already answered.',
