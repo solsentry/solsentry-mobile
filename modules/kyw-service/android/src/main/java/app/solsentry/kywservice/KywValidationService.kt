@@ -29,6 +29,8 @@ class KywValidationService : HeadlessJsTaskService() {
     } else {
       startForeground(NOTIFICATION_ID, notification)
     }
+    // FORCE: JavaScript has no loop running, so any task this service thinks it has is gone.
+    if (intent?.getBooleanExtra(EXTRA_FORCE, false) == true) taskStarted = false
     if (taskStarted) return START_NOT_STICKY
     taskStarted = true
     running = true
@@ -39,6 +41,15 @@ class KywValidationService : HeadlessJsTaskService() {
 
   override fun getTaskConfig(intent: Intent?): HeadlessJsTaskConfig =
     HeadlessJsTaskConfig(TASK_NAME, Arguments.createMap(), 0, true)
+
+  override fun onHeadlessJsTaskFinish(taskId: Int) {
+    // The loop returned (validation switched off): end the service now, not "later".
+    taskStarted = false
+    running = false
+    super.onHeadlessJsTaskFinish(taskId)
+    stopForeground(STOP_FOREGROUND_REMOVE)
+    stopSelf()
+  }
 
   override fun onDestroy() {
     running = false
@@ -53,6 +64,7 @@ class KywValidationService : HeadlessJsTaskService() {
   companion object {
     const val TASK_NAME = "KywValidation"
     const val EXTRA_TEXT = "text"
+    const val EXTRA_FORCE = "force"
     const val CHANNEL_ID = "kyw-validation"
     const val NOTIFICATION_ID = 7301
 

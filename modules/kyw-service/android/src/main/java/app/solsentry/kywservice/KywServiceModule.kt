@@ -22,8 +22,10 @@ class KywServiceModule : Module() {
   override fun definition() = ModuleDefinition {
     Name("KywService")
 
-    Function("start") { text: String ->
-      val intent = Intent(context, KywValidationService::class.java).putExtra(KywValidationService.EXTRA_TEXT, text)
+    Function("start") { text: String, force: Boolean ->
+      val intent = Intent(context, KywValidationService::class.java)
+        .putExtra(KywValidationService.EXTRA_TEXT, text)
+        .putExtra(KywValidationService.EXTRA_FORCE, force)
       ContextCompat.startForegroundService(context, intent)
     }
 

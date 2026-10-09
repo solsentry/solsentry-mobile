@@ -42,7 +42,7 @@ function unknownOutcome(reason: 'rpc_error' | 'rate_limited' | 'timeout'): ReadO
 async function readTransaction(
   deps: RunDeps,
   task: Task,
-): Promise<{ outcome: ReadOutcome; bytes: number; retryAfterS: number | null }> {
+): Promise<{ outcome: ReadOutcome; bytes: number; retryAfterS: number | null; keyRejected?: boolean }> {
   const params = [task.signature, { ...READ_PARAMS }]
   const { endpoint } = deps
   const url = endpoint.kind === 'proxy' ? `${deps.apiBase}/v1/kyw/rpc` : endpoint.url
@@ -69,6 +69,11 @@ async function readTransaction(
     // A body that is not valid UTF-16 is reported by its length in code units.
   }
   if (res.status === 429) return { outcome: unknownOutcome('rate_limited'), bytes, retryAfterS: retryAfter(res) }
+  // The provider refused the user's key. The server only learns rpc_error (the contract); the
+  // phone tells the user it is the key, since retrying will not fix it.
+  if (endpoint.kind === 'direct' && (res.status === 401 || res.status === 403)) {
+    return { outcome: unknownOutcome('rpc_error'), bytes, retryAfterS: null, keyRejected: true }
+  }
   let outcome = readOutcome(text)
   // An HTTP error page is an RPC failure, not a malformed transaction.
   if (!res.ok && outcome.status === 'unknown' && outcome.unknownReason === 'invalid_response') {
@@ -151,7 +156,7 @@ export async function runOneTask(deps: RunDeps): Promise<RunResult> {
     return { record: { ...local('submit_failed', short, ms, bytes), id: task.task_id }, retryAfterS: null, backoff: true }
   }
   return {
-    record: { id: task.task_id, at: deps.now(), short, verdict, reason, ...base, ms, bytes },
+    record: { id: task.task_id, at: deps.now(), short, verdict, reason: read.keyRejected ? 'key_rejected' : reason, ...base, ms, bytes },
     retryAfterS: read.retryAfterS,
     backoff: pushedBack,
   }

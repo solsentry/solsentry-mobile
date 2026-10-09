@@ -51,6 +51,7 @@ const REASON_TEXT: Record<string, string> = {
   timeout: 'The read took longer than 10 s.',
   invalid_response: 'The RPC response could not be used.',
   submit_failed: 'The result could not be sent to SolSentry.',
+  key_rejected: 'The RPC provider refused your key. Check the key below.',
   unsupported_task: 'This app version cannot do the task it received.',
   no_task: 'No task available right now.',
   expired: 'The task expired before the result arrived.',

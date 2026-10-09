@@ -148,6 +148,16 @@ describe('runOneTask', () => {
     expect(out).toMatchObject({ backoff: true, retryAfterS: 17 })
   })
 
+  it('a key the provider refuses: the server gets rpc_error, the phone says it is the key', async () => {
+    const w = world({ rpc: () => new Response('Unauthorized', { status: 401 }) })
+    const out = await runOneTask(deps(w.fetchFn, HELIUS, 'helius'))
+    expect(JSON.parse(w.calls[2].body!)).toMatchObject({ status: 'unknown', unknown_reason: 'rpc_error' })
+    expect(out.record).toMatchObject({ verdict: 'unknown', reason: 'key_rejected' })
+    // Through the SolSentry proxy a 401 is not the user's key.
+    const p = world({ rpc: () => new Response('Unauthorized', { status: 401 }) })
+    expect((await runOneTask(deps(p.fetchFn, PROXY))).record.reason).toBe('rpc_error')
+  })
+
   it('JSON-RPC 429 error inside an HTTP 200 is rate_limited too', async () => {
     const w = world({ rpc: () => json({ jsonrpc: '2.0', error: { code: 429, message: 'Too many requests' }, id: 1 }) })
     const out = await runOneTask(deps(w.fetchFn, HELIUS, 'helius'))

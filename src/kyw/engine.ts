@@ -110,6 +110,8 @@ async function loop(): Promise<void> {
       stopped: () => stopRequested,
     })
   } finally {
+    // The service has nothing left to keep alive.
+    KywService.stop()
     loopActive = false
     stopRequested = true
     setRunning(false)
@@ -132,7 +134,9 @@ export async function startValidation(): Promise<void> {
   stopRequested = false
   if (mode() === 'service') {
     try {
-      KywService.start('Validation is on')
+      // No loop is running here (checked above), so ask for a fresh task even if a service from a
+      // previous run is still up.
+      KywService.start('Validation is on', true)
       setRunning(true)
       return
     } catch {

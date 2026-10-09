@@ -122,7 +122,7 @@ describe('wording', () => {
     ...['accepted', 'diverged'].map((v) => resultSentence({ verdict: v as 'accepted', reason: null })),
     ...[
       'not_available', 'rpc_error', 'rate_limited', 'version', 'timeout', 'invalid_response', 'submit_failed',
-      'unsupported_task', 'no_task', 'expired', 'unknown_task', 'already_answered', 'wrong_spec_version', 'wrong_fact_type', 'x',
+      'unsupported_task', 'key_rejected', 'no_task', 'expired', 'unknown_task', 'already_answered', 'wrong_spec_version', 'wrong_fact_type', 'x',
     ].map((reason) => resultSentence({ verdict: 'unknown', reason })),
   ].join('\n')
 
