@@ -1,15 +1,15 @@
 // Expo config plugin: sign release builds with a keystore that lives OUTSIDE the repo.
-// Reads KEYSTORE_PROPERTIES (env) or ~/.keys/solsentry-guard-mobile/keystore.properties.
+// Reads KEYSTORE_PROPERTIES (env) or ~/.keys/solsentry-kyw/keystore.properties.
 
 const fs = require('fs')
 const path = require('path')
-const { withAppBuildGradle, withGradleProperties, withDangerousMod } = require('@expo/config-plugins')
+const { withAppBuildGradle, withGradleProperties, withDangerousMod, withAndroidManifest } = require('@expo/config-plugins')
 
 const MARK = '// solsentry-release-signing'
 
 const SIGNING_LOADER = `
 ${MARK}
-def ksPropsPath = System.getenv('KEYSTORE_PROPERTIES') ?: "\${System.getProperty('user.home')}/.keys/solsentry-guard-mobile/keystore.properties"
+def ksPropsPath = System.getenv('KEYSTORE_PROPERTIES') ?: "\${System.getProperty('user.home')}/.keys/solsentry-kyw/keystore.properties"
 def ksProps = new Properties()
 def ksFile = new File(ksPropsPath)
 if (ksFile.exists()) { ksFile.withInputStream { ksProps.load(it) } }
@@ -55,5 +55,12 @@ module.exports = (config) => {
       return c
     },
   ])
+  // Self-test builds talk to a server on the PC through `adb reverse`, which is plain HTTP.
+  if (process.env.EXPO_PUBLIC_KYW_SELFTEST === '1') {
+    config = withAndroidManifest(config, (c) => {
+      c.modResults.manifest.application[0].$['android:usesCleartextTraffic'] = 'true'
+      return c
+    })
+  }
   return config
 }

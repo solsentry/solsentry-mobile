@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "SolSentry Guard",
-    "slug": "solsentry-guard-mobile",
-    "version": "1.0.0",
+    "name": "SolSentry KYW",
+    "slug": "solsentry-kyw",
+    "version": "0.1.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "solsentryguard",
+    "scheme": "solsentrykyw",
     "userInterfaceStyle": "dark",
     "backgroundColor": "#100E0A",
     "android": {
@@ -16,13 +16,14 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "app.solsentry.guard",
+      "package": "app.solsentry.kyw",
       "versionCode": 1,
       "blockedPermissions": [
         "android.permission.SYSTEM_ALERT_WINDOW",
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE",
-        "android.permission.RECORD_AUDIO"
+        "android.permission.RECORD_AUDIO",
+        "android.permission.CAMERA"
       ],
       "allowBackup": false
     },
@@ -39,14 +40,7 @@
         }
       ],
       "expo-web-browser",
-      [
-        "expo-camera",
-        {
-          "cameraPermission": "SolSentry Guard uses the camera to read payment QR codes.",
-          "microphonePermission": false,
-          "recordAudioAndroid": false
-        }
-      ],
+      "expo-secure-store",
       "./plugins/with-release-signing"
     ],
     "experiments": {

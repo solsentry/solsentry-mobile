@@ -42,7 +42,7 @@ app-example
 /ios
 /android
 
-# signing material (lives outside the repo in ~/.keys/solsentry-guard-mobile/)
+# signing material (lives outside the repo in ~/.keys/solsentry-kyw/)
 *.keystore
 keystore.properties
 release.keystore

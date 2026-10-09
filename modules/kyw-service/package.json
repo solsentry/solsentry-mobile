@@ -1,0 +1,8 @@
+{
+  "name": "kyw-service",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Local Expo module: foreground service that keeps validation running with the screen off, plus battery and network state.",
+  "main": "index.ts",
+  "license": "MIT"
+}
