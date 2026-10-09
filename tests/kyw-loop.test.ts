@@ -107,10 +107,11 @@ describe('history on the phone', () => {
     expect(parseSettings(JSON.stringify({ provider: 'evil', intervalS: 0.001 }))).toEqual(DEFAULT_SETTINGS)
   })
 
-  it('measures tasks per hour from the records', () => {
+  it('measures the recent pace only once there is enough to measure', () => {
     const records = Array.from({ length: 61 }, (_, i) => ({ ...record(i), at: i * 10_000 }))
     expect(tasksPerHour(records, 600_000)).toBe(360)
-    expect(tasksPerHour(records.slice(0, 1), 600_000)).toBeNull()
+    expect(tasksPerHour(records.slice(0, 9), 600_000)).toBeNull()
+    expect(tasksPerHour(records.slice(0, 11), 600_000)).toBeNull() // 10 tasks but only 100 s
   })
 })
 

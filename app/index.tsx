@@ -83,7 +83,7 @@ export default function ValidateScreen() {
               </View>
             ))}
           </View>
-          {perHour !== null && <Text style={styles.muted}>About {perHour} tasks per hour in the last hour.</Text>}
+          {perHour !== null && <Text style={styles.muted}>Recent pace: about {perHour} tasks per hour.</Text>}
         </View>
 
         <View style={styles.card}>

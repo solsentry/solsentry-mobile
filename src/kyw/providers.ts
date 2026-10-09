@@ -42,7 +42,7 @@ const KEY_SHAPE = /^[A-Za-z0-9._-]{8,200}$/
 export function resolveEndpoint(id: ProviderId, secret: string, apiHost: string): Endpoint {
   if (id === 'solsentry') return { ok: true, kind: 'proxy', host: apiHost }
   const value = secret.trim()
-  if (!value) return { ok: false, problem: `Add your ${providerInfo(id).secretLabel} in RPC settings.` }
+  if (!value) return { ok: false, problem: `Add your ${providerInfo(id).secretLabel} below.` }
   if (id === 'helius') {
     if (!KEY_SHAPE.test(value)) return { ok: false, problem: 'That does not look like a Helius API key.' }
     return {

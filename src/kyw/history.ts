@@ -67,10 +67,13 @@ export function parseSettings(raw: string | null): Settings {
   }
 }
 
-/** Tasks per hour over the records of the last `windowMs`, from the first to the last of them. */
+/**
+ * Pace over the last `windowMs`: tasks per hour between the first and the last record in the window.
+ * null until there are at least 10 tasks spread over 2 minutes, so a short burst is not shown as a rate.
+ */
 export function tasksPerHour(records: TaskRecord[], now: number, windowMs = 60 * 60 * 1000): number | null {
   const recent = records.filter((r) => now - r.at <= windowMs)
-  if (recent.length < 2) return null
+  if (recent.length < 10) return null
   const span = recent[recent.length - 1].at - recent[0].at
-  return span > 0 ? Math.round(((recent.length - 1) * 3_600_000) / span) : null
+  return span >= 120_000 ? Math.round(((recent.length - 1) * 3_600_000) / span) : null
 }
