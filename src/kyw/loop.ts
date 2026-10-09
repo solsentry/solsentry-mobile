@@ -16,6 +16,7 @@ export type LoopStatus =
   | { kind: 'reading'; short: string }
   | { kind: 'waiting'; seconds: number; why: 'interval' | 'backoff' }
   | { kind: 'held'; why: 'wifi' | 'charging' | 'setup'; detail?: string }
+  | { kind: 'stopping' }
 
 export interface PowerState {
   wifi: boolean

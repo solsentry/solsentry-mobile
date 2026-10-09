@@ -55,6 +55,8 @@ export function statusText(status: LoopStatus): string {
       return status.why === 'backoff'
         ? `Waiting ${Math.round(status.seconds)} s before the next try`
         : `Next task in ${Math.round(status.seconds)} s`
+    case 'stopping':
+      return 'Stopping after the current task'
     case 'held':
       if (status.why === 'wifi') return 'Paused: waiting for Wi-Fi'
       if (status.why === 'charging') return 'Paused: waiting for the charger'
@@ -103,7 +105,7 @@ async function loop(): Promise<void> {
         const { accepted, diverged, unknown } = getState().history.counters
         KywService.setText(`Validation is on · ${accepted} matched · ${diverged} diverged · ${unknown} no result`)
       },
-      onStatus: setStatus,
+      onStatus: (status) => setStatus(stopRequested && status.kind !== 'idle' ? { kind: 'stopping' } : status),
       sleep,
       stopped: () => stopRequested,
     })
@@ -151,5 +153,7 @@ export function stopValidation(): void {
     KywService.stop()
     setRunning(false)
     setStatus({ kind: 'idle' })
+  } else {
+    setStatus({ kind: 'stopping' })
   }
 }
