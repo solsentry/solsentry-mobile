@@ -2,11 +2,11 @@ import Ionicons from '@expo/vector-icons/Ionicons'
 import Constants from 'expo-constants'
 import { useRouter } from 'expo-router'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { AppState, PermissionsAndroid, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native'
+import { Alert, AppState, PermissionsAndroid, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
 import { KYW_API_BASE } from '@/src/kyw/config'
-import { TEXT, VERDICT_LABEL, formatBytes, probeProblemText, probeReportLines, probeTestedText, resultSentence } from '@/src/kyw/copy'
+import { TEXT, VERDICT_LABEL, formatBytes, readingViaText, switchProviderPrompt, probeProblemText, probeReportLines, probeTestedText, resultSentence } from '@/src/kyw/copy'
 import { mode, startValidation, statusText, stopValidation } from '@/src/kyw/engine'
 import { Grid, VERDICT_COLOR } from '@/src/kyw/Grid'
 import { tasksPerHour } from '@/src/kyw/history'
@@ -51,6 +51,22 @@ export default function ValidateScreen() {
       subscription.remove()
     }
   }, [])
+
+  // A tap on another RPC while validation runs asks first: an accidental tap must not move the reads
+  // (and the user's key) to another provider without the user seeing it.
+  const chooseProvider = (id: ProviderId) => {
+    if (id === settings.provider) return
+    if (!running) {
+      void updateSettings({ provider: id })
+      return
+    }
+    const next = providerInfo(id)
+    const prompt = switchProviderPrompt(next.label, next.secretLabel !== null)
+    Alert.alert(prompt.title, prompt.body, [
+      { text: prompt.cancel, style: 'cancel' },
+      { text: prompt.confirm, onPress: () => void updateSettings({ provider: id }) },
+    ])
+  }
 
   const testRpc = async () => {
     if (probeInFlight.current) return
@@ -109,6 +125,7 @@ export default function ValidateScreen() {
               <Text accessibilityLiveRegion="polite" style={styles.status}>
                 {running ? statusText(status) : statusText({ kind: 'idle' })}
               </Text>
+              <Text style={styles.muted}>{readingViaText(provider.label)}</Text>
             </View>
             <Switch
               accessibilityLabel={TEXT.toggle}
@@ -159,7 +176,7 @@ export default function ValidateScreen() {
                   key={p.id}
                   accessibilityRole="radio"
                   accessibilityState={{ selected: active }}
-                  onPress={() => void updateSettings({ provider: p.id })}
+                  onPress={() => chooseProvider(p.id)}
                   style={[styles.chip, active && styles.chipActive]}
                 >
                   <Text style={[styles.chipText, active && { color: theme.ink }]}>{p.label}</Text>

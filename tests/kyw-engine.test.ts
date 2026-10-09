@@ -16,6 +16,10 @@ vi.mock('@/modules/kyw-service', () => ({
   setText: () => {},
   powerState: () => null,
 }))
+vi.mock('../src/kyw/device-runtime', () => ({
+  getDevice: async () => ({ id: 'r1:' + '0'.repeat(32), kind: 'random', check: 'unavailable', headline: null }),
+  signWithDevice: () => async () => null,
+}))
 vi.mock('expo-constants', () => ({ default: { expoConfig: { version: '0.1.0' } } }))
 vi.mock('expo-keep-awake', () => ({ activateKeepAwakeAsync: async () => {}, deactivateKeepAwake: async () => {} }))
 vi.mock('@react-native-async-storage/async-storage', () => ({

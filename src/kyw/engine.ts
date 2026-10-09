@@ -7,6 +7,7 @@ import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake'
 import * as KywService from '@/modules/kyw-service'
 import { fetchWithTimeout } from '../guard/fetch-timeout'
 import { KYW_API_BASE } from './config'
+import { getDevice, signWithDevice } from './device-runtime'
 import { runLoop, type LoopStatus } from './loop'
 import { resolveEndpoint } from './providers'
 import { HTTP_TIMEOUT_MS, runOneTask } from './run'
@@ -73,6 +74,8 @@ async function loop(): Promise<void> {
   setRunning(true)
   try {
     await load()
+    const device = await getDevice()
+    const signDevice = signWithDevice(device)
     const timedFetch = fetchWithTimeout(fetch, HTTP_TIMEOUT_MS, 'Request')
     await runLoop({
       settings: () => getState().settings,
@@ -99,6 +102,8 @@ async function loop(): Promise<void> {
           clientVersion: CLIENT_VERSION,
           now: Date.now,
           onReading,
+          deviceKeyId: device.id,
+          signResult: signDevice,
         })
       },
       onResult: async (result) => {

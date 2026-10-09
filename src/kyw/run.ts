@@ -16,6 +16,10 @@ export interface RunDeps {
   now: () => number
   /** Called once the task is known, with the short form of its signature. */
   onReading?: (short: string) => void
+  /** Install id sent with the task request and the result (null: none). */
+  deviceKeyId?: string | null
+  /** Signs the result (device_sig); null when the install has no key. */
+  signResult?: (r: { task_id: string; status: string; fact_digest: string | null; rpc_host: string }) => Promise<string | null>
 }
 
 export interface RunResult {
@@ -108,7 +112,8 @@ export async function runOneTask(deps: RunDeps): Promise<RunResult> {
   const server = (reason: string): TaskRecord => ({ ...local(reason), host: hostOf(deps.apiBase) })
   let task: Task | null
   try {
-    const res = await deps.fetch(`${deps.apiBase}/v1/kyw/task`, { headers: { Accept: 'application/json' } })
+    const query = deps.deviceKeyId ? `?device_key_id=${encodeURIComponent(deps.deviceKeyId)}` : ''
+    const res = await deps.fetch(`${deps.apiBase}/v1/kyw/task${query}`, { headers: { Accept: 'application/json' } })
     if (res.status === 429) return { record: server('server_busy'), retryAfterS: retryAfter(res), backoff: true }
     if (res.status === 503) return { record: server('no_task'), retryAfterS: 30, backoff: true }
     if (!res.ok) return { record: server('server_unreachable'), retryAfterS: null, backoff: true }
@@ -124,7 +129,7 @@ export async function runOneTask(deps: RunDeps): Promise<RunResult> {
   const startedAt = new Date(deps.now())
   const read = await readTransaction(deps, task)
   const endedAt = new Date(deps.now())
-  const envelope = buildEnvelope({
+  const unsigned = buildEnvelope({
     task,
     outcome: read.outcome,
     rpcHost: endpoint.host,
@@ -132,7 +137,10 @@ export async function runOneTask(deps: RunDeps): Promise<RunResult> {
     endedAt,
     bytes: read.bytes,
     client: { kind: 'android', version: deps.clientVersion },
+    deviceKeyId: deps.deviceKeyId ?? null,
   })
+  const deviceSig = deps.deviceKeyId && deps.signResult ? await deps.signResult(unsigned).catch(() => null) : null
+  const envelope = { ...unsigned, device_sig: deviceSig }
   const { ms, bytes } = envelope.metrics
   const pushedBack =
     read.outcome.status === 'unknown' && ['rate_limited', 'rpc_error', 'timeout'].includes(read.outcome.unknownReason)

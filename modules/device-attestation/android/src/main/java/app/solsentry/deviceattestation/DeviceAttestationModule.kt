@@ -11,14 +11,16 @@ import expo.modules.kotlin.modules.ModuleDefinition
 import java.security.KeyPairGenerator
 import java.security.KeyStore
 import java.security.ProviderException
+import java.security.Signature
 import java.security.spec.ECGenParameterSpec
 import java.util.UUID
 
 /**
  * Hardware key attestation for the optional "Device check".
  *
- * Generates a throwaway EC P-256 key in the Android Keystore with the caller's challenge,
- * reads the attestation certificate chain, then deletes the key. Nothing else is touched:
+ * Generates an EC P-256 key in the Android Keystore with the caller's challenge and reads the
+ * attestation certificate chain. The key is deleted afterwards, unless the caller passes keepAlias
+ * (the KYW install key, which then signs results through sign()). Nothing else is touched:
  * no serial, no IMEI/MEID (setDevicePropertiesAttestationIncluded only covers brand,
  * device, product, manufacturer and model), no permissions.
  */
@@ -28,13 +30,33 @@ class DeviceAttestationModule : Module() {
 
     // Runs off the JS and UI threads (Expo AsyncFunction queue); key generation can take seconds.
     AsyncFunction("attestKey") { challengeB64: String, opts: Map<String, Any?> ->
-      attest(challengeB64, opts["strongBox"] == true, opts["includeDeviceIds"] == true)
+      attest(challengeB64, opts["strongBox"] == true, opts["includeDeviceIds"] == true, opts["keepAlias"] as? String)
+    }
+
+    // Persistent install key (KYW): created once by attestKey with keepAlias, then used to sign results.
+    Function("hasKey") { alias: String -> keyStore().containsAlias(alias) }
+
+    // SubjectPublicKeyInfo (DER), base64; null when the key does not exist.
+    Function("publicKey") { alias: String ->
+      keyStore().getCertificate(alias)?.publicKey?.encoded?.let { Base64.encodeToString(it, Base64.NO_WRAP) }
+    }
+
+    // SHA256withECDSA over the given bytes, DER signature in base64.
+    AsyncFunction("sign") { alias: String, dataB64: String ->
+      val entry = keyStore().getEntry(alias, null) as? KeyStore.PrivateKeyEntry
+        ?: throw IllegalStateException("no key")
+      val sig = Signature.getInstance("SHA256withECDSA")
+      sig.initSign(entry.privateKey)
+      sig.update(Base64.decode(dataB64, Base64.NO_WRAP))
+      Base64.encodeToString(sig.sign(), Base64.NO_WRAP)
     }
   }
 
+  private fun keyStore(): KeyStore = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
+
   private class Attempt(val strongBox: Boolean, val ids: Boolean)
 
-  private fun attest(challengeB64: String, wantStrongBox: Boolean, wantIds: Boolean): Map<String, Any?> {
+  private fun attest(challengeB64: String, wantStrongBox: Boolean, wantIds: Boolean, keepAlias: String? = null): Map<String, Any?> {
     val claimed = mapOf(
       "manufacturer" to Build.MANUFACTURER,
       "brand" to Build.BRAND,
@@ -75,7 +97,10 @@ class DeviceAttestationModule : Module() {
     for (a in plan) {
       if (a.strongBox && strongBoxGone) continue
       if (a.ids && a.strongBox in idsRefusedAt) continue
-      val alias = "solsentry_attest_" + UUID.randomUUID().toString()
+      // keepAlias: the key survives a successful attempt (KYW install key); otherwise it is throwaway.
+      val alias = keepAlias ?: ("solsentry_attest_" + UUID.randomUUID().toString())
+      if (keepAlias != null) deleteQuietly(alias)
+      var kept = false
       val tag = (if (a.strongBox) "strongbox" else "tee") + (if (a.ids) "+ids" else "")
       try {
         val chain = generateAndReadChain(alias, challenge, a.strongBox, a.ids)
@@ -93,6 +118,7 @@ class DeviceAttestationModule : Module() {
           "claimed" to claimed,
         )
         if (idState == "error" && idError != null) out["idError"] = idError
+        kept = keepAlias != null
         return out
       } catch (e: Exception) {
         // StrongBoxUnavailableException is API 28+; test it behind the guard so older devices never resolve it.
@@ -107,7 +133,7 @@ class DeviceAttestationModule : Module() {
           if (isIdAttestationRefusal(e)) idsRefusedAt.add(a.strongBox) else idError = idError ?: "$tag: $text"
         }
       } finally {
-        deleteQuietly(alias)
+        if (!kept) deleteQuietly(alias)
       }
     }
     val idState = when {

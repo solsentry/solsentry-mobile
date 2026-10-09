@@ -5,6 +5,7 @@ import type { Capability, ProbeReport } from './probe'
 import type { TaskRecord, Verdict } from './types'
 
 export const TEXT = {
+  deviceTitle: 'This device',
   appName: brand.appName,
   tagline: 'Verify public Solana transactions on your phone.',
   toggle: 'Validation',
@@ -117,6 +118,41 @@ const REASON_TEXT: Record<string, string> = {
   already_answered: 'This task was already answered.',
   wrong_spec_version: 'This app version uses another version of the fact rules.',
   wrong_fact_type: 'This app version does not compute this kind of fact.',
+}
+
+/** Settings: what the install identity is and what the hardware check said. */
+export function deviceLines(d: { id: string; kind: 'key' | 'random'; check: string; headline: string | null } | null): string[] {
+  if (!d) return ['Checking this device…']
+  const lines: string[] = []
+  if (d.kind === 'key') {
+    lines.push(d.headline ?? (d.check === 'not_checked' ? 'Hardware key in place; not checked by SolSentry yet.' : 'Could not verify this device.'))
+    lines.push('Results are signed with a key that never leaves this phone.')
+  } else {
+    lines.push('No hardware key on this phone: results are not signed.')
+  }
+  lines.push(`Install ID: ${d.id.slice(0, 12)}…`)
+  lines.push('A new install gets a new ID. No wallet, serial or phone number is used.')
+  return lines
+}
+
+/** Which RPC the reads use right now (A: always visible on the status card). */
+export function readingViaText(providerLabel: string): string {
+  return `Reading via ${providerLabel}.`
+}
+
+/** B: asked before switching the RPC while validation runs. */
+export function switchProviderPrompt(
+  providerLabel: string,
+  usesKey: boolean,
+): { title: string; body: string; confirm: string; cancel: string } {
+  return {
+    title: `Switch to ${providerLabel}?`,
+    body: usesKey
+      ? `The next reads will go to ${providerLabel}, with the key saved for it.`
+      : `The next reads will go through ${providerLabel}.`,
+    confirm: 'Switch',
+    cancel: 'Keep current',
+  }
 }
 
 /** One sentence for a finished task. */

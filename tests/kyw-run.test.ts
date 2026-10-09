@@ -43,7 +43,7 @@ function world(overrides: { task?: Handler; rpc?: Handler; result?: Handler } = 
   const fetchFn = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input)
     calls.push({ url, body: typeof init?.body === 'string' ? init.body : null })
-    if (url === `${API}/v1/kyw/task`) return (overrides.task ?? (() => json(TASK)))(url, init)
+    if (url.split('?')[0] === `${API}/v1/kyw/task`) return (overrides.task ?? (() => json(TASK)))(url, init)
     if (url === `${API}/v1/kyw/result`) {
       if (overrides.result) return overrides.result(url, init)
       const sent = JSON.parse(String(init?.body)) as { status: string; fact_digest: string | null; unknown_reason: string | null }
@@ -127,6 +127,31 @@ describe('runOneTask', () => {
     )
     expect(out.record).toMatchObject({ verdict: 'unknown', reason: 'server_unreachable', short: '', host: 'api.example.test' })
     expect(out.backoff).toBe(true)
+  })
+
+  it('install id goes with the task request and the result; the result carries the signature', async () => {
+    const w = world()
+    const signed: string[] = []
+    const out = await runOneTask({
+      ...deps(w.fetchFn, HELIUS, 'helius'),
+      deviceKeyId: 'k1:abc_-',
+      signResult: async (r) => {
+        signed.push(`${r.task_id}|${r.status}|${r.rpc_host}`)
+        return 'c2ln'
+      },
+    })
+    expect(out.record.verdict).toBe('accepted')
+    expect(w.calls[0].url).toBe(`${API}/v1/kyw/task?device_key_id=k1%3Aabc_-`)
+    const body = JSON.parse(w.calls[2].body!)
+    expect(body).toMatchObject({ device_key_id: 'k1:abc_-', device_sig: 'c2ln' })
+    expect(signed).toEqual(['task-1|ok|mainnet.helius-rpc.com'])
+  })
+
+  it('a signer that fails still sends the result, unsigned', async () => {
+    const w = world()
+    const out = await runOneTask({ ...deps(w.fetchFn, PROXY), deviceKeyId: 'r1:00', signResult: async () => Promise.reject(new Error('keystore')) })
+    expect(out.record.verdict).toBe('accepted')
+    expect(JSON.parse(w.calls[2].body!)).toMatchObject({ device_key_id: 'r1:00', device_sig: null })
   })
 
   it('task server down: reason and host name SolSentry, not the RPC', async () => {

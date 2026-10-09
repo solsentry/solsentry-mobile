@@ -6,7 +6,9 @@ import Constants from 'expo-constants'
 
 import * as KywService from '@/modules/kyw-service'
 import { SELFTEST_BUILD } from '@/src/kyw/config'
-import { TEXT } from '@/src/kyw/copy'
+import { TEXT, deviceLines } from '@/src/kyw/copy'
+import type { DeviceIdentity } from '@/src/kyw/device'
+import { getDevice } from '@/src/kyw/device-runtime'
 import { mode } from '@/src/kyw/engine'
 import { clearHistory, updateSettings } from '@/src/kyw/store'
 import { INTERVAL_CHOICES_S } from '@/src/kyw/types'
@@ -46,6 +48,14 @@ function Toggle({ label, value, onChange }: { label: string; value: boolean; onC
 export default function SettingsScreen() {
   const router = useRouter()
   const { settings } = useKyw()
+  const [device, setDevice] = useState<DeviceIdentity | null>(null)
+  useEffect(() => {
+    let live = true
+    void getDevice().then((d) => live && setDevice(d))
+    return () => {
+      live = false
+    }
+  }, [])
   const power = usePower()
   const service = mode() === 'service'
 
@@ -115,6 +125,15 @@ export default function SettingsScreen() {
               {power.batteryPct !== null ? ` · ${Math.round(power.batteryPct)}%` : ''}
             </Text>
           )}
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>{TEXT.deviceTitle}</Text>
+          {deviceLines(device).map((line) => (
+            <Text key={line} style={styles.muted}>
+              {line}
+            </Text>
+          ))}
         </View>
 
         <View style={styles.card}>
