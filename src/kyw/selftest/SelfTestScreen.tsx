@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react'
 import { ScrollView, StyleSheet, Text } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { StatusBar } from 'expo-status-bar'
 
 import { theme } from '../../ui/theme'
 import { KYW_API_BASE } from '../config'
@@ -21,6 +22,8 @@ export default function SelfTestScreen() {
   }, [])
   return (
     <SafeAreaView style={styles.safe}>
+      {/* This screen is always dark, whatever the app theme. */}
+      <StatusBar style="light" />
       <ScrollView contentContainerStyle={styles.body}>
         <Text style={styles.title}>Vector self-test</Text>
         <Text style={styles.text}>API base: {KYW_API_BASE}</Text>

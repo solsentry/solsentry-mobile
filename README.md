@@ -15,19 +15,29 @@ Guard (`app.solsentry.guard`) and installs next to it.
 
 ## What it does
 
-- **One screen.** A switch turns validation on and off. A grid shows one square per task
-  (matched, diverged, no result), with counters. Tapping a square shows that task: part of the
-  signature, the result, the time the read took, the size of the response and the RPC host.
-- **RPC choice.** `SolSentry (default)` reads through the SolSentry server, which only reads the
-  open task. `Helius`, `QuickNode` and `Solami` (beta) use a key or endpoint URL you paste. The key
-  is sent only to that provider. SolSentry receives the provider host name, never the key. With
-  "Save my key" on, the key is stored with `expo-secure-store` (Android Keystore); with it off, the
-  key lives in memory until the app closes.
-- **Background.** A foreground service with a fixed notification keeps validation running with
-  the app in the background and with the screen off. Settings: battery optimization exemption,
-  only on Wi-Fi, only while charging, pause between tasks.
-- **Kept on the phone.** The last 364 tasks and the counters (AsyncStorage). Only part of each
-  signature is stored.
+- **Home.** The app bar shows the linked wallet (its avatar is drawn from the address, its name is
+  the `.skr` Seeker ID when the wallet has one) and the RPC in use. Below: the points block with
+  the validation switch, a dial pointing at the phone's point rate, the last 28 days as a grid of four
+  weeks (brighter = more matched results), and the last 100 tasks as dots (matched, diverged, no
+  result). Tapping a dot shows that task: part of the signature, the result, the time the read
+  took, the size of the response and the RPC host.
+- **Points.** One point per matched, signed result, up to 200 per UTC day. Only a phone with a
+  hardware key signs its results, so only such a phone counts points. The balance shown is an
+  estimate kept on the phone; the one that counts is computed by SolSentry from the signed
+  results. Linking a wallet (one signed message through the wallet on the phone, no transaction)
+  keeps the points beyond this install. The Genesis and own-RPC multipliers and the redeem list
+  are shown as planned.
+- **RPC choice** (bottom sheet from the RPC pill). `SolSentry (default)` reads through the
+  SolSentry server, which only reads the open task. `Helius`, `QuickNode` and `Solami` (beta) use
+  a key or endpoint URL you paste. The key is sent only to that provider. SolSentry receives the
+  provider host name, never the key. With "Save my key" on, the key is stored with
+  `expo-secure-store` (Android Keystore); with it off, the key lives in memory until the app closes.
+- **Settings.** Light or dark theme (also the sun/moon switch on Home). A foreground service with
+  a fixed notification keeps validation running with the app in the background and with the
+  screen off; battery optimization exemption, only on Wi-Fi, only while charging, pause between
+  tasks; clear the history on this phone.
+- **Kept on the phone.** The last 364 tasks, the activity of the last 28 days, the counters and
+  the points estimate (AsyncStorage). Only part of each signature is stored.
 
 ## The fact (`tx.core`, spec version 0)
 
