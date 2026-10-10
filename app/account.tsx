@@ -8,7 +8,7 @@ import { POINT_RULE, formatPoints, independentRpc, multiplier, multiplierText } 
 import { useAccount } from '@/src/kyw/useAccount'
 import { useKyw } from '@/src/kyw/useKyw'
 import { Button } from '@/src/ui/components'
-import { theme } from '@/src/ui/theme'
+import { fonts, theme } from '@/src/ui/theme'
 
 const short = (a: string) => `${a.slice(0, 4)}…${a.slice(-4)}`
 
@@ -100,13 +100,13 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: theme.bg },
   body: { padding: 16, gap: 16 },
   card: { borderWidth: 1, borderColor: theme.border, borderRadius: 16, padding: 16, gap: 10 },
-  cardTitle: { color: theme.text, fontSize: 17, fontWeight: '700' },
-  points: { color: theme.text, fontSize: 34, fontWeight: '800' },
-  text: { color: theme.text, fontSize: 15 },
-  muted: { color: theme.muted, fontSize: 14 },
-  warn: { color: theme.warn, fontSize: 14 },
-  good: { color: theme.action, fontSize: 14 },
-  disabled: { color: theme.muted, fontSize: 15, opacity: 0.6 },
+  cardTitle: { color: theme.text, fontFamily: fonts.title, fontSize: 17, fontWeight: '700' },
+  points: { color: theme.text, fontFamily: fonts.body, fontSize: 34, fontWeight: '800' },
+  text: { color: theme.text, fontFamily: fonts.body, fontSize: 15 },
+  muted: { color: theme.muted, fontFamily: fonts.body, fontSize: 14 },
+  warn: { color: theme.warn, fontFamily: fonts.body, fontSize: 14 },
+  good: { color: theme.action, fontFamily: fonts.body, fontSize: 14 },
+  disabled: { color: theme.muted, fontFamily: fonts.body, fontSize: 15, opacity: 0.6 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  rate: { width: 44, fontWeight: '800', fontSize: 15 },
+  rate: { width: 44, fontWeight: '800', fontFamily: fonts.body, fontSize: 15 },
 })

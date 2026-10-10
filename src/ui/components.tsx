@@ -1,7 +1,7 @@
 import React from 'react'
 import Ionicons from '@expo/vector-icons/Ionicons'
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native'
-import { theme } from './theme'
+import { fonts, theme } from './theme'
 import type { UiState } from './verdict'
 
 export const ABOUT_TEXT =
@@ -89,9 +89,9 @@ export const styles = StyleSheet.create({
   btnPrimary: { backgroundColor: theme.action },
   btnSecondary: { backgroundColor: theme.surface, borderWidth: 1.5, borderColor: theme.action },
   btnOff: { opacity: 0.4 },
-  btnText: { fontSize: 16, fontWeight: '600' },
+  btnText: { fontFamily: fonts.body, fontSize: 16, fontWeight: '600' },
   card: { borderWidth: 1.5, borderRadius: 12, padding: 16, gap: 6 },
-  cardLabel: { fontSize: 20, fontWeight: '800', letterSpacing: 1 },
+  cardLabel: { fontFamily: fonts.body, fontSize: 20, fontWeight: '800', letterSpacing: 1 },
   badge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -101,8 +101,8 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 3,
   },
-  badgeText: { fontSize: 14, fontWeight: '800', letterSpacing: 1 },
-  cardText: { fontSize: 15, lineHeight: 21 },
-  cardTime: { fontSize: 12, marginTop: 4 },
-  footer: { color: theme.muted, fontSize: 12, lineHeight: 17, textAlign: 'center', paddingVertical: 16 },
+  badgeText: { fontFamily: fonts.body, fontSize: 14, fontWeight: '800', letterSpacing: 1 },
+  cardText: { fontFamily: fonts.body, fontSize: 15, lineHeight: 21 },
+  cardTime: { fontFamily: fonts.body, fontSize: 12, marginTop: 4 },
+  footer: { color: theme.muted, fontFamily: fonts.body, fontSize: 12, lineHeight: 17, textAlign: 'center', paddingVertical: 16 },
 })

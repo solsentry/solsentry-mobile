@@ -14,7 +14,7 @@ import { clearHistory, updateSettings } from '@/src/kyw/store'
 import { INTERVAL_CHOICES_S } from '@/src/kyw/types'
 import { useKyw } from '@/src/kyw/useKyw'
 import { Button } from '@/src/ui/components'
-import { theme } from '@/src/ui/theme'
+import { fonts, theme } from '@/src/ui/theme'
 
 function usePower(): KywService.NativePowerState | null {
   const [power, setPower] = useState(() => KywService.powerState())
@@ -153,12 +153,12 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: theme.bg },
   body: { padding: 16, gap: 14 },
-  title: { color: theme.text, fontSize: 24, fontWeight: '800' },
+  title: { color: theme.text, fontFamily: fonts.title, fontSize: 24, fontWeight: '800' },
   card: { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1.5, borderRadius: 12, padding: 14, gap: 10 },
-  cardTitle: { color: theme.text, fontSize: 17, fontWeight: '700' },
+  cardTitle: { color: theme.text, fontFamily: fonts.title, fontSize: 17, fontWeight: '700' },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  label: { color: theme.text, fontSize: 15, fontWeight: '600' },
-  muted: { color: theme.muted, fontSize: 13, lineHeight: 18 },
+  label: { color: theme.text, fontFamily: fonts.body, fontSize: 15, fontWeight: '600' },
+  muted: { color: theme.muted, fontFamily: fonts.body, fontSize: 13, lineHeight: 18 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: {
     minHeight: 40,
@@ -172,5 +172,5 @@ const styles = StyleSheet.create({
     backgroundColor: theme.bg,
   },
   chipActive: { backgroundColor: theme.action, borderColor: theme.action },
-  chipText: { color: theme.text, fontSize: 14, fontWeight: '600' },
+  chipText: { color: theme.text, fontFamily: fonts.body, fontSize: 14, fontWeight: '600' },
 })

@@ -2,7 +2,7 @@ import React from 'react'
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native'
 
 import { Button } from '../ui/components'
-import { theme } from '../ui/theme'
+import { fonts, theme } from '../ui/theme'
 import { ACCOUNT_TEXT as T } from './copy'
 import type { useAccount } from './useAccount'
 
@@ -63,12 +63,12 @@ export function WalletCard({ account, onOpen }: { account: ReturnType<typeof use
 
 const styles = StyleSheet.create({
   card: { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1.5, borderRadius: 16, padding: 14, gap: 10 },
-  title: { color: theme.text, fontSize: 17, fontWeight: '700' },
-  address: { color: theme.text, fontSize: 20, fontWeight: '800', fontFamily: 'monospace' },
-  muted: { color: theme.muted, fontSize: 13, lineHeight: 18 },
-  warn: { color: theme.warn, fontSize: 13 },
+  title: { color: theme.text, fontFamily: fonts.title, fontSize: 17, fontWeight: '700' },
+  address: { color: theme.text, fontSize: 20, fontWeight: '800', fontFamily: fonts.mono },
+  muted: { color: theme.muted, fontFamily: fonts.body, fontSize: 13, lineHeight: 18 },
+  warn: { color: theme.warn, fontFamily: fonts.body, fontSize: 13 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
   badge: { borderWidth: 1, borderColor: theme.border, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
   badgeOn: { backgroundColor: theme.action, borderColor: theme.action },
-  badgeText: { color: theme.muted, fontSize: 12, fontWeight: '700', letterSpacing: 0.5, textTransform: 'uppercase' },
+  badgeText: { color: theme.muted, fontFamily: fonts.body, fontSize: 12, fontWeight: '700', letterSpacing: 0.5, textTransform: 'uppercase' },
 })

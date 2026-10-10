@@ -16,3 +16,10 @@ export const theme = {
   onAllow: '#FFFFFF',
   scrim: 'rgba(16,14,10,0.7)',
 } as const
+
+// Brand typefaces, embedded at build time by the expo-font plugin (see app.json).
+export const fonts = {
+  title: 'Syne',
+  body: 'DMSans',
+  mono: 'JetBrainsMono',
+} as const

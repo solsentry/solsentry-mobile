@@ -3,7 +3,7 @@
 import React, { useState } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import { Button } from '@/src/ui/components'
-import { theme } from '@/src/ui/theme'
+import { fonts, theme } from '@/src/ui/theme'
 import { runDeviceCheck } from './attest'
 import type { DeviceCheckView } from './attest-logic'
 
@@ -63,10 +63,10 @@ export function DeviceCheckSection() {
 
 const styles = StyleSheet.create({
   box: { gap: 8 },
-  h2: { color: theme.text, fontSize: 17, fontWeight: '700' },
+  h2: { color: theme.text, fontFamily: fonts.title, fontSize: 17, fontWeight: '700' },
   card: { borderWidth: 1.5, borderRadius: 12, padding: 14, gap: 4, backgroundColor: theme.surface },
-  headline: { fontSize: 16, fontWeight: '700', marginBottom: 4 },
-  label: { color: theme.text, fontSize: 14, fontWeight: '600', marginTop: 6 },
-  text: { color: theme.text, fontSize: 14, lineHeight: 20 },
-  note: { color: theme.muted, fontSize: 12, lineHeight: 17, marginTop: 4 },
+  headline: { fontFamily: fonts.body, fontSize: 16, fontWeight: '700', marginBottom: 4 },
+  label: { color: theme.text, fontFamily: fonts.body, fontSize: 14, fontWeight: '600', marginTop: 6 },
+  text: { color: theme.text, fontFamily: fonts.body, fontSize: 14, lineHeight: 20 },
+  note: { color: theme.muted, fontFamily: fonts.body, fontSize: 12, lineHeight: 17, marginTop: 4 },
 })

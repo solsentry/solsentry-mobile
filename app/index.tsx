@@ -20,7 +20,7 @@ import { recordProbeReport, setSecret, updateSettings } from '@/src/kyw/store'
 import type { Verdict } from '@/src/kyw/types'
 import { useKyw } from '@/src/kyw/useKyw'
 import { Button } from '@/src/ui/components'
-import { theme } from '@/src/ui/theme'
+import { fonts, theme } from '@/src/ui/theme'
 
 async function askNotificationPermission(): Promise<void> {
   if (Platform.OS !== 'android' || Platform.Version < 33) return
@@ -304,20 +304,20 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: theme.bg },
   body: { padding: 16, gap: 14 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  title: { color: theme.text, fontSize: 24, fontWeight: '800' },
-  muted: { color: theme.muted, fontSize: 13, lineHeight: 18 },
+  title: { color: theme.text, fontFamily: fonts.title, fontSize: 24, fontWeight: '800' },
+  muted: { color: theme.muted, fontFamily: fonts.body, fontSize: 13, lineHeight: 18 },
   card: { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1.5, borderRadius: 12, padding: 14, gap: 10 },
-  cardTitle: { color: theme.text, fontSize: 17, fontWeight: '700' },
+  cardTitle: { color: theme.text, fontFamily: fonts.title, fontSize: 17, fontWeight: '700' },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  status: { color: theme.text, fontSize: 15, marginTop: 2 },
-  counters: { flexDirection: 'row', gap: 16 },
+  status: { color: theme.text, fontFamily: fonts.body, fontSize: 15, marginTop: 2 },
+  counters: { flexDirection: 'row', flexWrap: 'wrap', columnGap: 12, rowGap: 4 },
   counter: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   dot: { width: 12, height: 12, borderRadius: 3 },
-  counterValue: { color: theme.text, fontSize: 17, fontWeight: '700' },
-  counterLabel: { color: theme.muted, fontSize: 13 },
+  counterValue: { color: theme.text, fontFamily: fonts.body, fontSize: 16, fontWeight: '700' },
+  counterLabel: { color: theme.muted, fontFamily: fonts.body, fontSize: 13 },
   result: { borderWidth: 1.5, borderRadius: 10, padding: 12, gap: 4, backgroundColor: theme.bg },
-  resultHead: { color: theme.text, fontSize: 14, fontWeight: '800', letterSpacing: 1 },
-  resultText: { color: theme.text, fontSize: 15, lineHeight: 21 },
+  resultHead: { color: theme.text, fontFamily: fonts.body, fontSize: 14, fontWeight: '800', letterSpacing: 1 },
+  resultText: { color: theme.text, fontFamily: fonts.body, fontSize: 15, lineHeight: 21 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: {
     flexDirection: 'row',
@@ -331,9 +331,10 @@ const styles = StyleSheet.create({
     backgroundColor: theme.bg,
   },
   chipActive: { backgroundColor: theme.action, borderColor: theme.action },
-  chipText: { color: theme.text, fontSize: 14, fontWeight: '600' },
+  chipText: { color: theme.text, fontFamily: fonts.body, fontSize: 14, fontWeight: '600' },
   beta: {
     color: theme.muted,
+    fontFamily: fonts.body,
     fontSize: 10,
     fontWeight: '700',
     borderWidth: 1,
@@ -342,13 +343,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
     textTransform: 'uppercase',
   },
-  label: { color: theme.text, fontSize: 14, fontWeight: '600' },
+  label: { color: theme.text, fontFamily: fonts.body, fontSize: 14, fontWeight: '600' },
   topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   topLeft: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  topLabel: { color: theme.text, fontSize: 14, fontWeight: '600' },
+  topLabel: { color: theme.text, fontFamily: fonts.body, fontSize: 14, fontWeight: '600' },
   topRight: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   pointsPill: { borderWidth: 1, borderColor: theme.action, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 4 },
-  pointsText: { color: theme.text, fontSize: 14, fontWeight: '700' },
+  pointsText: { color: theme.text, fontFamily: fonts.body, fontSize: 14, fontWeight: '700' },
   menuBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', paddingTop: 80, paddingHorizontal: 16 },
   menu: { backgroundColor: theme.bg, borderWidth: 1, borderColor: theme.border, borderRadius: 16, padding: 16, gap: 6, alignSelf: 'flex-start', minWidth: 240 },
   menuItem: { paddingVertical: 10 },
@@ -360,7 +361,8 @@ const styles = StyleSheet.create({
     backgroundColor: theme.bg,
     color: theme.text,
     paddingHorizontal: 12,
+    fontFamily: fonts.body,
     fontSize: 15,
   },
-  footer: { color: theme.muted, fontSize: 12, lineHeight: 17 },
+  footer: { color: theme.muted, fontFamily: fonts.body, fontSize: 12, lineHeight: 17 },
 })

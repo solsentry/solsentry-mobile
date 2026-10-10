@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 
-import { theme } from '../ui/theme'
+import { fonts, theme } from '../ui/theme'
 import { TEXT } from './copy'
 import { dayStreak, lastDays } from './history'
 
@@ -51,9 +51,9 @@ export function DayGrid({ days, now }: { days: Record<string, number>; now: numb
 const styles = StyleSheet.create({
   card: { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1.5, borderRadius: 16, padding: 14, gap: 10 },
   head: { flexDirection: 'row', justifyContent: 'space-between' },
-  eyebrow: { color: theme.muted, fontSize: 11, letterSpacing: 1, textTransform: 'uppercase', fontFamily: 'monospace' },
+  eyebrow: { color: theme.muted, fontSize: 11, letterSpacing: 1, textTransform: 'uppercase', fontFamily: fonts.mono },
   grid: { flexDirection: 'row', gap: 5 },
   cell: { flex: 1, aspectRatio: 1, borderRadius: 4 },
   cellSel: { borderWidth: 1.5, borderColor: theme.text },
-  muted: { color: theme.muted, fontSize: 13 },
+  muted: { color: theme.muted, fontFamily: fonts.body, fontSize: 13 },
 })
