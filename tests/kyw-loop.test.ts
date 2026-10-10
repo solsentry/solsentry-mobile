@@ -106,6 +106,7 @@ describe('history on the phone', () => {
       counters: { accepted: 0, diverged: 0, unknown: 0 },
       days: {},
       pointHalves: 0,
+      capDay: { day: '', counted: 0 },
     })
     expect(parsePersisted(JSON.stringify({ days: { '2026-10-09': 7, nope: 3, '2026-10-10': -1 } })).days).toEqual({
       '2026-10-09': 7,

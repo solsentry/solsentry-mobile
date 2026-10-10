@@ -36,8 +36,8 @@ export function independentRpc(provider: ProviderId, report: ProbeReport | null 
 }
 
 /**
- * What one matched result adds to the estimate today: the base when the result is signed (a hardware
- * key) and the day is under the cap. `matchedToday` counts the matched results of the day before this one.
+ * What one matched result adds to the estimate today: the base when the result went out signed and
+ * the UTC day is under the cap. `matchedToday` counts the matched, signed results of that day so far.
  */
 export function earnedNow(p: { signed: boolean; matchedToday: number }): number {
   return p.signed && p.matchedToday < POINT_RULE.dailyCap ? POINT_RULE.base : 0

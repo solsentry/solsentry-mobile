@@ -189,6 +189,64 @@ async function resolveSkr(n: ParsedName, deps: ResolveDeps): Promise<NameResolut
   return { ok: true, name: n.name, tld: 'skr', address: owner.toBase58(), source: 'AllDomains (.skr)' }
 }
 
+/** Main-domain account of a wallet in the TLD House program (tld-parser `findMainDomain`). */
+export function deriveMainDomain(wallet: PublicKey): PublicKey {
+  return pda(TLD_HOUSE_PROGRAM, [utf8ToBytes('main_domain'), wallet.toBytes()])
+}
+
+/**
+ * Parses a MainDomain account (tld-parser `mainDomainBeet`): 8-byte discriminator, name account (32),
+ * then the TLD and the domain as Borsh strings (u32 LE length + UTF-8). null when malformed.
+ */
+export function parseMainDomain(data: Uint8Array): { nameAccount: PublicKey; tld: string; domain: string } | null {
+  const view = new DataView(data.buffer, data.byteOffset, data.byteLength)
+  const text = (at: number): { value: string; end: number } | null => {
+    if (at + 4 > data.length) return null
+    const len = view.getUint32(at, true)
+    if (len > 64 || at + 4 + len > data.length) return null
+    // ASCII is enough: a .skr label is [a-z0-9-] and the TLD is '.skr'; anything else fails the checks after.
+    return { value: String.fromCharCode(...data.subarray(at + 4, at + 4 + len)), end: at + 4 + len }
+  }
+  if (data.length < 40) return null
+  const tld = text(40)
+  const domain = tld && text(tld.end)
+  if (!tld || !domain) return null
+  return { nameAccount: new PublicKey(data.subarray(8, 40)), tld: tld.value, domain: domain.value }
+}
+
+/**
+ * Wallet -> its Seeker ID (`name.skr`), or null. Reads the wallet's main domain, then resolves that name
+ * forward with the same checks as `resolveName` (expiry, tokenized, owner): a main domain that points to
+ * a name the wallet no longer owns is not shown. Never throws.
+ */
+export async function reverseSkr(address: string, deps: ResolveDeps): Promise<string | null> {
+  try {
+    const wallet = new PublicKey(address)
+    const res = await boundedFetch(deps, '.skr reverse lookup')(deps.rpcUrl, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'getAccountInfo',
+        params: [deriveMainDomain(wallet).toBase58(), { encoding: 'base64', commitment: 'confirmed' }],
+      }),
+    })
+    if (!res.ok) return null
+    const json = (await res.json()) as { result?: { value?: { owner?: string; data?: [string, string] } | null } }
+    const value = json?.result?.value
+    if (!value || value.owner !== TLD_HOUSE_PROGRAM.toBase58() || !Array.isArray(value.data)) return null
+    const main = parseMainDomain(base64ToBytes(value.data[0]))
+    if (!main || main.tld !== '.skr' || !SKR_LABEL.test(main.domain)) return null
+    if (!deriveSkrNameAccount(main.domain).equals(main.nameAccount)) return null
+    const name = `${main.domain}.skr`
+    const forward = await resolveSkr({ name, tld: 'skr', label: main.domain }, deps)
+    return forward.ok && forward.address === wallet.toBase58() ? name : null
+  } catch {
+    return null
+  }
+}
+
 // ---------------------------------------------------------------- entry point
 
 /** Resolve a name to an address. Never throws; any failure is `{ ok: false, error }`. */

@@ -59,14 +59,14 @@
                 ]
               },
               {
-                "fontFamily": "DMMono",
+                "fontFamily": "AzeretMono",
                 "fontDefinitions": [
                   {
-                    "path": "./assets/fonts/DMMono_400Regular.ttf",
+                    "path": "./assets/fonts/AzeretMono_400Regular.ttf",
                     "weight": 400
                   },
                   {
-                    "path": "./assets/fonts/DMMono_500Medium.ttf",
+                    "path": "./assets/fonts/AzeretMono_500Medium.ttf",
                     "weight": 500
                   }
                 ]

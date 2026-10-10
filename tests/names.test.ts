@@ -1,6 +1,6 @@
 import { PublicKey } from '@solana/web3.js'
 import { describe, expect, it } from 'vitest'
-import { ANS_PROGRAM, deriveAnsAccount, deriveSkrNameAccount, parseName, resolveName, ROOT_ANS } from '../src/pay/names'
+import { ANS_PROGRAM, deriveAnsAccount, deriveMainDomain, deriveSkrNameAccount, parseMainDomain, parseName, resolveName, reverseSkr, ROOT_ANS } from '../src/pay/names'
 import { nameBlockVerdict, resolveRecipientInput } from '../src/pay/recipient'
 import { toUiState } from '../src/ui/verdict'
 
@@ -116,5 +116,69 @@ describe('recipient field -> address to check', () => {
     expect(ui.message).toMatch(/Could not resolve alice\.skr/)
     expect((await resolveRecipientInput('hello', deps('hang'))).ok).toBe(false)
     expect((await resolveRecipientInput('a.b.c.sol', deps('hang'))).ok).toBe(false)
+  })
+})
+
+describe('.skr reverse lookup (wallet -> main domain)', () => {
+  const TLD_HOUSE = 'TLDHkysf5pCnKsVA4gXpNvmy7psXLPEu4LAdDJthT9S'
+  function mainDomainData(domain: string, tld = '.skr', nameAccount = deriveSkrNameAccount(domain)) {
+    const enc = new TextEncoder()
+    const t = enc.encode(tld)
+    const d = enc.encode(domain)
+    const data = new Uint8Array(8 + 32 + 4 + t.length + 4 + d.length)
+    const view = new DataView(data.buffer)
+    data.set(nameAccount.toBytes(), 8)
+    view.setUint32(40, t.length, true)
+    data.set(t, 44)
+    view.setUint32(44 + t.length, d.length, true)
+    data.set(d, 48 + t.length)
+    return data
+  }
+  const account = (data: Uint8Array, owner = TLD_HOUSE) => ({
+    body: { jsonrpc: '2.0', id: 1, result: { context: { slot: 1 }, value: { owner, data: [Buffer.from(data).toString('base64'), 'base64'] } } },
+  })
+  /** First call answers the main domain, the second the name account. */
+  function twoStep(first: { body: unknown }, second: { body: unknown }, seen: string[] = []): typeof fetch {
+    let n = 0
+    return (async (url: string, init?: RequestInit) => {
+      seen.push(String(init?.body))
+      const reply = n++ === 0 ? first : second
+      return new Response(JSON.stringify(reply.body), { status: 200 })
+    }) as unknown as typeof fetch
+  }
+
+  it('parses the account layout of tld-parser', () => {
+    const m = parseMainDomain(mainDomainData('alice'))
+    expect(m?.tld).toBe('.skr')
+    expect(m?.domain).toBe('alice')
+    expect(m?.nameAccount.equals(deriveSkrNameAccount('alice'))).toBe(true)
+    expect(parseMainDomain(new Uint8Array(10))).toBeNull()
+    expect(parseMainDomain(mainDomainData('alice').subarray(0, 46))).toBeNull()
+  })
+
+  it('returns the name when the main domain is .skr and the wallet still owns it', async () => {
+    const seen: string[] = []
+    const name = await reverseSkr(OWNER, { fetch: twoStep(account(mainDomainData('alice')), skrAccount(OWNER), seen), rpcUrl: RPC, timeoutMs: 50 })
+    expect(name).toBe('alice.skr')
+    expect(seen[0]).toContain(deriveMainDomain(new PublicKey(OWNER)).toBase58())
+    expect(seen[1]).toContain(deriveSkrNameAccount('alice').toBase58())
+  })
+
+  it('hides a name the wallet no longer owns, an expired one, another TLD or a forged account', async () => {
+    const other = '11111111111111111111111111111112'
+    const run = (first: { body: unknown }, second: { body: unknown }, now?: () => number) =>
+      reverseSkr(OWNER, { fetch: twoStep(first, second), rpcUrl: RPC, timeoutMs: 50, now })
+    expect(await run(account(mainDomainData('alice')), skrAccount(other))).toBeNull()
+    expect(await run(account(mainDomainData('alice')), skrAccount(OWNER, 1_000n), () => 2_000_000)).toBeNull()
+    expect(await run(account(mainDomainData('alice', '.abc')), skrAccount(OWNER))).toBeNull()
+    expect(await run(account(mainDomainData('alice'), ANS_PROGRAM.toBase58()), skrAccount(OWNER))).toBeNull()
+    expect(await run(account(mainDomainData('alice', '.skr', deriveSkrNameAccount('bob'))), skrAccount(OWNER))).toBeNull()
+  })
+
+  it('no main domain, an RPC error or a bad address gives null, never a throw', async () => {
+    expect(await reverseSkr(OWNER, deps({ body: { result: { value: null } } }))).toBeNull()
+    expect(await reverseSkr(OWNER, deps({ status: 500, body: 'x' }))).toBeNull()
+    expect(await reverseSkr(OWNER, deps('hang'))).toBeNull()
+    expect(await reverseSkr('not-an-address', deps({ body: {} }))).toBeNull()
   })
 })

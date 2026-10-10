@@ -124,13 +124,14 @@ export function newLinkMessage(deps: Pick<LinkDeps, 'deviceKeyId' | 'randomBytes
 }
 
 /**
- * Points in v0 (Crash 09/10): any hardware-attested phone (Seeker or Galaxy) with a signed wallet earns
- * the base; a wallet holding the Seeker Genesis Token is Genesis (badge + multiplier, server side).
+ * Points rev. 2 (Crash 10/10): a phone with a hardware key signs its results and earns the base; a wallet
+ * holding the Seeker Genesis Token is Genesis (badge now, multiplier planned, server side).
  */
 export function pointsStatus(p: { deviceCheck: string; deviceKind: 'key' | 'random'; wallet: LinkedWallet | null }):
-  | { earns: false; why: 'device_not_verified' | 'link_wallet' }
+  | { earns: false; why: 'unsigned' }
   | { earns: true; genesis: boolean } {
-  if (p.deviceKind !== 'key' || p.deviceCheck !== 'verified') return { earns: false, why: 'device_not_verified' }
-  if (!p.wallet) return { earns: false, why: 'link_wallet' }
-  return { earns: true, genesis: p.wallet.sgt.status === 'verified' }
+  // Rule rev. 2 (10/10): any signed result counts; attestation and Genesis only change the cap and
+  // the planned multipliers, and a wallet keeps the points beyond this install.
+  if (p.deviceKind !== 'key') return { earns: false, why: 'unsigned' }
+  return { earns: true, genesis: p.wallet?.sgt.status === 'verified' }
 }

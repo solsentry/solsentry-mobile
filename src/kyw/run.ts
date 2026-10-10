@@ -173,7 +173,7 @@ export async function runOneTask(deps: RunDeps): Promise<RunResult> {
     return { record: { ...local('submit_failed', short, ms, bytes), id: task.task_id }, retryAfterS: null, backoff: true }
   }
   return {
-    record: { id: task.task_id, at: deps.now(), short, verdict, reason: read.keyRejected ? 'key_rejected' : reason, ...base, ms, bytes },
+    record: { id: task.task_id, at: deps.now(), short, verdict, reason: read.keyRejected ? 'key_rejected' : reason, ...base, ms, bytes, signed: deviceSig !== null },
     retryAfterS: read.retryAfterS,
     backoff: pushedBack,
   }

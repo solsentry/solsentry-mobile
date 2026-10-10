@@ -6,8 +6,9 @@ The app asks the SolSentry server for a task (the signature of one public transa
 transaction from a Solana RPC, recomputes a small set of facts from it on the phone, and sends back
 a sha256 digest of those facts. The server compares the digest with its own reference read and
 answers `accepted`, `diverged` or `unknown`. An accepted result reads "Matched SolSentry's
-reference read." It says nothing about any wallet, token or person. Nothing is paid or earned in
-this version.
+reference read." It says nothing about any wallet, token or person. Matched, signed results
+count points (one each, up to 200 a day while the server treats every phone as not attested);
+the Genesis and own-RPC multipliers are planned, nothing can be redeemed yet and points have no set value.
 
 Package id `app.solsentry.mobile`. The public name, slug, scheme and package id are set in `brand.json` only. Expo / React Native, Android only. It is a sibling of SolSentry
 Guard (`app.solsentry.guard`) and installs next to it.

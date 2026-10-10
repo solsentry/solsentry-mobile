@@ -11,7 +11,7 @@ import { mode, startValidation, statusText, stopValidation } from '@/src/kyw/eng
 import { Avatar } from '@/src/kyw/Avatar'
 import { DayGrid } from '@/src/kyw/DayGrid'
 import { Grid, verdictColor } from '@/src/kyw/Grid'
-import { dayKey, tasksPerHour } from '@/src/kyw/history'
+import { countedToday, tasksPerHour } from '@/src/kyw/history'
 import { useAccount } from '@/src/kyw/useAccount'
 import { WalletCard } from '@/src/kyw/WalletCard'
 import { chosenRpcProbeIsStale, probeChosenRpc } from '@/src/kyw/probe-client'
@@ -21,6 +21,7 @@ import { RateDial } from '@/src/kyw/RateDial'
 import { recordProbeReport, setSecret, updateSettings } from '@/src/kyw/store'
 import type { Verdict } from '@/src/kyw/types'
 import { useKyw } from '@/src/kyw/useKyw'
+import { useSkrName } from '@/src/kyw/useSkrName'
 import { Button } from '@/src/ui/components'
 import { Fan, FadeUp, FlashText } from '@/src/ui/motion'
 import { figure, fonts, makeStyles, useTheme } from '@/src/ui/theme'
@@ -114,6 +115,7 @@ export default function ValidateScreen() {
   )
   const perHour = tasksPerHour(records, Date.now())
   const wallet = account.wallet
+  const skrName = useSkrName(wallet?.address ?? null)
   const ctx = {
     deviceVerified: account.device?.kind === 'key' && account.device.check === 'verified',
     genesis: wallet?.sgt.status === 'verified',
@@ -143,7 +145,9 @@ export default function ValidateScreen() {
           style={styles.identity}
         >
           <Avatar address={wallet?.address ?? null} ring={ctx.genesis} />
-          <Text style={wallet ? styles.identityMono : styles.identityText}>{wallet ? short(wallet.address) : TEXT.appName}</Text>
+          <Text numberOfLines={1} style={wallet && !skrName ? styles.identityMono : styles.identityText}>
+            {skrName ?? (wallet ? short(wallet.address) : TEXT.appName)}
+          </Text>
         </Pressable>
         <View style={styles.barRight}>
           <Pressable
@@ -197,12 +201,14 @@ export default function ValidateScreen() {
           </Pressable>
           <View style={styles.valueRow}>
             <View style={styles.value}>
-              <FlashText value={history.pointHalves} color={theme.text} flash={theme.actionText} style={styles.valueMain}>
+              <FlashText value={history.pointHalves} armed={kyw.loaded} color={theme.text} flash={theme.actionText} style={styles.valueMain}>
                 {kyw.loaded ? formatPoints(history.pointHalves) : ACCOUNT_TEXT.pointsUnknown}
               </FlashText>
               <Text style={styles.valueTail}>{HOME_TEXT.pointsUnit}</Text>
             </View>
-            <Text style={styles.rateTag}>{ACCOUNT_TEXT.today(history.days[dayKey(Date.now())] ?? 0, POINT_RULE.dailyCap)}</Text>
+            {account.device?.kind === 'key' && (
+              <Text style={styles.rateTag}>{ACCOUNT_TEXT.today(countedToday(history, probeNow), POINT_RULE.dailyCap)}</Text>
+            )}
           </View>
           <Text accessibilityLiveRegion="polite" style={styles.muted}>
             {running ? statusText(status) : statusText({ kind: 'idle' })} · {readingViaText(provider.label)}
@@ -218,7 +224,7 @@ export default function ValidateScreen() {
             <Text style={styles.eyebrow}>{HOME_TEXT.tasks}</Text>
             <Text style={styles.headValue}>{(history.counters.accepted + history.counters.diverged + history.counters.unknown).toLocaleString('en-US')}</Text>
           </View>
-          <Grid records={records} selectedId={selected?.id ?? null} onSelect={(r) => setSelectedId(r.id)} />
+          <Grid records={records} loaded={kyw.loaded} selectedId={selected?.id ?? null} onSelect={(r) => setSelectedId(r.id)} />
           <View style={styles.counters}>
             {(['accepted', 'diverged', 'unknown'] as Verdict[]).map((v) => (
               <View key={v} style={styles.counter}>
@@ -354,7 +360,7 @@ const sans = { fontFamily: fonts.body } as const
 const useStyles = makeStyles((theme) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: theme.bg },
   appBar: { height: 64, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  identity: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  identity: { flexDirection: 'row', alignItems: 'center', gap: 10, flexShrink: 1, marginRight: 8 },
   avatar: { width: 36, height: 36, borderRadius: 18, borderWidth: 1, borderColor: theme.border2, alignItems: 'center', justifyContent: 'center' },
   identityText: { ...sans, color: theme.text, fontSize: 15, fontWeight: '600', letterSpacing: -0.3 },
   identityMono: { ...mono, color: theme.text, fontSize: 14, fontWeight: '500' },

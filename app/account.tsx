@@ -8,6 +8,7 @@ import { ACCOUNT_TEXT as T, HOME_TEXT } from '@/src/kyw/copy'
 import { POINT_RULE, formatPoints, independentRpc, multiplier, multiplierText } from '@/src/kyw/points'
 import { useAccount } from '@/src/kyw/useAccount'
 import { useKyw } from '@/src/kyw/useKyw'
+import { useSkrName } from '@/src/kyw/useSkrName'
 import { Button, ScreenBar } from '@/src/ui/components'
 import { FadeUp, FlashText } from '@/src/ui/motion'
 import { figure, fonts, makeStyles, useTheme } from '@/src/ui/theme'
@@ -18,8 +19,9 @@ export default function AccountScreen() {
   const router = useRouter()
   const theme = useTheme()
   const styles = useStyles()
-  const { wallet, device, busy, note, link, unlink, status } = useAccount()
+  const { wallet, device, busy, note, link, unlink } = useAccount()
   const kyw = useKyw()
+  const skrName = useSkrName(wallet?.address ?? null)
   const provider = kyw.settings.provider
   const ctx = {
     deviceVerified: device?.kind === 'key' && device.check === 'verified',
@@ -41,13 +43,12 @@ export default function AccountScreen() {
         <FadeUp order={0} style={styles.card}>
           <Text style={styles.eyebrow}>{T.balance}</Text>
           <View style={styles.value}>
-            <FlashText value={kyw.history.pointHalves} color={theme.text} flash={theme.actionText} style={styles.points}>
+            <FlashText value={kyw.history.pointHalves} armed={kyw.loaded} color={theme.text} flash={theme.actionText} style={styles.points}>
               {kyw.loaded ? formatPoints(kyw.history.pointHalves) : T.pointsUnknown}
             </FlashText>
             <Text style={styles.unit}>{HOME_TEXT.pointsUnit}</Text>
           </View>
           <Text style={styles.muted}>{T.pointsSoon}</Text>
-          {status && !status.earns && status.why === 'device_not_verified' && <Text style={styles.muted}>{T.deviceNotVerified}</Text>}
           {!wallet && <Text style={styles.warn}>{T.pendingNote}</Text>}
         </FadeUp>
 
@@ -72,7 +73,10 @@ export default function AccountScreen() {
             <>
               <View style={styles.row}>
                 <Avatar address={wallet.address} ring={ctx.genesis} />
-                <Text style={styles.address}>{short(wallet.address)}</Text>
+                <View style={{ flex: 1 }}>
+                  {skrName && <Text style={styles.text}>{skrName}</Text>}
+                  <Text style={styles.address}>{short(wallet.address)}</Text>
+                </View>
               </View>
               {sgtLine && <Text style={wallet.sgt.status === 'verified' ? styles.good : styles.muted}>{sgtLine}</Text>}
               {!wallet.synced && <Text style={styles.muted}>{T.notSynced}</Text>}

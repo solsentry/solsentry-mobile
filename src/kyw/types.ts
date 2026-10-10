@@ -16,6 +16,8 @@ export interface TaskRecord {
   host: string
   ms: number
   bytes: number
+  /** The result went out with the device signature (only signed results count points). */
+  signed?: boolean
 }
 
 export interface Settings {

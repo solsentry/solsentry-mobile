@@ -68,13 +68,13 @@ describe('pointsStatus', () => {
     address: ADDRESS, message: '', walletSig: '', deviceSig: null, deviceKeyId: 'k1:dev', linkedAt: 0, synced: false,
     sgt: sgt === 'verified' ? { status: 'verified' as const, mint: 'M' } : { status: 'none' as const },
   })
-  it('attested phone + signed wallet earns; the Genesis Token makes it Genesis', () => {
+  it('a phone with a hardware key earns, with or without a wallet; the Genesis Token makes it Genesis', () => {
     expect(pointsStatus({ deviceCheck: 'verified', deviceKind: 'key', wallet: wallet('verified') })).toEqual({ earns: true, genesis: true })
     expect(pointsStatus({ deviceCheck: 'verified', deviceKind: 'key', wallet: wallet('none') })).toEqual({ earns: true, genesis: false })
+    expect(pointsStatus({ deviceCheck: 'verified', deviceKind: 'key', wallet: null })).toEqual({ earns: true, genesis: false })
+    expect(pointsStatus({ deviceCheck: 'not_verified', deviceKind: 'key', wallet: wallet('verified') })).toEqual({ earns: true, genesis: true })
   })
-  it('no wallet, or a phone that is not attested, does not earn', () => {
-    expect(pointsStatus({ deviceCheck: 'verified', deviceKind: 'key', wallet: null })).toEqual({ earns: false, why: 'link_wallet' })
-    expect(pointsStatus({ deviceCheck: 'not_verified', deviceKind: 'key', wallet: wallet('verified') })).toEqual({ earns: false, why: 'device_not_verified' })
-    expect(pointsStatus({ deviceCheck: 'unavailable', deviceKind: 'random', wallet: wallet('verified') })).toEqual({ earns: false, why: 'device_not_verified' })
+  it('a phone without a hardware key signs nothing and does not earn', () => {
+    expect(pointsStatus({ deviceCheck: 'unavailable', deviceKind: 'random', wallet: wallet('verified') })).toEqual({ earns: false, why: 'unsigned' })
   })
 })

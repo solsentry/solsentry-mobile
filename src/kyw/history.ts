@@ -16,9 +16,33 @@ export interface Persisted {
   days: Record<string, number>
   /** Estimated points, in halves (see points.ts). */
   pointHalves: number
+  /** Matched, signed results of one UTC day: the server counts its daily cap per UTC day. */
+  capDay: { day: string; counted: number }
 }
 
-export const EMPTY: Persisted = { records: [], counters: { accepted: 0, diverged: 0, unknown: 0 }, days: {}, pointHalves: 0 }
+export const EMPTY: Persisted = {
+  records: [],
+  counters: { accepted: 0, diverged: 0, unknown: 0 },
+  days: {},
+  pointHalves: 0,
+  capDay: { day: '', counted: 0 },
+}
+
+/** UTC calendar day of a timestamp, `YYYY-MM-DD`. */
+export const utcDayKey = (at: number): string => new Date(at).toISOString().slice(0, 10)
+
+/** One more signed match on its UTC day; a record stamped before the day in hand (clock change) leaves it alone. */
+function nextCapDay(state: Persisted, record: TaskRecord): Persisted['capDay'] {
+  if (record.verdict !== 'accepted' || record.signed !== true) return state.capDay
+  const day = utcDayKey(record.at)
+  if (day < state.capDay.day) return state.capDay
+  return { day, counted: countedToday(state, record.at) + 1 }
+}
+
+/** Matched, signed results already counted on the UTC day of `at`. */
+export function countedToday(state: Persisted, at: number): number {
+  return state.capDay.day === utcDayKey(at) ? state.capDay.counted : 0
+}
 
 /** Local calendar day of a timestamp, `YYYY-MM-DD`. */
 export function dayKey(at: number): string {
@@ -67,6 +91,7 @@ export function addRecord(state: Persisted, record: TaskRecord, earnedHalves = 0
     counters: { ...state.counters, [record.verdict]: state.counters[record.verdict] + 1 },
     days,
     pointHalves: state.pointHalves + (record.verdict === 'accepted' ? count(earnedHalves) : 0),
+    capDay: nextCapDay(state, record),
   }
 }
 
@@ -81,10 +106,17 @@ function isRecord(r: unknown): r is TaskRecord {
     (x.reason === null || (typeof x.reason === 'string' && /^[a-z_]{1,40}$/.test(x.reason) && x.reason !== '__proto__')) &&
     typeof x.host === 'string' &&
     typeof x.ms === 'number' &&
-    typeof x.bytes === 'number'
+    typeof x.bytes === 'number' &&
+    (x.signed === undefined || typeof x.signed === 'boolean')
   )
 }
 
+
+function parseCapDay(v: unknown): Persisted['capDay'] {
+  if (typeof v !== 'object' || v === null) return EMPTY.capDay
+  const c = v as { day?: unknown; counted?: unknown }
+  return typeof c.day === 'string' && DAY_KEY.test(c.day) ? { day: c.day, counted: count(c.counted) } : EMPTY.capDay
+}
 
 /** Read stored history. Anything unreadable is dropped; it never throws. */
 export function parsePersisted(raw: string | null): Persisted {
@@ -102,6 +134,7 @@ export function parsePersisted(raw: string | null): Persisted {
       counters: { accepted: count(c.accepted), diverged: count(c.diverged), unknown: count(c.unknown) },
       days: pruneDays(days),
       pointHalves: count((v as { pointHalves?: unknown }).pointHalves),
+      capDay: parseCapDay((v as { capDay?: unknown }).capDay),
     }
   } catch {
     return EMPTY

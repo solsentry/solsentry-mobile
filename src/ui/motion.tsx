@@ -58,15 +58,17 @@ export function Fan({ running, color, size = 18 }: { running: boolean; color: st
   )
 }
 
-/** Text that flashes `flash` and fades back to `color` each time `value` grows. */
+/** Text that flashes `flash` and fades back to `color` each time `value` grows once `armed` (data loaded). */
 export function FlashText({
   value,
+  armed,
   color,
   flash,
   style,
   children,
 }: {
   value: number
+  armed: boolean
   color: string
   flash: string
   style?: StyleProp<TextStyle>
@@ -75,12 +77,12 @@ export function FlashText({
   const progress = useSharedValue(0)
   const last = useRef(value)
   useEffect(() => {
-    if (value > last.current) {
+    if (armed && value > last.current) {
       progress.value = 1
       progress.value = withTiming(0, { duration: 1200 })
     }
     last.current = value
-  }, [value, progress])
+  }, [value, armed, progress])
   const animated = useAnimatedStyle(() => ({ color: interpolateColor(progress.value, [0, 1], [color, flash]) }), [color, flash])
   return <Animated.Text style={[style, animated]}>{children}</Animated.Text>
 }

@@ -28,10 +28,13 @@ const LANDED = {
  */
 export function Grid({
   records,
+  loaded,
   selectedId,
   onSelect,
 }: {
   records: TaskRecord[]
+  /** The stored history has been read; before that the list is empty and nothing should pop. */
+  loaded: boolean
   selectedId: string | null
   onSelect: (record: TaskRecord) => void
 }) {
@@ -40,8 +43,9 @@ export function Grid({
   const [width, setWidth] = useState(0)
   const shown = records.slice(-COLUMNS * ROWS)
   // Only a task that arrives while the screen is open pops; the ones already there do not.
-  const firstNewest = useRef(shown[shown.length - 1]?.id ?? null)
   const newest = shown[shown.length - 1]?.id ?? null
+  const firstNewest = useRef<string | null | undefined>(undefined)
+  if (loaded && firstNewest.current === undefined) firstNewest.current = newest
   const cell = width / COLUMNS
   const dot = Math.max(4, cell - GAP * (COLUMNS - 1) / COLUMNS)
   return (
@@ -57,7 +61,7 @@ export function Grid({
               </View>
             )
           }
-          const pop = record.id === newest && record.id !== firstNewest.current
+          const pop = firstNewest.current !== undefined && record.id === newest && record.id !== firstNewest.current
           return (
             <Pressable
               key={record.id}

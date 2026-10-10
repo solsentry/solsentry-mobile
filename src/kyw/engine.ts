@@ -9,7 +9,7 @@ import { fetchWithTimeout } from '../guard/fetch-timeout'
 import { KYW_API_BASE } from './config'
 import { getDevice, signWithDevice } from './device-runtime'
 import { runLoop, type LoopStatus } from './loop'
-import { dayKey } from './history'
+import { countedToday } from './history'
 import { earnedNow, toHalves } from './points'
 import { resolveEndpoint } from './providers'
 import { HTTP_TIMEOUT_MS, runOneTask } from './run'
@@ -112,8 +112,8 @@ async function loop(): Promise<void> {
         if (!result.record) return
         let earned = 0
         if (result.record.verdict === 'accepted') {
-          const matchedToday = getState().history.days[dayKey(result.record.at)] ?? 0
-          earned = toHalves(earnedNow({ signed: device.kind === 'key', matchedToday }))
+          const matchedToday = countedToday(getState().history, result.record.at)
+          earned = toHalves(earnedNow({ signed: result.record.signed === true, matchedToday }))
         }
         await recordResult(result.record, earned)
         const { accepted, diverged, unknown } = getState().history.counters

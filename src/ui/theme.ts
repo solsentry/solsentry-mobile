@@ -80,15 +80,13 @@ export function makeStyles<T>(build: (t: Palette) => T): () => T {
   }
 }
 
-// Typefaces of the mockup, embedded at build time by the expo-font plugin (see app.json).
+// Typefaces embedded at build time by the expo-font plugin (see app.json). The mockup's mono is DM Mono,
+// whose only zero is slashed and reads as "Ø"; Azeret Mono is the closest geometric mono with a plain zero.
 export const fonts = {
   title: 'Manrope',
   body: 'Manrope',
-  mono: 'DMMono',
+  mono: 'AzeretMono',
 } as const
 
-/**
- * Large numbers: DM Mono draws a slashed zero that reads as "Ø" at display size, so big figures use
- * Manrope with tabular digits (same width per digit, like a mono face).
- */
-export const figure: TextStyle = { fontFamily: fonts.body, fontVariant: ['tabular-nums'] }
+/** Large numbers, in the mono face as in the mockup. */
+export const figure: TextStyle = { fontFamily: fonts.mono }
