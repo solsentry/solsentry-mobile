@@ -1,6 +1,6 @@
 import { PublicKey } from '@solana/web3.js'
 import { describe, expect, it } from 'vitest'
-import { ANS_PROGRAM, deriveAnsAccount, deriveMainDomain, deriveSkrNameAccount, parseMainDomain, parseName, resolveName, reverseSkr, ROOT_ANS } from '../src/pay/names'
+import { ANS_PROGRAM, deriveAnsAccount, deriveMainDomain, deriveSkrNameAccount, deriveSkrReverseAccount, parseMainDomain, parseName, resolveName, reverseSkr, ROOT_ANS } from '../src/pay/names'
 import { nameBlockVerdict, resolveRecipientInput } from '../src/pay/recipient'
 import { toUiState } from '../src/ui/verdict'
 
@@ -180,5 +180,39 @@ describe('.skr reverse lookup (wallet -> main domain)', () => {
     expect(await reverseSkr(OWNER, deps({ status: 500, body: 'x' }))).toBeNull()
     expect(await reverseSkr(OWNER, deps('hang'))).toBeNull()
     expect(await reverseSkr('not-an-address', deps({ body: {} }))).toBeNull()
+  })
+})
+
+describe('.skr reverse lookup without a main domain (owned names)', () => {
+  const ok = (result: unknown) => new Response(JSON.stringify({ jsonrpc: '2.0', id: 1, result }), { status: 200 })
+  function reverseAccount(label: string) {
+    const data = new Uint8Array(200 + label.length)
+    data.set(new TextEncoder().encode(label), 200)
+    return { owner: ANS_PROGRAM.toBase58(), data: [Buffer.from(data).toString('base64'), 'base64'] }
+  }
+  function byMethod(owned: string[], reverse: (ReturnType<typeof reverseAccount> | null)[], nameOwner: string, seen: string[] = []): typeof fetch {
+    return (async (_url: string, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body)) as { method: string; params: unknown[] }
+      seen.push(body.method)
+      if (body.method === 'getProgramAccounts') return ok(owned.map((pubkey) => ({ pubkey, account: {} })))
+      if (body.method === 'getMultipleAccounts') return ok({ context: { slot: 1 }, value: reverse })
+      const key = body.params[0] as string
+      if (key === deriveMainDomain(new PublicKey(OWNER)).toBase58()) return ok({ context: { slot: 1 }, value: null })
+      return new Response(JSON.stringify(skrAccount(nameOwner).body), { status: 200 })
+    }) as unknown as typeof fetch
+  }
+  const run = (f: typeof fetch) => reverseSkr(OWNER, { fetch: f, rpcUrl: RPC, timeoutMs: 50 })
+
+  it('finds the .skr name the wallet owns when no main domain is set', async () => {
+    const seen: string[] = []
+    expect(await run(byMethod([deriveSkrNameAccount('crash').toBase58()], [reverseAccount('crash')], OWNER, seen))).toBe('crash.skr')
+    expect(seen).toEqual(['getAccountInfo', 'getProgramAccounts', 'getMultipleAccounts', 'getAccountInfo'])
+    expect(deriveSkrReverseAccount(deriveSkrNameAccount('crash')).toBase58()).not.toBe(deriveSkrNameAccount('crash').toBase58())
+  })
+
+  it('rejects a reverse record whose label does not derive to that name account, or a name owned by someone else', async () => {
+    expect(await run(byMethod([deriveSkrNameAccount('crash').toBase58()], [reverseAccount('bob')], OWNER))).toBeNull()
+    expect(await run(byMethod([deriveSkrNameAccount('crash').toBase58()], [reverseAccount('crash')], '11111111111111111111111111111112'))).toBeNull()
+    expect(await run(byMethod([], [], OWNER))).toBeNull()
   })
 })

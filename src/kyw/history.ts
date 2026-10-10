@@ -18,7 +18,12 @@ export interface Persisted {
   pointHalves: number
   /** Matched, signed results of one UTC day: the server counts its daily cap per UTC day. */
   capDay: { day: string; counted: number }
+  /** Point rule the estimate was counted under; a stored estimate from another rule starts again at 0. */
+  rule: number
 }
+
+/** Rule rev. 2 (10/10/2026). Bump when the way points are counted changes. */
+export const POINT_RULE_VERSION = 2
 
 export const EMPTY: Persisted = {
   records: [],
@@ -26,6 +31,7 @@ export const EMPTY: Persisted = {
   days: {},
   pointHalves: 0,
   capDay: { day: '', counted: 0 },
+  rule: POINT_RULE_VERSION,
 }
 
 /** UTC calendar day of a timestamp, `YYYY-MM-DD`. */
@@ -92,6 +98,7 @@ export function addRecord(state: Persisted, record: TaskRecord, earnedHalves = 0
     days,
     pointHalves: state.pointHalves + (record.verdict === 'accepted' ? count(earnedHalves) : 0),
     capDay: nextCapDay(state, record),
+    rule: state.rule,
   }
 }
 
@@ -133,8 +140,10 @@ export function parsePersisted(raw: string | null): Persisted {
       records,
       counters: { accepted: count(c.accepted), diverged: count(c.diverged), unknown: count(c.unknown) },
       days: pruneDays(days),
-      pointHalves: count((v as { pointHalves?: unknown }).pointHalves),
-      capDay: parseCapDay((v as { capDay?: unknown }).capDay),
+      ...(v as { rule?: unknown }).rule === POINT_RULE_VERSION
+        ? { pointHalves: count((v as { pointHalves?: unknown }).pointHalves), capDay: parseCapDay((v as { capDay?: unknown }).capDay) }
+        : { pointHalves: 0, capDay: EMPTY.capDay },
+      rule: POINT_RULE_VERSION,
     }
   } catch {
     return EMPTY

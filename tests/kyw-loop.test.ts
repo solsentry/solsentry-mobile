@@ -107,6 +107,7 @@ describe('history on the phone', () => {
       days: {},
       pointHalves: 0,
       capDay: { day: '', counted: 0 },
+      rule: 2,
     })
     expect(parsePersisted(JSON.stringify({ days: { '2026-10-09': 7, nope: 3, '2026-10-10': -1 } })).days).toEqual({
       '2026-10-09': 7,
@@ -243,5 +244,8 @@ describe('estimated points', () => {
     expect(formatPoints(s.pointHalves)).toBe('2.5')
     expect(parsePersisted(JSON.stringify(s)).pointHalves).toBe(5)
     expect(parsePersisted(JSON.stringify({ pointHalves: -9 })).pointHalves).toBe(0)
+    // An estimate stored under the old rule (no version, 2x multiplier) starts again at 0.
+    expect(parsePersisted(JSON.stringify({ ...s, rule: undefined })).pointHalves).toBe(0)
+    expect(parsePersisted(JSON.stringify({ ...s, rule: undefined })).counters).toEqual(s.counters)
   })
 })

@@ -4,9 +4,10 @@ import { useEffect, useState } from 'react'
 import { SGT_RPC_URL } from '../config'
 import { reverseSkr } from '../pay/names'
 
-const KEY = 'solsentry-kyw.skr-name'
-/** A name can be transferred or expire: read it again after a day. */
+const KEY = 'solsentry-kyw.skr-name.v2'
+/** A name can be transferred or expire: read it again after a day; "no name" (or a failed read) after an hour. */
 const MAX_AGE_MS = 24 * 60 * 60 * 1000
+const MAX_AGE_NONE_MS = 60 * 60 * 1000
 
 interface Cached {
   address: string
@@ -30,7 +31,7 @@ export function useSkrName(address: string | null): string | null {
       }
       if (cached?.address === address) {
         if (live) setName(cached.name)
-        if (Date.now() - cached.at < MAX_AGE_MS) return
+        if (Date.now() - cached.at < (cached.name ? MAX_AGE_MS : MAX_AGE_NONE_MS)) return
       }
       const fresh = await reverseSkr(address, { fetch: (u, i) => globalThis.fetch(u, i), rpcUrl: SGT_RPC_URL })
       if (!live) return

@@ -214,34 +214,81 @@ export function parseMainDomain(data: Uint8Array): { nameAccount: PublicKey; tld
   return { nameAccount: new PublicKey(data.subarray(8, 40)), tld: tld.value, domain: domain.value }
 }
 
+type RpcValue = { owner?: string; data?: [string, string] } | null
+
+async function rpcCall<T>(deps: ResolveDeps, what: string, method: string, params: unknown[]): Promise<T | null> {
+  const res = await boundedFetch(deps, what)(deps.rpcUrl, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
+  })
+  if (!res.ok) return null
+  const json = (await res.json()) as { result?: T; error?: unknown }
+  return json?.error || json?.result === undefined ? null : json.result
+}
+
+/** Reverse-lookup account of a name account: holds the label after the 200-byte header (tld-parser). */
+export function deriveSkrReverseAccount(nameAccount: PublicKey): PublicKey {
+  const tldHouse = pda(TLD_HOUSE_PROGRAM, [utf8ToBytes('tld_house'), utf8ToBytes('.skr')])
+  return pda(ANS_PROGRAM, [sha256(utf8ToBytes(HASH_PREFIX + nameAccount.toBase58())), tldHouse.toBytes(), ZERO_32])
+}
+
+/** The label the wallet marked as its main domain, when that is a .skr name. */
+async function mainDomainLabel(wallet: PublicKey, deps: ResolveDeps): Promise<string | null> {
+  const r = await rpcCall<{ value?: RpcValue }>(deps, '.skr reverse lookup', 'getAccountInfo', [
+    deriveMainDomain(wallet).toBase58(),
+    { encoding: 'base64', commitment: 'confirmed' },
+  ])
+  const value = r?.value
+  if (!value || value.owner !== TLD_HOUSE_PROGRAM.toBase58() || !Array.isArray(value.data)) return null
+  const main = parseMainDomain(base64ToBytes(value.data[0]))
+  if (!main || main.tld !== '.skr' || !SKR_LABEL.test(main.domain)) return null
+  return deriveSkrNameAccount(main.domain).equals(main.nameAccount) ? main.domain : null
+}
+
+/** Labels of the .skr names the wallet owns directly (tld-parser `findOwnedNameAccountsForUser` + reverse lookup). */
+async function ownedLabels(wallet: PublicKey, deps: ResolveDeps): Promise<string[]> {
+  const parent = deriveAnsAccount('.skr', ROOT_ANS)
+  const owned = await rpcCall<{ pubkey: string }[]>(deps, '.skr owned names', 'getProgramAccounts', [
+    ANS_PROGRAM.toBase58(),
+    {
+      encoding: 'base64',
+      dataSlice: { offset: 0, length: 0 },
+      filters: [{ memcmp: { offset: 8, bytes: parent.toBase58() } }, { memcmp: { offset: OWNER_OFFSET, bytes: wallet.toBase58() } }],
+    },
+  ])
+  if (!Array.isArray(owned) || owned.length === 0) return []
+  const accounts = owned.slice(0, 10).map((a) => new PublicKey(a.pubkey))
+  const reverse = await rpcCall<{ value?: RpcValue[] }>(deps, '.skr owned names', 'getMultipleAccounts', [
+    accounts.map((a) => deriveSkrReverseAccount(a).toBase58()),
+    { encoding: 'base64', commitment: 'confirmed' },
+  ])
+  const labels: string[] = []
+  reverse?.value?.forEach((v, i) => {
+    if (!v || v.owner !== ANS_PROGRAM.toBase58() || !Array.isArray(v.data)) return
+    const data = base64ToBytes(v.data[0])
+    const label = String.fromCharCode(...data.subarray(HEADER_SIZE)).replace(/\0+$/, '')
+    if (SKR_LABEL.test(label) && deriveSkrNameAccount(label).equals(accounts[i])) labels.push(label)
+  })
+  return labels.sort()
+}
+
 /**
- * Wallet -> its Seeker ID (`name.skr`), or null. Reads the wallet's main domain, then resolves that name
- * forward with the same checks as `resolveName` (expiry, tokenized, owner): a main domain that points to
- * a name the wallet no longer owns is not shown. Never throws.
+ * Wallet -> its Seeker ID (`name.skr`), or null. Prefers the main domain the wallet set; otherwise the
+ * .skr names it owns (first alphabetically). Every candidate is resolved forward with the same checks as
+ * `resolveName` (expiry, tokenized, owner), so a name the wallet no longer owns is not shown. Never throws.
  */
 export async function reverseSkr(address: string, deps: ResolveDeps): Promise<string | null> {
   try {
     const wallet = new PublicKey(address)
-    const res = await boundedFetch(deps, '.skr reverse lookup')(deps.rpcUrl, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        jsonrpc: '2.0',
-        id: 1,
-        method: 'getAccountInfo',
-        params: [deriveMainDomain(wallet).toBase58(), { encoding: 'base64', commitment: 'confirmed' }],
-      }),
-    })
-    if (!res.ok) return null
-    const json = (await res.json()) as { result?: { value?: { owner?: string; data?: [string, string] } | null } }
-    const value = json?.result?.value
-    if (!value || value.owner !== TLD_HOUSE_PROGRAM.toBase58() || !Array.isArray(value.data)) return null
-    const main = parseMainDomain(base64ToBytes(value.data[0]))
-    if (!main || main.tld !== '.skr' || !SKR_LABEL.test(main.domain)) return null
-    if (!deriveSkrNameAccount(main.domain).equals(main.nameAccount)) return null
-    const name = `${main.domain}.skr`
-    const forward = await resolveSkr({ name, tld: 'skr', label: main.domain }, deps)
-    return forward.ok && forward.address === wallet.toBase58() ? name : null
+    const main = await mainDomainLabel(wallet, deps)
+    const candidates = main ? [main] : await ownedLabels(wallet, deps)
+    for (const label of candidates.slice(0, 3)) {
+      const name = `${label}.skr`
+      const forward = await resolveSkr({ name, tld: 'skr', label }, deps)
+      if (forward.ok && forward.address === wallet.toBase58()) return name
+    }
+    return null
   } catch {
     return null
   }
