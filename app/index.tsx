@@ -10,6 +10,8 @@ import { ACCOUNT_TEXT, TEXT, VERDICT_LABEL, formatBytes, readingViaText, switchP
 import { mode, startValidation, statusText, stopValidation } from '@/src/kyw/engine'
 import { Grid, VERDICT_COLOR } from '@/src/kyw/Grid'
 import { tasksPerHour } from '@/src/kyw/history'
+import { useAccount } from '@/src/kyw/useAccount'
+import { WalletCard } from '@/src/kyw/WalletCard'
 import { chosenRpcProbeIsStale, probeChosenRpc } from '@/src/kyw/probe-client'
 import { PROVIDERS, providerInfo, type ProviderId } from '@/src/kyw/providers'
 import { recordProbeReport, setSecret, updateSettings } from '@/src/kyw/store'
@@ -30,6 +32,7 @@ async function askNotificationPermission(): Promise<void> {
 export default function ValidateScreen() {
   const router = useRouter()
   const kyw = useKyw()
+  const account = useAccount()
   const { settings, history, running, status } = kyw
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [rpcMenu, setRpcMenu] = useState(false)
@@ -163,6 +166,8 @@ export default function ValidateScreen() {
             <Text style={styles.muted}>{TEXT.tagline}</Text>
           </View>
         </View>
+
+        <WalletCard account={account} onOpen={() => router.push('/account')} />
 
         <View style={[styles.card, running && { borderColor: theme.action }]}>
           <View style={styles.row}>

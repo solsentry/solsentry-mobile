@@ -1,13 +1,10 @@
 import { useRouter } from 'expo-router'
-import React, { useEffect, useState } from 'react'
+import React from 'react'
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
-import { pointsStatus, type LinkedWallet } from '@/src/kyw/account'
-import { forgetLinkedWallet, linkWalletNow, loadLinkedWallet } from '@/src/kyw/account-runtime'
 import { ACCOUNT_TEXT as T } from '@/src/kyw/copy'
-import type { DeviceIdentity } from '@/src/kyw/device'
-import { getDevice } from '@/src/kyw/device-runtime'
+import { useAccount } from '@/src/kyw/useAccount'
 import { Button } from '@/src/ui/components'
 import { theme } from '@/src/ui/theme'
 
@@ -15,26 +12,7 @@ const short = (a: string) => `${a.slice(0, 4)}…${a.slice(-4)}`
 
 export default function AccountScreen() {
   const router = useRouter()
-  const [device, setDevice] = useState<DeviceIdentity | null>(null)
-  const [wallet, setWallet] = useState<LinkedWallet | null>(null)
-  const [busy, setBusy] = useState(false)
-  const [note, setNote] = useState<string | null>(null)
-
-  useEffect(() => {
-    void getDevice().then(setDevice)
-    void loadLinkedWallet().then(setWallet)
-  }, [])
-
-  const link = async () => {
-    setBusy(true)
-    setNote(null)
-    const r = await linkWalletNow()
-    setBusy(false)
-    if (r.ok) setWallet(r.wallet)
-    else setNote(r.reason === 'cancelled' ? T.cancelled : r.reason === 'bad_signature' ? T.badSignature : T.failed)
-  }
-
-  const status = device ? pointsStatus({ deviceCheck: device.check, deviceKind: device.kind, wallet }) : null
+  const { wallet, busy, note, link, unlink, status } = useAccount()
   const sgtLine = wallet && (wallet.sgt.status === 'verified' ? T.genesis : wallet.sgt.status === 'none' ? T.noGenesis : T.genesisUnknown)
 
   return (
@@ -64,7 +42,7 @@ export default function AccountScreen() {
               <Button
                 variant="secondary"
                 title={T.unlink}
-                onPress={() => void forgetLinkedWallet().then(() => setWallet(null))}
+                onPress={() => void unlink()}
               />
             </>
           ) : busy ? (
