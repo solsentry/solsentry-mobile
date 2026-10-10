@@ -33,7 +33,11 @@ export function useAccount() {
     const r = await linkWalletNow()
     setBusy(false)
     if (r.ok) setWallet(r.wallet)
-    else setNote(r.reason === 'cancelled' ? T.cancelled : r.reason === 'bad_signature' ? T.badSignature : T.failed)
+    else {
+      const text = { cancelled: T.cancelled, timeout: T.timedOut, bad_signature: T.badSignature, failed: T.failed }
+      setNote(text[r.reason])
+      if (r.reason === 'failed' && r.detail) console.warn('wallet link failed:', r.detail)
+    }
   }
 
   const unlink = async () => {

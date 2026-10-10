@@ -154,6 +154,7 @@ export const ACCOUNT_TEXT = {
   cancelled: 'Linking was cancelled in the wallet.',
   badSignature: 'The wallet signature did not check out. Nothing was linked.',
   failed: 'Could not open the wallet.',
+  timedOut: 'The wallet was not answered in time. Tap Connect wallet to try again.',
   redeemTitle: 'Redeem',
   redeemNote: 'Planned. Nothing can be redeemed yet and points have no set value.',
   redeemItems: ['SKR from a funded pool', 'API access', 'Partner rewards'],

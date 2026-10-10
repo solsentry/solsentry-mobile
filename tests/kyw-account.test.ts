@@ -53,6 +53,8 @@ describe('linkWallet', () => {
     const m = newLinkMessage(deps(), ADDRESS)
     expect(await linkWallet(deps(), ADDRESS, async () => Promise.reject(new Error('User declined')), m)).toEqual({ ok: false, reason: 'cancelled' })
     expect(await linkWallet(deps(), ADDRESS, async () => new Uint8Array(64), m)).toEqual({ ok: false, reason: 'bad_signature' })
+    expect(await linkWallet(deps(), ADDRESS, async () => Promise.reject(Object.assign(new Error('x'), { code: 'ERROR_SESSION_TIMEOUT' })), m)).toEqual({ ok: false, reason: 'timeout' })
+    expect(await linkWallet(deps(), ADDRESS, async () => Promise.reject(new Error('Timed out waiting for response')), m)).toEqual({ ok: false, reason: 'timeout' })
   })
   it('an SGT lookup that fails keeps the link, marked unknown', async () => {
     const m = newLinkMessage(deps(), ADDRESS)

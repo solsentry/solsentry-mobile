@@ -32,7 +32,7 @@ export interface LinkDeps {
   now: () => number
 }
 
-export type LinkResult = { ok: true; wallet: LinkedWallet } | { ok: false; reason: 'cancelled' | 'bad_signature' | 'failed'; detail?: string }
+export type LinkResult = { ok: true; wallet: LinkedWallet } | { ok: false; reason: 'cancelled' | 'timeout' | 'bad_signature' | 'failed'; detail?: string }
 
 export function linkMessage(p: { deviceKeyId: string; address: string; nonce: string; issuedAt: string }): string {
   return [
@@ -64,6 +64,12 @@ export function extractSignature(message: Uint8Array, signed: Uint8Array, pubkey
 
 const isCancel = (e: unknown) => /cancel|declin|reject|denied/i.test(e instanceof Error ? e.message : String(e))
 
+/** The wallet opened but nobody answered before the session's own limit (90 s in the library). */
+const isTimeout = (e: unknown) => {
+  const code = (e as { code?: unknown } | null)?.code
+  return code === 'ERROR_SESSION_TIMEOUT' || /timed? ?out|timeout/i.test(e instanceof Error ? e.message : String(e))
+}
+
 /**
  * One link ceremony. The address is not known before the wallet opens, so the message names it only
  * after authorization: the caller's signWithWallet authorizes, then signs what we build here.
@@ -80,7 +86,9 @@ export async function linkWallet(
   try {
     raw = await signed()
   } catch (e) {
-    return isCancel(e) ? { ok: false, reason: 'cancelled' } : { ok: false, reason: 'failed', detail: String(e).slice(0, 200) }
+    if (isCancel(e)) return { ok: false, reason: 'cancelled' }
+    if (isTimeout(e)) return { ok: false, reason: 'timeout' }
+    return { ok: false, reason: 'failed', detail: String(e).slice(0, 200) }
   }
   if (late) ({ address, message } = late())
   const msg = utf8(message)
