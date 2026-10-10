@@ -49,3 +49,6 @@ release.keystore
 *.apk
 *.aab
 dist/
+
+# machine paths for tools/kyw_compare_cron.sh
+tools/*.local.env
