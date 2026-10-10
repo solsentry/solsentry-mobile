@@ -5,7 +5,7 @@ import { fonts, theme } from '../ui/theme'
 import { TEXT } from './copy'
 import { dayStreak, lastDays } from './history'
 
-const LEVELS = ['#1F1B14', '#4A2C14', '#87491B', '#C96A24', '#F28A35'] as const
+const LEVELS = ['#1C1F1C', '#4A2C14', '#87491B', '#C96A24', '#F28A35'] as const
 
 /** 0 for an empty day, then quartiles of the busiest day in view. */
 export function dayLevel(matched: number, max: number): number {
@@ -30,7 +30,7 @@ export function DayGrid({ days, now }: { days: Record<string, number>; now: numb
           {sel === list[list.length - 1] ? TEXT.today : label(sel.date)} · {sel.matched.toLocaleString('en-US')}
         </Text>
       </View>
-      {[list.slice(0, 14), list.slice(14)].map((row, i) => (
+      {[0, 7, 14, 21].map((from) => list.slice(from, from + 7)).map((row, i) => (
         <View key={i} style={styles.grid}>
           {row.map((d) => (
             <Pressable
@@ -49,11 +49,11 @@ export function DayGrid({ days, now }: { days: Record<string, number>; now: numb
 }
 
 const styles = StyleSheet.create({
-  card: { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1.5, borderRadius: 16, padding: 14, gap: 10 },
-  head: { flexDirection: 'row', justifyContent: 'space-between' },
-  eyebrow: { color: theme.muted, fontSize: 11, letterSpacing: 1, textTransform: 'uppercase', fontFamily: fonts.mono },
-  grid: { flexDirection: 'row', gap: 5 },
-  cell: { flex: 1, aspectRatio: 1, borderRadius: 4 },
-  cellSel: { borderWidth: 1.5, borderColor: theme.text },
-  muted: { color: theme.muted, fontFamily: fonts.body, fontSize: 13 },
+  card: { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1, borderRadius: 16, paddingHorizontal: 16, paddingVertical: 14, gap: 6 },
+  head: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
+  eyebrow: { color: theme.muted, fontSize: 10, letterSpacing: 1, textTransform: 'uppercase', fontFamily: fonts.mono },
+  grid: { flexDirection: 'row', gap: 6 },
+  cell: { flex: 1, aspectRatio: 1, borderRadius: 8 },
+  cellSel: { borderWidth: 2, borderColor: theme.text },
+  muted: { color: theme.muted, fontFamily: fonts.body, fontSize: 12, marginTop: 4 },
 })

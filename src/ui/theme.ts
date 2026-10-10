@@ -1,25 +1,33 @@
-// Brand palette: dark surfaces, amber for actions. Verdict colors are separate tokens:
-// allow = teal, warn = amber, block = red (red is used for Block only).
+// Palette of the home mockup: near-black surfaces, orange for actions. Verdict colors are separate
+// tokens: allow = teal, warn = orange, block = red (red is used for Block only).
 export const theme = {
-  bg: '#100E0A',
-  surface: '#18150F',
-  border: '#2A251C',
-  text: '#F2EDE4',
-  muted: '#B8B0A0',
-  action: '#C17D0E',
-  allow: '#2A7A7A',
-  warn: '#C17D0E',
+  bg: '#090A09',
+  surface: '#111311',
+  /** Raised row inside a card. */
+  surface2: '#171A17',
+  border: 'rgba(255,255,255,0.09)',
+  /** Stronger line: pills, sheet edge, outlined buttons. */
+  border2: 'rgba(255,255,255,0.18)',
+  text: '#F2F1EB',
+  muted: '#8D928B',
+  action: '#F28A35',
+  /** Orange as text on dark (the fill orange is too dim at small sizes). */
+  actionText: '#F5A05B',
+  allow: '#5FD1B4',
+  warn: '#F28A35',
   block: '#FF4444',
-  /** Text on amber and on red (white fails contrast on both). */
-  ink: '#100E0A',
-  /** Text on teal. Teal itself is only for borders, badges and large text on dark. */
-  onAllow: '#FFFFFF',
-  scrim: 'rgba(16,14,10,0.7)',
+  /** Text on orange and on red (white fails contrast on both). */
+  ink: '#17100A',
+  /** Text on teal. */
+  onAllow: '#17100A',
+  /** Empty cell, switch track. */
+  track: '#2A2E2A',
+  scrim: 'rgba(0,0,0,0.6)',
 } as const
 
-// Brand typefaces, embedded at build time by the expo-font plugin (see app.json).
+// Typefaces of the mockup, embedded at build time by the expo-font plugin (see app.json).
 export const fonts = {
-  title: 'Syne',
-  body: 'DMSans',
-  mono: 'JetBrainsMono',
+  title: 'Manrope',
+  body: 'Manrope',
+  mono: 'DMMono',
 } as const

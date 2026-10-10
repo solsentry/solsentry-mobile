@@ -7,10 +7,10 @@
     "icon": "./assets/images/icon.png",
     "scheme": "solsentry",
     "userInterfaceStyle": "dark",
-    "backgroundColor": "#100E0A",
+    "backgroundColor": "#090A09",
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#100E0A",
+        "backgroundColor": "#090A09",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
@@ -34,57 +34,40 @@
           "android": {
             "fonts": [
               {
-                "fontFamily": "Syne",
+                "fontFamily": "Manrope",
                 "fontDefinitions": [
                   {
-                    "path": "./assets/fonts/Syne_600SemiBold.ttf",
+                    "path": "./assets/fonts/Manrope_400Regular.ttf",
+                    "weight": 400
+                  },
+                  {
+                    "path": "./assets/fonts/Manrope_500Medium.ttf",
+                    "weight": 500
+                  },
+                  {
+                    "path": "./assets/fonts/Manrope_600SemiBold.ttf",
                     "weight": 600
                   },
                   {
-                    "path": "./assets/fonts/Syne_700Bold.ttf",
+                    "path": "./assets/fonts/Manrope_700Bold.ttf",
                     "weight": 700
                   },
                   {
-                    "path": "./assets/fonts/Syne_800ExtraBold.ttf",
+                    "path": "./assets/fonts/Manrope_800ExtraBold.ttf",
                     "weight": 800
                   }
                 ]
               },
               {
-                "fontFamily": "DMSans",
+                "fontFamily": "DMMono",
                 "fontDefinitions": [
                   {
-                    "path": "./assets/fonts/DMSans_400Regular.ttf",
+                    "path": "./assets/fonts/DMMono_400Regular.ttf",
                     "weight": 400
                   },
                   {
-                    "path": "./assets/fonts/DMSans_600SemiBold.ttf",
-                    "weight": 600
-                  },
-                  {
-                    "path": "./assets/fonts/DMSans_700Bold.ttf",
-                    "weight": 700
-                  },
-                  {
-                    "path": "./assets/fonts/DMSans_800ExtraBold.ttf",
-                    "weight": 800
-                  }
-                ]
-              },
-              {
-                "fontFamily": "JetBrainsMono",
-                "fontDefinitions": [
-                  {
-                    "path": "./assets/fonts/JetBrainsMono_400Regular.ttf",
-                    "weight": 400
-                  },
-                  {
-                    "path": "./assets/fonts/JetBrainsMono_700Bold.ttf",
-                    "weight": 700
-                  },
-                  {
-                    "path": "./assets/fonts/JetBrainsMono_800ExtraBold.ttf",
-                    "weight": 800
+                    "path": "./assets/fonts/DMMono_500Medium.ttf",
+                    "weight": 500
                   }
                 ]
               }
@@ -99,7 +82,7 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 160,
           "resizeMode": "contain",
-          "backgroundColor": "#100E0A"
+          "backgroundColor": "#090A09"
         }
       ],
       "expo-web-browser",

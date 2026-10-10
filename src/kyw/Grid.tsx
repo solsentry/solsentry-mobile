@@ -12,7 +12,7 @@ const GAP = 4
 export const VERDICT_COLOR: Record<Verdict, string> = {
   accepted: theme.allow,
   diverged: theme.warn,
-  unknown: '#6B6456',
+  unknown: '#3A3F3A',
 }
 
 /** Contribution-style grid: one square per task, oldest at the top left, filled column by column. */
@@ -62,8 +62,8 @@ const styles = StyleSheet.create({
   cell: {
     width: CELL,
     height: CELL,
-    borderRadius: 4,
-    backgroundColor: theme.surface,
+    borderRadius: 5,
+    backgroundColor: theme.surface2,
     borderWidth: 1,
     borderColor: theme.border,
   },
