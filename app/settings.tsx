@@ -13,8 +13,9 @@ import { mode } from '@/src/kyw/engine'
 import { clearHistory, updateSettings } from '@/src/kyw/store'
 import { INTERVAL_CHOICES_S } from '@/src/kyw/types'
 import { useKyw } from '@/src/kyw/useKyw'
-import { Button } from '@/src/ui/components'
-import { fonts, theme } from '@/src/ui/theme'
+import { Button, ScreenBar } from '@/src/ui/components'
+import { FadeUp } from '@/src/ui/motion'
+import { fonts, makeStyles, useTheme } from '@/src/ui/theme'
 
 function usePower(): KywService.NativePowerState | null {
   const [power, setPower] = useState(() => KywService.powerState())
@@ -31,6 +32,8 @@ function usePower(): KywService.NativePowerState | null {
 }
 
 function Toggle({ label, value, onChange }: { label: string; value: boolean; onChange: (v: boolean) => void }) {
+  const theme = useTheme()
+  const styles = useStyles()
   return (
     <View style={styles.row}>
       <Text style={[styles.label, { flex: 1 }]}>{label}</Text>
@@ -38,7 +41,7 @@ function Toggle({ label, value, onChange }: { label: string; value: boolean; onC
         accessibilityLabel={label}
         value={value}
         onValueChange={onChange}
-        trackColor={{ false: theme.border, true: theme.action }}
+        trackColor={{ false: theme.track, true: theme.action }}
         thumbColor={theme.text}
       />
     </View>
@@ -47,6 +50,8 @@ function Toggle({ label, value, onChange }: { label: string; value: boolean; onC
 
 export default function SettingsScreen() {
   const router = useRouter()
+  const theme = useTheme()
+  const styles = useStyles()
   const { settings } = useKyw()
   const [device, setDevice] = useState<DeviceIdentity | null>(null)
   useEffect(() => {
@@ -67,14 +72,10 @@ export default function SettingsScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
+      <ScreenBar title={TEXT.settings} onBack={() => router.back()} />
       <ScrollView contentContainerStyle={styles.body}>
-        <View style={styles.row}>
-          <Text style={[styles.title, { flex: 1 }]}>{TEXT.settings}</Text>
-          <Button variant="secondary" title="Done" onPress={() => router.back()} />
-        </View>
-
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>{TEXT.background}</Text>
+        <FadeUp order={0} style={styles.card}>
+          <Text style={styles.eyebrow}>{TEXT.background}</Text>
           <Text style={styles.muted}>{service ? TEXT.backgroundService : TEXT.backgroundInApp}</Text>
           {service && power && (
             <>
@@ -87,10 +88,10 @@ export default function SettingsScreen() {
               )}
             </>
           )}
-        </View>
+        </FadeUp>
 
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>When to validate</Text>
+        <FadeUp order={1} style={styles.card}>
+          <Text style={styles.eyebrow}>{TEXT.whenTitle}</Text>
           {service && (
             <>
               <Toggle label={TEXT.wifiOnly} value={settings.wifiOnly} onChange={(v) => void updateSettings({ wifiOnly: v })} />
@@ -125,20 +126,40 @@ export default function SettingsScreen() {
               {power.batteryPct !== null ? ` · ${Math.round(power.batteryPct)}%` : ''}
             </Text>
           )}
-        </View>
+        </FadeUp>
 
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>{TEXT.deviceTitle}</Text>
+        <FadeUp order={2} style={styles.card}>
+          <Text style={styles.eyebrow}>{TEXT.themeTitle}</Text>
+          <View style={styles.chips}>
+            {(['dark', 'light'] as const).map((name) => {
+              const active = settings.theme === name
+              return (
+                <Pressable
+                  key={name}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: active }}
+                  onPress={() => void updateSettings({ theme: name })}
+                  style={[styles.chip, active && styles.chipActive]}
+                >
+                  <Text style={[styles.chipText, active && { color: theme.ink }]}>{name === 'dark' ? TEXT.themeDark : TEXT.themeLight}</Text>
+                </Pressable>
+              )
+            })}
+          </View>
+        </FadeUp>
+
+        <FadeUp order={3} style={styles.card}>
+          <Text style={styles.eyebrow}>{TEXT.deviceTitle}</Text>
           {deviceLines(device).map((line) => (
             <Text key={line} style={styles.muted}>
               {line}
             </Text>
           ))}
-        </View>
+        </FadeUp>
 
-        <View style={styles.card}>
+        <FadeUp order={4} style={styles.card}>
           <Button variant="secondary" title={TEXT.clear} onPress={confirmClear} />
-        </View>
+        </FadeUp>
 
         <Text style={styles.muted}>{TEXT.about}</Text>
         <Text style={styles.muted}>
@@ -150,27 +171,27 @@ export default function SettingsScreen() {
   )
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: theme.bg },
-  body: { padding: 16, gap: 14 },
-  title: { color: theme.text, fontFamily: fonts.title, fontSize: 24, fontWeight: '800' },
-  card: { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1.5, borderRadius: 12, padding: 14, gap: 10 },
-  cardTitle: { color: theme.text, fontFamily: fonts.title, fontSize: 17, fontWeight: '700' },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  label: { color: theme.text, fontFamily: fonts.body, fontSize: 15, fontWeight: '600' },
-  muted: { color: theme.muted, fontFamily: fonts.body, fontSize: 13, lineHeight: 18 },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: {
-    minHeight: 40,
-    minWidth: 56,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 12,
-    borderRadius: 20,
-    borderWidth: 1.5,
-    borderColor: theme.border,
-    backgroundColor: theme.bg,
-  },
-  chipActive: { backgroundColor: theme.action, borderColor: theme.action },
-  chipText: { color: theme.text, fontFamily: fonts.body, fontSize: 14, fontWeight: '600' },
-})
+const useStyles = makeStyles((t) =>
+  StyleSheet.create({
+    safe: { flex: 1, backgroundColor: t.bg },
+    body: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 24, gap: 10 },
+    card: { backgroundColor: t.surface, borderColor: t.border, borderWidth: 1, borderRadius: 16, paddingHorizontal: 16, paddingVertical: 14, gap: 10 },
+    eyebrow: { color: t.muted, fontFamily: fonts.mono, fontSize: 10, letterSpacing: 1, textTransform: 'uppercase' },
+    row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+    label: { color: t.text, fontFamily: fonts.body, fontSize: 14, fontWeight: '600' },
+    muted: { color: t.muted, fontFamily: fonts.body, fontSize: 12, lineHeight: 17 },
+    chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+    chip: {
+      height: 38,
+      minWidth: 64,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 14,
+      borderRadius: 19,
+      borderWidth: 1,
+      borderColor: t.border2,
+    },
+    chipActive: { backgroundColor: t.action, borderColor: t.action },
+    chipText: { color: t.text, fontFamily: fonts.body, fontSize: 13, fontWeight: '600' },
+  }),
+)

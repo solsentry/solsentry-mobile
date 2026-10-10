@@ -2,25 +2,28 @@ import Ionicons from '@expo/vector-icons/Ionicons'
 import Constants from 'expo-constants'
 import { useRouter } from 'expo-router'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { Alert, AppState, Image, KeyboardAvoidingView, Modal, PermissionsAndroid, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native'
+import { Alert, AppState, KeyboardAvoidingView, Modal, PermissionsAndroid, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
 import { KYW_API_BASE } from '@/src/kyw/config'
 import { ACCOUNT_TEXT, HOME_TEXT, TEXT, VERDICT_LABEL, formatBytes, readingViaText, switchProviderPrompt, probeProblemText, probeReportLines, probeTestedText, resultSentence } from '@/src/kyw/copy'
 import { mode, startValidation, statusText, stopValidation } from '@/src/kyw/engine'
+import { Avatar } from '@/src/kyw/Avatar'
 import { DayGrid } from '@/src/kyw/DayGrid'
-import { Grid, VERDICT_COLOR } from '@/src/kyw/Grid'
-import { tasksPerHour } from '@/src/kyw/history'
+import { Grid, verdictColor } from '@/src/kyw/Grid'
+import { dayKey, tasksPerHour } from '@/src/kyw/history'
 import { useAccount } from '@/src/kyw/useAccount'
 import { WalletCard } from '@/src/kyw/WalletCard'
 import { chosenRpcProbeIsStale, probeChosenRpc } from '@/src/kyw/probe-client'
-import { formatPoints, independentRpc, isFullRpc, multiplier, multiplierText, POINT_RULE } from '@/src/kyw/points'
+import { formatPoints, independentRpc, multiplier, multiplierText, POINT_RULE } from '@/src/kyw/points'
 import { PROVIDERS, providerInfo, type ProviderId } from '@/src/kyw/providers'
+import { RateDial } from '@/src/kyw/RateDial'
 import { recordProbeReport, setSecret, updateSettings } from '@/src/kyw/store'
 import type { Verdict } from '@/src/kyw/types'
 import { useKyw } from '@/src/kyw/useKyw'
 import { Button } from '@/src/ui/components'
-import { fonts, theme } from '@/src/ui/theme'
+import { Fan, FadeUp, FlashText } from '@/src/ui/motion'
+import { figure, fonts, makeStyles, useTheme } from '@/src/ui/theme'
 
 const short = (a: string) => `${a.slice(0, 4)}…${a.slice(-4)}`
 
@@ -38,6 +41,9 @@ async function askNotificationPermission(): Promise<void> {
 
 export default function ValidateScreen() {
   const router = useRouter()
+  const theme = useTheme()
+  const styles = useStyles()
+  const colors = verdictColor(theme)
   const kyw = useKyw()
   const account = useAccount()
   const { settings, history, running, status } = kyw
@@ -136,13 +142,7 @@ export default function ValidateScreen() {
           onPress={() => router.push('/account')}
           style={styles.identity}
         >
-          {wallet ? (
-            <View style={[styles.avatar, ctx.genesis && { borderColor: theme.action }]}>
-              <Ionicons name="wallet-outline" size={18} color={ctx.genesis ? theme.actionText : theme.text} />
-            </View>
-          ) : (
-            <Image source={require('@/assets/images/icon.png')} style={styles.avatar} />
-          )}
+          <Avatar address={wallet?.address ?? null} ring={ctx.genesis} />
           <Text style={wallet ? styles.identityMono : styles.identityText}>{wallet ? short(wallet.address) : TEXT.appName}</Text>
         </Pressable>
         <View style={styles.barRight}>
@@ -156,6 +156,14 @@ export default function ValidateScreen() {
             <Text style={styles.tag}>RPC</Text>
             <Ionicons name="chevron-down" size={13} color={theme.text} />
           </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={theme.name === 'dark' ? HOME_TEXT.themeLight : HOME_TEXT.themeDark}
+            onPress={() => void updateSettings({ theme: theme.name === 'dark' ? 'light' : 'dark' })}
+            style={styles.roundBtn}
+          >
+            <Ionicons name={theme.name === 'dark' ? 'sunny-outline' : 'moon-outline'} size={16} color={theme.text} />
+          </Pressable>
           <Pressable accessibilityRole="button" accessibilityLabel={TEXT.settings} onPress={() => router.push('/settings')} style={styles.roundBtn}>
             <Ionicons name="settings-outline" size={17} color={theme.text} />
           </Pressable>
@@ -163,11 +171,17 @@ export default function ValidateScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.body}>
-        {!wallet && <WalletCard account={account} onOpen={() => router.push('/account')} />}
+        {!wallet && (
+          <FadeUp order={0}>
+            <WalletCard account={account} onOpen={() => router.push('/account')} />
+          </FadeUp>
+        )}
 
-        <DayGrid days={history.days} now={probeNow} />
+        <FadeUp order={0}>
+          <DayGrid days={history.days} now={probeNow} running={running} />
+        </FadeUp>
 
-        <View style={styles.balance}>
+        <FadeUp order={1} style={styles.balance}>
           <Pressable
             accessibilityRole="switch"
             accessibilityLabel={TEXT.toggle}
@@ -176,17 +190,19 @@ export default function ValidateScreen() {
             onPress={() => void toggle(!running)}
             style={styles.statusBtn}
           >
-            <Ionicons name="aperture" size={18} color={running ? theme.action : theme.muted} />
+            <Fan running={running} color={running ? theme.action : theme.muted} />
             <Text style={styles.statusText}>{running ? HOME_TEXT.statusOn : HOME_TEXT.statusOff}</Text>
             <Text style={styles.statusPace}>{running && perHour !== null ? HOME_TEXT.pace(perHour) : ''}</Text>
             <Ionicons name={running ? 'pause' : 'play'} size={13} color={theme.muted} />
           </Pressable>
           <View style={styles.valueRow}>
             <View style={styles.value}>
-              <Text style={styles.valueMain}>{kyw.loaded ? formatPoints(history.pointHalves) : ACCOUNT_TEXT.pointsUnknown}</Text>
+              <FlashText value={history.pointHalves} color={theme.text} flash={theme.actionText} style={styles.valueMain}>
+                {kyw.loaded ? formatPoints(history.pointHalves) : ACCOUNT_TEXT.pointsUnknown}
+              </FlashText>
               <Text style={styles.valueTail}>{HOME_TEXT.pointsUnit}</Text>
             </View>
-            <Text style={styles.rateTag}>{multiplierText(rate)}</Text>
+            <Text style={styles.rateTag}>{ACCOUNT_TEXT.today(history.days[dayKey(Date.now())] ?? 0, POINT_RULE.dailyCap)}</Text>
           </View>
           <Text accessibilityLiveRegion="polite" style={styles.muted}>
             {running ? statusText(status) : statusText({ kind: 'idle' })} · {readingViaText(provider.label)}
@@ -195,9 +211,9 @@ export default function ValidateScreen() {
             <Text style={styles.ctaText}>{HOME_TEXT.pointsCta}</Text>
             <Ionicons name="arrow-forward" size={16} color={theme.ink} />
           </Pressable>
-        </View>
+        </FadeUp>
 
-        <View style={styles.card}>
+        <FadeUp order={2} style={styles.card}>
           <View style={styles.head}>
             <Text style={styles.eyebrow}>{HOME_TEXT.tasks}</Text>
             <Text style={styles.headValue}>{(history.counters.accepted + history.counters.diverged + history.counters.unknown).toLocaleString('en-US')}</Text>
@@ -206,7 +222,7 @@ export default function ValidateScreen() {
           <View style={styles.counters}>
             {(['accepted', 'diverged', 'unknown'] as Verdict[]).map((v) => (
               <View key={v} style={styles.counter}>
-                <View style={[styles.dot, { backgroundColor: VERDICT_COLOR[v] }]} />
+                <View style={[styles.dot, { backgroundColor: colors[v] }]} />
                 <Text style={styles.counterValue}>{history.counters[v].toLocaleString('en-US')}</Text>
                 <Text style={styles.counterLabel}>{VERDICT_LABEL[v]}</Text>
               </View>
@@ -214,7 +230,7 @@ export default function ValidateScreen() {
           </View>
           {!selected && <Text style={styles.muted}>{TEXT.gridEmpty}</Text>}
           {selected && (
-            <View accessibilityLiveRegion="polite" style={[styles.result, { borderColor: VERDICT_COLOR[selected.verdict] }]}>
+            <View accessibilityLiveRegion="polite" style={[styles.result, { borderColor: colors[selected.verdict] }]}>
               <Text style={styles.resultHead}>
                 {VERDICT_LABEL[selected.verdict].toUpperCase()}
                 {selected.short ? `  ·  ${selected.short}` : ''}
@@ -225,22 +241,23 @@ export default function ValidateScreen() {
               </Text>
             </View>
           )}
-        </View>
+        </FadeUp>
 
-        <Pressable accessibilityRole="button" accessibilityLabel={ACCOUNT_TEXT.rateTitle} onPress={() => router.push('/account')} style={styles.card}>
-          <View style={styles.head}>
+        <FadeUp order={3}>
+          <Pressable accessibilityRole="button" accessibilityLabel={ACCOUNT_TEXT.rateTitle} onPress={() => router.push('/account')} style={styles.level}>
             <Text style={styles.eyebrow}>
-              {HOME_TEXT.rate} · {multiplierText(rate)}
+              {HOME_TEXT.rate}{rate > 0 ? ` · ${multiplierText(rate)}` : ''} · {ACCOUNT_TEXT.planned}
             </Text>
-          </View>
-          <View style={styles.segs}>
-            {rateChips.map(([label, on]) => (
-              <View key={label} style={[styles.seg, on && styles.segOn]}>
-                <Text style={[styles.segText, on && { color: theme.ink }]}>{label}</Text>
-              </View>
-            ))}
-          </View>
-        </Pressable>
+            <RateDial rate={rate} running={running} />
+            <View style={styles.segs}>
+              {rateChips.map(([label, on]) => (
+                <View key={label} style={[styles.seg, on && styles.segOn]}>
+                  <Text style={[styles.segText, on && { color: theme.ink }]}>{label}</Text>
+                </View>
+              ))}
+            </View>
+          </Pressable>
+        </FadeUp>
 
         <Text style={styles.footer}>{TEXT.explain}</Text>
         <Text style={styles.footer}>{TEXT.about}</Text>
@@ -255,7 +272,6 @@ export default function ValidateScreen() {
               <Text style={styles.sheetTitle}>{ACCOUNT_TEXT.rpcMenuTitle}</Text>
               {PROVIDERS.map((p) => {
                 const active = p.id === settings.provider
-                const full = p.id !== 'solsentry' && isFullRpc(kyw.probeReports[p.id])
                 return (
                   <Pressable
                     key={p.id}
@@ -271,7 +287,6 @@ export default function ValidateScreen() {
                       <Text style={styles.pnameText}>{p.label}</Text>
                       {p.beta && <Text style={styles.tag}>{TEXT.beta}</Text>}
                     </View>
-                    <Text style={styles.pmult}>{multiplierText(full ? POINT_RULE.independentRpc : POINT_RULE.base)}</Text>
                     <View style={[styles.radio, active && { borderColor: theme.action }]}>{active && <View style={styles.radioFill} />}</View>
                   </Pressable>
                 )
@@ -336,7 +351,7 @@ export default function ValidateScreen() {
 const mono = { fontFamily: fonts.mono } as const
 const sans = { fontFamily: fonts.body } as const
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((theme) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: theme.bg },
   appBar: { height: 64, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   identity: { flexDirection: 'row', alignItems: 'center', gap: 10 },
@@ -381,7 +396,7 @@ const styles = StyleSheet.create({
   statusPace: { ...mono, color: theme.muted, fontSize: 11 },
   valueRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', paddingHorizontal: 6, paddingTop: 4 },
   value: { flexDirection: 'row', alignItems: 'baseline', gap: 6 },
-  valueMain: { ...mono, color: theme.text, fontSize: 46, lineHeight: 50, fontWeight: '500', letterSpacing: -1.5 },
+  valueMain: { ...figure, color: theme.text, fontSize: 46, lineHeight: 52, fontWeight: '500', letterSpacing: -1.8 },
   valueTail: { ...mono, color: theme.muted, fontSize: 20 },
   rateTag: { ...mono, color: theme.actionText, fontSize: 11, marginBottom: 8 },
   cta: {
@@ -404,10 +419,11 @@ const styles = StyleSheet.create({
   resultHead: { ...mono, color: theme.text, fontSize: 11, letterSpacing: 1 },
   resultText: { ...sans, color: theme.text, fontSize: 14, lineHeight: 20 },
   resultMeta: { ...mono, color: theme.muted, fontSize: 10.5, lineHeight: 15 },
+  level: { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1, borderRadius: 16, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 14, gap: 10 },
   segs: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  seg: { height: 38, paddingHorizontal: 14, borderRadius: 19, borderWidth: 1, borderColor: theme.border2, alignItems: 'center', justifyContent: 'center' },
+  seg: { height: 30, paddingHorizontal: 12, borderRadius: 15, borderWidth: 1, borderColor: theme.border2, alignItems: 'center', justifyContent: 'center' },
   segOn: { backgroundColor: theme.action, borderColor: theme.action },
-  segText: { ...sans, color: theme.muted, fontSize: 13, fontWeight: '600' },
+  segText: { ...sans, color: theme.muted, fontSize: 12, fontWeight: '600' },
   label: { ...sans, color: theme.text, fontSize: 14, fontWeight: '600' },
   footer: { ...sans, color: theme.muted, fontSize: 12, lineHeight: 17, paddingHorizontal: 4 },
   sheetWrap: { flex: 1, justifyContent: 'flex-end' },
@@ -439,7 +455,6 @@ const styles = StyleSheet.create({
   pcodeText: { ...mono, color: theme.text, fontSize: 10.5 },
   pname: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 7 },
   pnameText: { ...sans, color: theme.text, fontSize: 14, fontWeight: '600' },
-  pmult: { ...mono, color: theme.muted, fontSize: 11 },
   radio: { width: 18, height: 18, borderRadius: 9, borderWidth: 1.5, borderColor: theme.border2, alignItems: 'center', justifyContent: 'center' },
   radioFill: { width: 8, height: 8, borderRadius: 4, backgroundColor: theme.action },
   keyBox: { borderWidth: 1, borderColor: theme.border2, borderRadius: 12, padding: 12, gap: 10, marginTop: 4 },
@@ -454,4 +469,4 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     fontSize: 12,
   },
-})
+}))

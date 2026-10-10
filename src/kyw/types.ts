@@ -25,6 +25,8 @@ export interface Settings {
   chargingOnly: boolean
   /** Pause between two tasks, in seconds. */
   intervalS: number
+  /** Look of the app; the validation ignores it. */
+  theme: 'dark' | 'light'
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -33,6 +35,7 @@ export const DEFAULT_SETTINGS: Settings = {
   wifiOnly: false,
   chargingOnly: false,
   intervalS: 5,
+  theme: 'dark',
 }
 
 export const INTERVAL_CHOICES_S = [2, 5, 15, 60] as const

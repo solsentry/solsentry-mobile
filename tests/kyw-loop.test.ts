@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 
 import { PROBE_LABELS, PROBE_REASONS, probeCapabilityText, probePaceText, probeProblemText, probeTestedText, resultSentence, TEXT, VERDICT_LABEL } from '../src/kyw/copy'
 import type { Capability } from '../src/kyw/probe'
-import { formatPoints, independentRpc, multiplier, toHalves } from '../src/kyw/points'
+import { earnedNow, formatPoints, independentRpc, multiplier, multiplierText, toHalves } from '../src/kyw/points'
 import { DAYS_KEPT, MAX_RECORDS, EMPTY, addRecord, dayKey, dayStreak, lastDays, parsePersisted, parseSettings, tasksPerHour } from '../src/kyw/history'
 import { BACKOFF_MAX_S, HOLD_RECHECK_S, nextBackoff, runLoop, type LoopStatus, type TurnResult } from '../src/kyw/loop'
 import { runSelfTest, type SelfTestVector } from '../src/kyw/selftest/run'
@@ -113,6 +113,8 @@ describe('history on the phone', () => {
     })
     expect(parseSettings('[]')).toEqual(DEFAULT_SETTINGS)
     expect(parseSettings(JSON.stringify({ provider: 'evil', intervalS: 0.001 }))).toEqual(DEFAULT_SETTINGS)
+    expect(parseSettings(JSON.stringify({ theme: 'light' })).theme).toBe('light')
+    expect(parseSettings(JSON.stringify({ theme: 'neon' })).theme).toBe('dark')
   })
 
   it('counts matched results per local day and keeps only the last 28 days', () => {
@@ -212,8 +214,16 @@ describe('estimated points', () => {
   it('multiplies the base by Genesis and by an independent, fully capable RPC', () => {
     expect(multiplier({ deviceVerified: true, genesis: false, independentRpc: false })).toBe(1)
     expect(multiplier({ deviceVerified: true, genesis: true, independentRpc: false })).toBe(2)
-    expect(multiplier({ deviceVerified: true, genesis: false, independentRpc: true })).toBe(1.5)
-    expect(multiplier({ deviceVerified: true, genesis: true, independentRpc: true })).toBe(3)
+    expect(multiplier({ deviceVerified: true, genesis: false, independentRpc: true })).toBe(1.1)
+    expect(multiplier({ deviceVerified: true, genesis: true, independentRpc: true })).toBeCloseTo(2.2)
+    expect(multiplierText(multiplier({ deviceVerified: true, genesis: true, independentRpc: true }))).toBe('2.2×')
+  })
+
+  it('adds the base for a signed match until the daily cap, whatever the multiplier', () => {
+    expect(earnedNow({ signed: true, matchedToday: 0 })).toBe(1)
+    expect(earnedNow({ signed: true, matchedToday: 199 })).toBe(1)
+    expect(earnedNow({ signed: true, matchedToday: 200 })).toBe(0)
+    expect(earnedNow({ signed: false, matchedToday: 0 })).toBe(0)
   })
 
   it('treats an RPC as independent only when it is not ours and every capability is full', () => {

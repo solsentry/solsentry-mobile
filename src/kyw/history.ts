@@ -120,6 +120,7 @@ export function parseSettings(raw: string | null): Settings {
       intervalS: (INTERVAL_CHOICES_S as readonly number[]).includes(v.intervalS as number)
         ? (v.intervalS as number)
         : DEFAULT_SETTINGS.intervalS,
+      theme: v.theme === 'light' ? 'light' : 'dark',
     }
   } catch {
     return DEFAULT_SETTINGS

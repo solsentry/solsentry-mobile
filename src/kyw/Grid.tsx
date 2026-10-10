@@ -1,21 +1,31 @@
-import React, { useState } from 'react'
+import React, { useRef, useState } from 'react'
 import { Pressable, StyleSheet, View } from 'react-native'
+import Animated from 'react-native-reanimated'
 
-import { theme } from '../ui/theme'
+import { useTheme, type Palette } from '../ui/theme'
 import { VERDICT_LABEL } from './copy'
 import type { TaskRecord, Verdict } from './types'
 
-const ROWS = 7
-const CELL = 18
-const GAP = 4
+const COLUMNS = 25
+const ROWS = 4
+const GAP = 5
 
-export const VERDICT_COLOR: Record<Verdict, string> = {
-  accepted: theme.allow,
-  diverged: theme.warn,
-  unknown: '#3A3F3A',
+export const verdictColor = (t: Palette): Record<Verdict, string> => ({
+  accepted: t.allow,
+  diverged: t.warn,
+  unknown: t.unknown,
+})
+
+const LANDED = {
+  '0%': { transform: [{ scale: 1 }] },
+  '40%': { transform: [{ scale: 1.8 }] },
+  '100%': { transform: [{ scale: 1 }] },
 }
 
-/** Contribution-style grid: one square per task, oldest at the top left, filled column by column. */
+/**
+ * The last 100 tasks as dots, 25 to a row, oldest at the top left. A new task pops in at the end;
+ * a tap on a dot shows that task below.
+ */
 export function Grid({
   records,
   selectedId,
@@ -25,47 +35,52 @@ export function Grid({
   selectedId: string | null
   onSelect: (record: TaskRecord) => void
 }) {
+  const t = useTheme()
+  const colors = verdictColor(t)
   const [width, setWidth] = useState(0)
-  const columns = width > 0 ? Math.max(1, Math.floor((width + GAP) / (CELL + GAP))) : 0
-  const shown = records.slice(-columns * ROWS)
+  const shown = records.slice(-COLUMNS * ROWS)
+  // Only a task that arrives while the screen is open pops; the ones already there do not.
+  const firstNewest = useRef(shown[shown.length - 1]?.id ?? null)
+  const newest = shown[shown.length - 1]?.id ?? null
+  const cell = width / COLUMNS
+  const dot = Math.max(4, cell - GAP * (COLUMNS - 1) / COLUMNS)
   return (
-    <View onLayout={(e) => setWidth(e.nativeEvent.layout.width)} style={styles.grid}>
-      {Array.from({ length: columns }, (_, c) => (
-        <View key={c} style={styles.column}>
-          {Array.from({ length: ROWS }, (_, r) => {
-            const record = shown[c * ROWS + r]
-            if (!record) return <View key={r} style={styles.cell} />
+    <View onLayout={(e) => setWidth(e.nativeEvent.layout.width)} style={[styles.grid, { minHeight: width > 0 ? cell * ROWS : 0 }]}>
+      {width > 0 &&
+        Array.from({ length: COLUMNS * ROWS }, (_, i) => {
+          const record = shown[i]
+          const box = { width: cell, height: cell }
+          if (!record) {
             return (
-              <Pressable
-                key={r}
-                accessibilityRole="button"
-                accessibilityLabel={`${VERDICT_LABEL[record.verdict]} ${record.short}`}
-                hitSlop={2}
-                onPress={() => onSelect(record)}
+              <View key={`empty${i}`} style={[styles.box, box]}>
+                <View style={{ width: dot, height: dot, borderRadius: dot / 2, backgroundColor: t.track }} />
+              </View>
+            )
+          }
+          const pop = record.id === newest && record.id !== firstNewest.current
+          return (
+            <Pressable
+              key={record.id}
+              accessibilityRole="button"
+              accessibilityLabel={`${VERDICT_LABEL[record.verdict]} ${record.short}`}
+              onPress={() => onSelect(record)}
+              style={[styles.box, box]}
+            >
+              <Animated.View
                 style={[
-                  styles.cell,
-                  { backgroundColor: VERDICT_COLOR[record.verdict], borderColor: VERDICT_COLOR[record.verdict] },
-                  record.id === selectedId && styles.selected,
+                  { width: dot, height: dot, borderRadius: dot / 2, backgroundColor: colors[record.verdict] },
+                  record.id === selectedId && { borderWidth: 1.5, borderColor: t.text },
+                  pop && { animationName: LANDED, animationDuration: '900ms', animationTimingFunction: 'ease-out' },
                 ]}
               />
-            )
-          })}
-        </View>
-      ))}
+            </Pressable>
+          )
+        })}
     </View>
   )
 }
 
 const styles = StyleSheet.create({
-  grid: { flexDirection: 'row', gap: GAP, minHeight: ROWS * (CELL + GAP) - GAP },
-  column: { gap: GAP },
-  cell: {
-    width: CELL,
-    height: CELL,
-    borderRadius: 5,
-    backgroundColor: theme.surface2,
-    borderWidth: 1,
-    borderColor: theme.border,
-  },
-  selected: { borderColor: theme.text, borderWidth: 2 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap' },
+  box: { alignItems: 'center', justifyContent: 'center' },
 })

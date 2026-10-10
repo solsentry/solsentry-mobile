@@ -6,6 +6,10 @@ import type { TaskRecord, Verdict } from './types'
 
 export const TEXT = {
   deviceTitle: 'This device',
+  whenTitle: 'When to validate',
+  themeTitle: 'Theme',
+  themeDark: 'Dark',
+  themeLight: 'Light',
   appName: brand.appName,
   tagline: 'Verify public Solana transactions on your phone.',
   toggle: 'Validation',
@@ -126,17 +130,22 @@ const REASON_TEXT: Record<string, string> = {
 
 export const ACCOUNT_TEXT = {
   title: 'Points',
+  balance: 'Balance',
+  walletTitle: 'Wallet',
+  planned: 'Planned',
   pointsLabel: 'points',
   pointsUnknown: '—',
   pendingNote:
     'Points are held for this install only. Link a wallet to keep them (one with a Seeker Genesis Token is Genesis). Uninstalling or clearing the app loses them.',
   pointsSoon: 'Estimate kept on this phone. The balance that counts is the one SolSentry computes from your signed results.',
-  rateTitle: 'Your rate',
+  rateTitle: 'Multipliers',
   rateBase: 'Matched result on a verified phone',
   rateGenesis: 'Wallet with a Seeker Genesis Token',
   rateRpc: 'Your own RPC, tested with every capability full',
-  rateNow: (m: string) => `Right now each matched result counts ${m}.`,
-  rateZero: 'This phone is not hardware-verified, so results do not count points.',
+  rateNow: (cap: number) => `Today each matched, signed result counts 1 point, up to ${cap} a day.`,
+  ratePlanned: 'Multipliers are planned and not counted yet.',
+  rateZero: 'This phone has no hardware key, so its results are not signed and do not count points.',
+  today: (n: number, cap: number) => `${Math.min(n, cap)}/${cap} today`,
   link: 'Link wallet',
   connectTitle: 'Your Seeker wallet',
   connect: 'Connect wallet',
@@ -168,13 +177,15 @@ export const HOME_TEXT = {
   pace: (n: number) => `${n} tasks/h`,
   pointsUnit: 'pts',
   pointsCta: 'Points and rate',
-  rate: 'Rate',
+  rate: 'Multiplier',
   rateDevice: 'Verified phone',
   rateGenesis: 'Genesis',
   rateRpc: 'Own RPC',
   tasks: 'Recent tasks',
   walletOpen: 'Wallet and points',
   close: 'Close',
+  themeLight: 'Switch to light theme',
+  themeDark: 'Switch to dark theme',
 }
 
 /** Settings: what the install identity is and what the hardware check said. */

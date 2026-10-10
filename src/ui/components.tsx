@@ -1,7 +1,7 @@
 import React from 'react'
 import Ionicons from '@expo/vector-icons/Ionicons'
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native'
-import { fonts, theme } from './theme'
+import { fonts, makeStyles, theme, useTheme } from './theme'
 import type { UiState } from './verdict'
 
 export const ABOUT_TEXT =
@@ -20,6 +20,8 @@ export function Button({
   busy?: boolean
   variant?: 'primary' | 'secondary'
 }) {
+  const t = useTheme()
+  const b = useButtonStyles()
   const off = disabled || busy
   const primary = variant === 'primary'
   return (
@@ -28,19 +30,41 @@ export function Button({
       accessibilityState={{ disabled: !!off }}
       onPress={onPress}
       disabled={off}
-      style={({ pressed }) => [
-        styles.btn,
-        primary ? styles.btnPrimary : styles.btnSecondary,
-        off && styles.btnOff,
-        pressed && { opacity: 0.85 },
-      ]}
+      style={({ pressed }) => [b.btn, primary ? b.primary : b.secondary, off && styles.btnOff, pressed && { opacity: 0.85 }]}
     >
       {busy ? (
-        <ActivityIndicator color={primary ? theme.ink : theme.action} />
+        <ActivityIndicator color={primary ? t.ink : t.text} />
       ) : (
-        <Text style={[styles.btnText, { color: primary ? theme.ink : theme.action }]}>{title}</Text>
+        <Text style={[styles.btnText, { color: primary ? t.ink : t.text }]}>{title}</Text>
       )}
     </Pressable>
+  )
+}
+
+// Mockup buttons: filled orange for the main action, outlined in the strong line for the rest.
+const useButtonStyles = makeStyles((t) =>
+  StyleSheet.create({
+    btn: { minHeight: 46, borderRadius: 10, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },
+    primary: { backgroundColor: t.action },
+    secondary: { backgroundColor: 'transparent', borderWidth: 1, borderColor: t.border2 },
+    bar: { height: 64, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 12 },
+    round: { width: 40, height: 40, borderRadius: 20, borderWidth: 1, borderColor: t.border2, alignItems: 'center', justifyContent: 'center' },
+    barTitle: { flex: 1, color: t.text, fontFamily: fonts.title, fontSize: 15, fontWeight: '600', letterSpacing: -0.3 },
+  }),
+)
+
+/** Top bar of an inner screen: round back button and the title, as the home app bar. */
+export function ScreenBar({ title, onBack, right }: { title: string; onBack: () => void; right?: React.ReactNode }) {
+  const t = useTheme()
+  const b = useButtonStyles()
+  return (
+    <View style={b.bar}>
+      <Pressable accessibilityRole="button" accessibilityLabel="Back" onPress={onBack} hitSlop={6} style={b.round}>
+        <Ionicons name="chevron-back" size={17} color={t.text} />
+      </Pressable>
+      <Text style={b.barTitle}>{title}</Text>
+      {right}
+    </View>
   )
 }
 
@@ -89,7 +113,7 @@ export const styles = StyleSheet.create({
   btnPrimary: { backgroundColor: theme.action },
   btnSecondary: { backgroundColor: theme.surface, borderWidth: 1.5, borderColor: theme.action },
   btnOff: { opacity: 0.4 },
-  btnText: { fontFamily: fonts.body, fontSize: 16, fontWeight: '600' },
+  btnText: { fontFamily: fonts.body, fontSize: 14, fontWeight: '600' },
   card: { borderWidth: 1.5, borderRadius: 12, padding: 16, gap: 6 },
   cardLabel: { fontFamily: fonts.body, fontSize: 20, fontWeight: '800', letterSpacing: 1 },
   badge: {

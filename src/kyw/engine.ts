@@ -7,10 +7,10 @@ import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake'
 import * as KywService from '@/modules/kyw-service'
 import { fetchWithTimeout } from '../guard/fetch-timeout'
 import { KYW_API_BASE } from './config'
-import { loadLinkedWallet } from './account-runtime'
 import { getDevice, signWithDevice } from './device-runtime'
 import { runLoop, type LoopStatus } from './loop'
-import { independentRpc, multiplier, toHalves } from './points'
+import { dayKey } from './history'
+import { earnedNow, toHalves } from './points'
 import { resolveEndpoint } from './providers'
 import { HTTP_TIMEOUT_MS, runOneTask } from './run'
 import { getState, load, recordResult, setRunning, setStatus } from './store'
@@ -112,15 +112,8 @@ async function loop(): Promise<void> {
         if (!result.record) return
         let earned = 0
         if (result.record.verdict === 'accepted') {
-          const wallet = await loadLinkedWallet()
-          const provider = result.record.provider
-          earned = toHalves(
-            multiplier({
-              deviceVerified: device.kind === 'key' && device.check === 'verified',
-              genesis: wallet?.sgt.status === 'verified',
-              independentRpc: independentRpc(provider, getState().probeReports[provider]),
-            }),
-          )
+          const matchedToday = getState().history.days[dayKey(result.record.at)] ?? 0
+          earned = toHalves(earnedNow({ signed: device.kind === 'key', matchedToday }))
         }
         await recordResult(result.record, earned)
         const { accepted, diverged, unknown } = getState().history.counters
