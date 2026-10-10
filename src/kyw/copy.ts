@@ -12,7 +12,7 @@ export const TEXT = {
   on: 'On',
   off: 'Off',
   explain:
-    'Each task is one public Solana transaction. Your phone reads it from the RPC you choose, recomputes its facts and sends a digest. SolSentry compares the digest with its own reference read. Nothing is paid or earned in this version.',
+    'Each task is one public Solana transaction. Your phone reads it from the RPC you choose, recomputes its facts and sends a digest. SolSentry compares the digest with its own reference read. This is data validation, not Solana consensus. Nothing is paid or earned in this version.',
   gridTitle: 'Recent tasks',
   daysTitle: 'Last 28 days',
   daysUnit: 'matched results',
