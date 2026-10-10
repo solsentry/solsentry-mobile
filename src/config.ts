@@ -17,7 +17,7 @@ export const SNS_PROXY_URL = 'https://sdk-proxy-v2.sns.id'
 export const MWA_CHAIN = CLUSTER === 'mainnet-beta' ? 'solana:mainnet' : 'solana:devnet'
 
 export const APP_IDENTITY = {
-  name: 'SolSentry Guard',
+  name: 'SolSentry',
   uri: 'https://solsentry.app',
   icon: 'favicon.png',
 } as const
