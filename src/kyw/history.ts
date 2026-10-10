@@ -1,21 +1,66 @@
-// Pure state for what the phone keeps: the last records (for the grid) and lifetime counters.
+// Pure state for what the phone keeps: the last records (for the grid), lifetime counters and the
+// number of matched results per day for the last DAYS_KEPT days.
 import { DEFAULT_SETTINGS, INTERVAL_CHOICES_S, type Counters, type Settings, type TaskRecord } from './types'
 import { PROVIDERS } from './providers'
 
 export const MAX_RECORDS = 364
 
+export const DAYS_KEPT = 28
+
 export interface Persisted {
   records: TaskRecord[]
   counters: Counters
+  /** Matched results per local day, keyed `YYYY-MM-DD`. Only the last DAYS_KEPT days are kept. */
+  days: Record<string, number>
 }
 
-export const EMPTY: Persisted = { records: [], counters: { accepted: 0, diverged: 0, unknown: 0 } }
+export const EMPTY: Persisted = { records: [], counters: { accepted: 0, diverged: 0, unknown: 0 }, days: {} }
+
+/** Local calendar day of a timestamp, `YYYY-MM-DD`. */
+export function dayKey(at: number): string {
+  const d = new Date(at)
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
+}
+
+const DAY_KEY = /^\d{4}-\d{2}-\d{2}$/
+
+function pruneDays(days: Record<string, number>): Record<string, number> {
+  const keys = Object.keys(days).filter((k) => DAY_KEY.test(k)).sort()
+  const out: Record<string, number> = {}
+  for (const k of keys.slice(-DAYS_KEPT)) out[k] = days[k]
+  return out
+}
+
+/** The last DAYS_KEPT local days ending at `now`, oldest first, with the matched count of each. */
+export function lastDays(days: Record<string, number>, now: number): { key: string; date: Date; matched: number }[] {
+  const out: { key: string; date: Date; matched: number }[] = []
+  const today = new Date(now)
+  for (let i = DAYS_KEPT - 1; i >= 0; i--) {
+    const date = new Date(today.getFullYear(), today.getMonth(), today.getDate() - i)
+    const key = dayKey(date.getTime())
+    out.push({ key, date, matched: days[key] ?? 0 })
+  }
+  return out
+}
+
+/** Consecutive days with at least one matched result, ending today (or yesterday if today has none yet). */
+export function dayStreak(days: Record<string, number>, now: number): number {
+  const list = lastDays(days, now).reverse()
+  let i = list[0].matched > 0 ? 0 : 1
+  let n = 0
+  for (; i < list.length && list[i].matched > 0; i++) n++
+  return n
+}
 
 export function addRecord(state: Persisted, record: TaskRecord): Persisted {
   const records = [...state.records, record]
+  const key = dayKey(record.at)
+  const days = record.verdict === 'accepted' ? pruneDays({ ...state.days, [key]: (state.days[key] ?? 0) + 1 }) : state.days
   return {
     records: records.length > MAX_RECORDS ? records.slice(records.length - MAX_RECORDS) : records,
     counters: { ...state.counters, [record.verdict]: state.counters[record.verdict] + 1 },
+    days,
   }
 }
 
@@ -40,10 +85,18 @@ const count = (v: unknown): number => (typeof v === 'number' && Number.isFinite(
 export function parsePersisted(raw: string | null): Persisted {
   if (!raw) return EMPTY
   try {
-    const v = JSON.parse(raw) as { records?: unknown; counters?: Record<string, unknown> }
+    const v = JSON.parse(raw) as { records?: unknown; counters?: Record<string, unknown>; days?: unknown }
     const records = Array.isArray(v.records) ? v.records.filter(isRecord).slice(-MAX_RECORDS) : []
     const c = v.counters ?? {}
-    return { records, counters: { accepted: count(c.accepted), diverged: count(c.diverged), unknown: count(c.unknown) } }
+    const days: Record<string, number> = {}
+    if (typeof v.days === 'object' && v.days !== null && !Array.isArray(v.days)) {
+      for (const [k, n] of Object.entries(v.days as Record<string, unknown>)) if (DAY_KEY.test(k)) days[k] = count(n)
+    }
+    return {
+      records,
+      counters: { accepted: count(c.accepted), diverged: count(c.diverged), unknown: count(c.unknown) },
+      days: pruneDays(days),
+    }
   } catch {
     return EMPTY
   }

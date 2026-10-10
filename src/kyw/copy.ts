@@ -14,6 +14,10 @@ export const TEXT = {
   explain:
     'Each task is one public Solana transaction. Your phone reads it from the RPC you choose, recomputes its facts and sends a digest. SolSentry compares the digest with its own reference read. Nothing is paid or earned in this version.',
   gridTitle: 'Recent tasks',
+  daysTitle: 'Last 28 days',
+  daysUnit: 'matched results',
+  today: 'Today',
+  streak: (n: number) => `${n} days in a row with a matched result.`,
   gridEmpty: 'Turn validation on to fill this grid. One square is one task.',
   latest: 'Selected task',
   rpcTitle: 'RPC for the read',

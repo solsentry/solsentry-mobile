@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 
 import { PROBE_LABELS, PROBE_REASONS, probeCapabilityText, probePaceText, probeProblemText, probeTestedText, resultSentence, TEXT, VERDICT_LABEL } from '../src/kyw/copy'
 import type { Capability } from '../src/kyw/probe'
-import { MAX_RECORDS, EMPTY, addRecord, parsePersisted, parseSettings, tasksPerHour } from '../src/kyw/history'
+import { DAYS_KEPT, MAX_RECORDS, EMPTY, addRecord, dayKey, dayStreak, lastDays, parsePersisted, parseSettings, tasksPerHour } from '../src/kyw/history'
 import { BACKOFF_MAX_S, HOLD_RECHECK_S, nextBackoff, runLoop, type LoopStatus, type TurnResult } from '../src/kyw/loop'
 import { runSelfTest, type SelfTestVector } from '../src/kyw/selftest/run'
 import { DEFAULT_SETTINGS, type Settings, type TaskRecord } from '../src/kyw/types'
@@ -103,9 +103,38 @@ describe('history on the phone', () => {
     expect(parsePersisted(JSON.stringify({ records: [{ id: 1 }, record(3)], counters: { accepted: -4, diverged: 'x' } }))).toEqual({
       records: [record(3)],
       counters: { accepted: 0, diverged: 0, unknown: 0 },
+      days: {},
+    })
+    expect(parsePersisted(JSON.stringify({ days: { '2026-10-09': 7, nope: 3, '2026-10-10': -1 } })).days).toEqual({
+      '2026-10-09': 7,
+      '2026-10-10': 0,
     })
     expect(parseSettings('[]')).toEqual(DEFAULT_SETTINGS)
     expect(parseSettings(JSON.stringify({ provider: 'evil', intervalS: 0.001 }))).toEqual(DEFAULT_SETTINGS)
+  })
+
+  it('counts matched results per local day and keeps only the last 28 days', () => {
+    const noon = (day: number) => new Date(2026, 8, day, 12).getTime()
+    let s = EMPTY
+    for (let day = 1; day <= 30; day++) s = addRecord(s, { ...record(day), at: noon(day) })
+    s = addRecord(s, { ...record(99), at: noon(30) })
+    s = addRecord(s, { ...record(100, 'diverged'), at: noon(30) })
+    expect(Object.keys(s.days)).toHaveLength(DAYS_KEPT)
+    expect(s.days[dayKey(noon(30))]).toBe(2)
+    expect(s.days[dayKey(noon(2))]).toBeUndefined()
+    const view = lastDays(s.days, noon(30))
+    expect(view).toHaveLength(DAYS_KEPT)
+    expect(view[view.length - 1]).toMatchObject({ key: dayKey(noon(30)), matched: 2 })
+    expect(view[0].key).toBe(dayKey(noon(3)))
+  })
+
+  it('counts a streak that ends today, or yesterday while today is still empty', () => {
+    const noon = (day: number) => new Date(2026, 8, day, 12).getTime()
+    const days = { [dayKey(noon(8))]: 1, [dayKey(noon(9))]: 4, [dayKey(noon(10))]: 2 }
+    expect(dayStreak(days, noon(10))).toBe(3)
+    expect(dayStreak(days, noon(11))).toBe(3)
+    expect(dayStreak(days, noon(12))).toBe(0)
+    expect(dayStreak({}, noon(12))).toBe(0)
   })
 
   it('measures the recent pace only once there is enough to measure', () => {

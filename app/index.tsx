@@ -8,6 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { KYW_API_BASE } from '@/src/kyw/config'
 import { ACCOUNT_TEXT, TEXT, VERDICT_LABEL, formatBytes, readingViaText, switchProviderPrompt, probeProblemText, probeReportLines, probeTestedText, resultSentence } from '@/src/kyw/copy'
 import { mode, startValidation, statusText, stopValidation } from '@/src/kyw/engine'
+import { DayGrid } from '@/src/kyw/DayGrid'
 import { Grid, VERDICT_COLOR } from '@/src/kyw/Grid'
 import { tasksPerHour } from '@/src/kyw/history'
 import { useAccount } from '@/src/kyw/useAccount'
@@ -200,6 +201,8 @@ export default function ValidateScreen() {
           </View>
           {perHour !== null && <Text style={styles.muted}>Recent pace: about {perHour} tasks per hour.</Text>}
         </View>
+
+        <DayGrid days={history.days} now={probeNow} />
 
         <View style={styles.card}>
           <Text style={styles.cardTitle}>{TEXT.gridTitle}</Text>
