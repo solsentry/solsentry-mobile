@@ -157,8 +157,24 @@ export const ACCOUNT_TEXT = {
   timedOut: 'The wallet was not answered in time. Tap Connect wallet to try again.',
   redeemTitle: 'Redeem',
   redeemNote: 'Planned. Nothing can be redeemed yet and points have no set value.',
-  redeemItems: ['SKR from a funded pool', 'API access', 'Partner rewards'],
+  redeemItems: ['SolSentry access', 'RPC credits', 'Events'],
   rpcMenuTitle: 'RPC for the read',
+}
+
+/** Home screen blocks. */
+export const HOME_TEXT = {
+  statusOn: 'Validating',
+  statusOff: 'Paused',
+  pace: (n: number) => `${n} tasks/h`,
+  pointsUnit: 'pts',
+  pointsCta: 'Points and rate',
+  rate: 'Rate',
+  rateDevice: 'Verified phone',
+  rateGenesis: 'Genesis',
+  rateRpc: 'Own RPC',
+  tasks: 'Recent tasks',
+  walletOpen: 'Wallet and points',
+  close: 'Close',
 }
 
 /** Settings: what the install identity is and what the hardware check said. */
