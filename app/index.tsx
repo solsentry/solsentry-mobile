@@ -15,6 +15,7 @@ import { countedToday, tasksPerHour } from '@/src/kyw/history'
 import { useAccount } from '@/src/kyw/useAccount'
 import { WalletCard } from '@/src/kyw/WalletCard'
 import { chosenRpcProbeIsStale, probeChosenRpc } from '@/src/kyw/probe-client'
+import { formatServerPoints } from '@/src/kyw/server-points'
 import { formatPoints, independentRpc, multiplier, multiplierText, POINT_RULE } from '@/src/kyw/points'
 import { PROVIDERS, providerInfo, type ProviderId } from '@/src/kyw/providers'
 import { RateDial } from '@/src/kyw/RateDial'
@@ -48,6 +49,7 @@ export default function ValidateScreen() {
   const kyw = useKyw()
   const account = useAccount()
   const { settings, history, running, status } = kyw
+  const server = account.server
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [rpcMenu, setRpcMenu] = useState(false)
   const provider = providerInfo(settings.provider)
@@ -201,13 +203,17 @@ export default function ValidateScreen() {
           </Pressable>
           <View style={styles.valueRow}>
             <View style={styles.value}>
-              <FlashText value={history.pointHalves} armed={kyw.loaded} color={theme.text} flash={theme.actionText} style={styles.valueMain}>
-                {kyw.loaded ? formatPoints(history.pointHalves) : ACCOUNT_TEXT.pointsUnknown}
+              <FlashText value={server ? server.points * 2 : history.pointHalves} armed={kyw.loaded} color={theme.text} flash={theme.actionText} style={styles.valueMain}>
+                {server ? formatServerPoints(server.points) : kyw.loaded ? formatPoints(history.pointHalves) : ACCOUNT_TEXT.pointsUnknown}
               </FlashText>
               <Text style={styles.valueTail}>{HOME_TEXT.pointsUnit}</Text>
             </View>
-            {account.device?.kind === 'key' && (
-              <Text style={styles.rateTag}>{ACCOUNT_TEXT.today(countedToday(history, probeNow), POINT_RULE.dailyCap)}</Text>
+            {server ? (
+              server.today.cap !== null && <Text style={styles.rateTag}>{ACCOUNT_TEXT.today(server.today.counted, server.today.cap)}</Text>
+            ) : (
+              account.device?.kind === 'key' && (
+                <Text style={styles.rateTag}>{ACCOUNT_TEXT.today(countedToday(history, probeNow), POINT_RULE.dailyCap)}</Text>
+              )
             )}
           </View>
           <Text accessibilityLiveRegion="polite" style={styles.muted}>

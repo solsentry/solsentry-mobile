@@ -138,6 +138,8 @@ export const ACCOUNT_TEXT = {
   pendingNote:
     'Points are held for this install only. Link a wallet to keep them (one with a Seeker Genesis Token is Genesis). Uninstalling or clearing the app loses them.',
   pointsSoon: 'Estimate kept on this phone. The balance that counts is the one SolSentry computes from your signed results.',
+  pointsServer: 'Balance from SolSentry, computed from the signed results of this phone.',
+  pointsLocal: (estimate: string) => `Estimate kept on this phone: ${estimate} points.`,
   rateTitle: 'Multipliers',
   rateGenesis: 'Wallet with a Seeker Genesis Token',
   rateRpc: 'Your own RPC, tested with every capability full',

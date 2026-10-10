@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 
 import { Avatar } from '@/src/kyw/Avatar'
 import { ACCOUNT_TEXT as T, HOME_TEXT } from '@/src/kyw/copy'
+import { formatServerPoints } from '@/src/kyw/server-points'
 import { POINT_RULE, formatPoints, independentRpc, multiplier, multiplierText } from '@/src/kyw/points'
 import { useAccount } from '@/src/kyw/useAccount'
 import { useKyw } from '@/src/kyw/useKyw'
@@ -19,7 +20,7 @@ export default function AccountScreen() {
   const router = useRouter()
   const theme = useTheme()
   const styles = useStyles()
-  const { wallet, device, busy, note, link, unlink } = useAccount()
+  const { wallet, device, busy, note, link, unlink, server } = useAccount()
   const kyw = useKyw()
   const skrName = useSkrName(wallet?.address ?? null)
   const provider = kyw.settings.provider
@@ -43,12 +44,13 @@ export default function AccountScreen() {
         <FadeUp order={0} style={styles.card}>
           <Text style={styles.eyebrow}>{T.balance}</Text>
           <View style={styles.value}>
-            <FlashText value={kyw.history.pointHalves} armed={kyw.loaded} color={theme.text} flash={theme.actionText} style={styles.points}>
-              {kyw.loaded ? formatPoints(kyw.history.pointHalves) : T.pointsUnknown}
+            <FlashText value={server ? server.points * 2 : kyw.history.pointHalves} armed={kyw.loaded} color={theme.text} flash={theme.actionText} style={styles.points}>
+              {server ? formatServerPoints(server.points) : kyw.loaded ? formatPoints(kyw.history.pointHalves) : T.pointsUnknown}
             </FlashText>
             <Text style={styles.unit}>{HOME_TEXT.pointsUnit}</Text>
           </View>
-          <Text style={styles.muted}>{T.pointsSoon}</Text>
+          <Text style={styles.muted}>{server ? T.pointsServer : T.pointsSoon}</Text>
+          {server && kyw.loaded && <Text style={styles.muted}>{T.pointsLocal(formatPoints(kyw.history.pointHalves))}</Text>}
           {!wallet && <Text style={styles.warn}>{T.pendingNote}</Text>}
         </FadeUp>
 
