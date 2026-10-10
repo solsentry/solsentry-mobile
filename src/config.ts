@@ -19,7 +19,7 @@ export const MWA_CHAIN = CLUSTER === 'mainnet-beta' ? 'solana:mainnet' : 'solana
 export const APP_IDENTITY = {
   name: 'SolSentry',
   uri: 'https://solsentry.app',
-  icon: 'favicon.png',
+  icon: 'favicon-192.png',
 } as const
 
 /** A verdict older than this must be re-run before sending. */

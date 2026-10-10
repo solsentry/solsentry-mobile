@@ -30,17 +30,19 @@ export function DayGrid({ days, now }: { days: Record<string, number>; now: numb
           {sel === list[list.length - 1] ? TEXT.today : label(sel.date)} · {sel.matched.toLocaleString('en-US')}
         </Text>
       </View>
-      <View style={styles.grid}>
-        {list.map((d) => (
-          <Pressable
-            key={d.key}
-            accessibilityRole="button"
-            accessibilityLabel={`${label(d.date)}: ${d.matched} ${TEXT.daysUnit}`}
-            onPress={() => setPicked(d.key)}
-            style={[styles.cell, { backgroundColor: LEVELS[dayLevel(d.matched, max)] }, d.key === sel.key && styles.cellSel]}
-          />
-        ))}
-      </View>
+      {[list.slice(0, 14), list.slice(14)].map((row, i) => (
+        <View key={i} style={styles.grid}>
+          {row.map((d) => (
+            <Pressable
+              key={d.key}
+              accessibilityRole="button"
+              accessibilityLabel={`${label(d.date)}: ${d.matched} ${TEXT.daysUnit}`}
+              onPress={() => setPicked(d.key)}
+              style={[styles.cell, { backgroundColor: LEVELS[dayLevel(d.matched, max)] }, d.key === sel.key && styles.cellSel]}
+            />
+          ))}
+        </View>
+      ))}
       {streak > 1 && <Text style={styles.muted}>{TEXT.streak(streak)}</Text>}
     </View>
   )
@@ -50,9 +52,8 @@ const styles = StyleSheet.create({
   card: { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1.5, borderRadius: 16, padding: 14, gap: 10 },
   head: { flexDirection: 'row', justifyContent: 'space-between' },
   eyebrow: { color: theme.muted, fontSize: 11, letterSpacing: 1, textTransform: 'uppercase', fontFamily: 'monospace' },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 5 },
-  // 14 per row on a 360 dp screen: (360 - 32 body - 28 card - 13 * 5 gaps) / 14.
-  cell: { width: 16, height: 16, borderRadius: 4 },
+  grid: { flexDirection: 'row', gap: 5 },
+  cell: { flex: 1, aspectRatio: 1, borderRadius: 4 },
   cellSel: { borderWidth: 1.5, borderColor: theme.text },
   muted: { color: theme.muted, fontSize: 13 },
 })

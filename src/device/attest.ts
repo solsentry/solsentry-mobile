@@ -4,7 +4,7 @@
 //
 // Flow: GET challenge (server-issued, single use) -> attestKey(challenge) -> POST verify.
 import { API_BASE, DEVICE_CHECK_ENABLED } from '../config'
-import { fetchWithTimeout } from '../guard/service'
+import { fetchWithTimeout } from '../guard/fetch-timeout'
 import {
   challengeFailureView,
   moduleFailureView,
