@@ -1,16 +1,10 @@
 import React, { useState } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
-import Animated from 'react-native-reanimated'
+import Animated, { useReducedMotion } from 'react-native-reanimated'
 
 import { fonts, makeStyles, useTheme } from '../ui/theme'
 import { TEXT } from './copy'
-import { dayStreak, lastDays } from './history'
-
-/** 0 for an empty day, then quartiles of the busiest day in view. */
-export function dayLevel(matched: number, max: number): number {
-  if (matched <= 0 || max <= 0) return 0
-  return Math.min(4, Math.max(1, Math.ceil((matched / max) * 4)))
-}
+import { dayLevel, dayStreak, lastDays } from './history'
 
 const label = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 
@@ -29,6 +23,7 @@ export function DayGrid({ days, now, running }: { days: Record<string, number>; 
   const today = list[list.length - 1]
   const sel = list.find((d) => d.key === picked) ?? today
   const streak = dayStreak(days, now)
+  const reduced = useReducedMotion()
   return (
     <View style={styles.card}>
       <View style={styles.head}>
@@ -40,7 +35,7 @@ export function DayGrid({ days, now, running }: { days: Record<string, number>; 
       {[0, 7, 14, 21].map((from) => list.slice(from, from + 7)).map((row, i) => (
         <View key={i} style={styles.grid}>
           {row.map((d) => {
-            const filling = running && d.key === today.key
+            const filling = running && !reduced && d.key === today.key
             return (
               <Pressable
                 key={d.key}

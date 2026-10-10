@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react'
 import { Pressable, StyleSheet, View } from 'react-native'
-import Animated from 'react-native-reanimated'
+import Animated, { useReducedMotion } from 'react-native-reanimated'
 
 import { useTheme, type Palette } from '../ui/theme'
 import { VERDICT_LABEL } from './copy'
@@ -40,6 +40,7 @@ export function Grid({
 }) {
   const t = useTheme()
   const colors = verdictColor(t)
+  const reduced = useReducedMotion()
   const [width, setWidth] = useState(0)
   const shown = records.slice(-COLUMNS * ROWS)
   // Only a task that arrives while the screen is open pops; the ones already there do not.
@@ -61,7 +62,7 @@ export function Grid({
               </View>
             )
           }
-          const pop = firstNewest.current !== undefined && record.id === newest && record.id !== firstNewest.current
+          const pop = !reduced && firstNewest.current !== undefined && record.id === newest && record.id !== firstNewest.current
           return (
             <Pressable
               key={record.id}

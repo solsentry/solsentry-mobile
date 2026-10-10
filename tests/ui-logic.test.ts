@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { addRecord, countedToday, EMPTY, parsePersisted, parseSettings, utcDayKey, type Persisted } from '../src/kyw/history'
+import { addRecord, countedToday, dayLevel, EMPTY, parsePersisted, parseSettings, utcDayKey, type Persisted } from '../src/kyw/history'
+import { avatarCells, N } from '../src/kyw/identicon'
 import { earnedNow, multiplier, multiplierText, POINT_RULE, toHalves } from '../src/kyw/points'
 import { DEFAULT_SETTINGS, type TaskRecord, type Verdict } from '../src/kyw/types'
 
@@ -136,5 +137,41 @@ describe('daily cap per UTC day through addRecord', () => {
     const s = feed(EMPTY, rec(at('2026-10-10T09:00:00Z'))).state
     expect(parsePersisted(JSON.stringify(s)).capDay).toEqual({ day: '2026-10-10', counted: 1 })
     expect(parsePersisted(JSON.stringify({ capDay: { day: 'x', counted: 5 } })).capDay).toEqual(EMPTY.capDay)
+  })
+})
+
+describe('dayLevel', () => {
+  it('is 0 for an empty day or an empty view', () => {
+    expect(dayLevel(0, 10)).toBe(0)
+    expect(dayLevel(3, 0)).toBe(0)
+  })
+  it('splits the busiest day in view into quartiles, never below 1 for a day with a match', () => {
+    expect(dayLevel(1, 100)).toBe(1)
+    expect(dayLevel(25, 100)).toBe(1)
+    expect(dayLevel(26, 100)).toBe(2)
+    expect(dayLevel(50, 100)).toBe(2)
+    expect(dayLevel(75, 100)).toBe(3)
+    expect(dayLevel(100, 100)).toBe(4)
+  })
+})
+
+describe('avatarCells', () => {
+  const a = 'So11111111111111111111111111111111111111112'
+  const b = '11111111111111111111111111111111'
+  it('is the same for the same address, 5×5, levels 0 to 4', () => {
+    const cells = avatarCells(a)
+    expect(cells).toEqual(avatarCells(a))
+    expect(cells).toHaveLength(N * N)
+    expect(cells.every((v) => Number.isInteger(v) && v >= 0 && v <= 4)).toBe(true)
+  })
+  it('mirrors each row around the middle column', () => {
+    const cells = avatarCells(a)
+    for (let r = 0; r < N; r++) {
+      const row = cells.slice(r * N, r * N + N)
+      expect(row).toEqual([...row].reverse())
+    }
+  })
+  it('differs between addresses', () => {
+    expect(avatarCells(a)).not.toEqual(avatarCells(b))
   })
 })

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
-import Animated, { cubicBezier } from 'react-native-reanimated'
+import Animated, { cubicBezier, useReducedMotion } from 'react-native-reanimated'
 
 import { fonts, makeStyles, useTheme } from '../ui/theme'
 import { multiplierText, POINT_RULE } from './points'
@@ -31,11 +31,13 @@ export function RateDial({ rate, running }: { rate: number; running: boolean }) 
   const s = useStyles()
   const [width, setWidth] = useState(0)
   const [tick, setTick] = useState(0)
+  // With reduced motion the dial still rises while validating, but holds still: no jitter, no pulse.
+  const reduced = useReducedMotion()
   useEffect(() => {
-    if (!running) return
+    if (!running || reduced) return
     const timer = setInterval(() => setTick((n) => n + 1), 1000)
     return () => clearInterval(timer)
-  }, [running])
+  }, [running, reduced])
 
   const stop = STOPS.find((x) => x.rate === rate)
   const live = running && stop !== undefined
@@ -82,7 +84,7 @@ export function RateDial({ rate, running }: { rate: number; running: boolean }) 
             <Animated.View
               style={[
                 s.knob,
-                live && { animationName: PULSE, animationDuration: '1600ms', animationIterationCount: 'infinite', animationTimingFunction: 'ease-in-out' },
+                live && !reduced && { animationName: PULSE, animationDuration: '1600ms', animationIterationCount: 'infinite', animationTimingFunction: 'ease-in-out' },
               ]}
             />
           </Animated.View>

@@ -1,26 +1,10 @@
-import { sha256 } from '@noble/hashes/sha2.js'
-import { utf8ToBytes } from '@noble/hashes/utils.js'
 import React, { useMemo } from 'react'
 import { Image, StyleSheet, View } from 'react-native'
 
 import { useTheme } from '../ui/theme'
+import { avatarCells, N } from './identicon'
 
 const SIZE = 36
-const N = 5
-
-/** 5×5 mirrored pattern from the address hash: level 0 to 4 per cell, the same on every phone. */
-export function avatarCells(address: string): number[] {
-  const h = sha256(utf8ToBytes(address))
-  const cells: number[] = []
-  for (let r = 0; r < N; r++) {
-    for (let c = 0; c < N; c++) {
-      const col = c < 3 ? c : N - 1 - c
-      const byte = h[r * 3 + col]
-      cells.push(byte % 3 === 0 ? 0 : 1 + (byte >> 6))
-    }
-  }
-  return cells
-}
 
 /** Round picture of the wallet, drawn from its address in the day-grid colors; the app icon with no wallet. */
 export function Avatar({ address, ring }: { address: string | null; ring: boolean }) {

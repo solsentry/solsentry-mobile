@@ -78,6 +78,12 @@ export function lastDays(days: Record<string, number>, now: number): { key: stri
   return out
 }
 
+/** 0 for an empty day, then quartiles of the busiest day in view. */
+export function dayLevel(matched: number, max: number): number {
+  if (matched <= 0 || max <= 0) return 0
+  return Math.min(4, Math.max(1, Math.ceil((matched / max) * 4)))
+}
+
 /** Consecutive days with at least one matched result, ending today (or yesterday if today has none yet). */
 export function dayStreak(days: Record<string, number>, now: number): number {
   const list = lastDays(days, now).reverse()
