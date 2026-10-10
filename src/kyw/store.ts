@@ -160,8 +160,8 @@ export function load(): Promise<void> {
   return loading
 }
 
-export async function recordResult(record: TaskRecord): Promise<void> {
-  const history = addRecord(state.history, record)
+export async function recordResult(record: TaskRecord, earnedHalves = 0): Promise<void> {
+  const history = addRecord(state.history, record, earnedHalves)
   set({ history })
   try {
     await AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(history))

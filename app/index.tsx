@@ -14,6 +14,7 @@ import { tasksPerHour } from '@/src/kyw/history'
 import { useAccount } from '@/src/kyw/useAccount'
 import { WalletCard } from '@/src/kyw/WalletCard'
 import { chosenRpcProbeIsStale, probeChosenRpc } from '@/src/kyw/probe-client'
+import { formatPoints } from '@/src/kyw/points'
 import { PROVIDERS, providerInfo, type ProviderId } from '@/src/kyw/providers'
 import { recordProbeReport, setSecret, updateSettings } from '@/src/kyw/store'
 import type { Verdict } from '@/src/kyw/types'
@@ -126,7 +127,7 @@ export default function ValidateScreen() {
           <View style={styles.topRight}>
             <Pressable accessibilityRole="button" accessibilityLabel={ACCOUNT_TEXT.title} hitSlop={12} onPress={() => router.push('/account')} style={styles.pointsPill}>
               <Text style={styles.pointsText}>
-                {ACCOUNT_TEXT.pointsUnknown} {ACCOUNT_TEXT.pointsLabel}
+                {kyw.loaded ? formatPoints(history.pointHalves) : ACCOUNT_TEXT.pointsUnknown} {ACCOUNT_TEXT.pointsLabel}
               </Text>
             </Pressable>
             <Pressable accessibilityRole="button" accessibilityLabel={TEXT.settings} hitSlop={12} onPress={() => router.push('/settings')}>

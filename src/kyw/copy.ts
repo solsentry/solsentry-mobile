@@ -130,7 +130,13 @@ export const ACCOUNT_TEXT = {
   pointsUnknown: '—',
   pendingNote:
     'Points are held for this install only. Link a wallet to keep them (one with a Seeker Genesis Token is Genesis). Uninstalling or clearing the app loses them.',
-  pointsSoon: 'Points start counting once SolSentry turns them on.',
+  pointsSoon: 'Estimate kept on this phone. The balance that counts is the one SolSentry computes from your signed results.',
+  rateTitle: 'Your rate',
+  rateBase: 'Matched result on a verified phone',
+  rateGenesis: 'Wallet with a Seeker Genesis Token',
+  rateRpc: 'Your own RPC, tested with every capability full',
+  rateNow: (m: string) => `Right now each matched result counts ${m}.`,
+  rateZero: 'This phone is not hardware-verified, so results do not count points.',
   link: 'Link wallet',
   connectTitle: 'Your Seeker wallet',
   connect: 'Connect wallet',
@@ -149,8 +155,8 @@ export const ACCOUNT_TEXT = {
   badSignature: 'The wallet signature did not check out. Nothing was linked.',
   failed: 'Could not open the wallet.',
   redeemTitle: 'Redeem',
-  redeemNote: 'Coming later. Nothing can be redeemed yet and points have no set value.',
-  redeemItems: ['API access', 'Partner rewards', 'Tokens'],
+  redeemNote: 'Planned. Nothing can be redeemed yet and points have no set value.',
+  redeemItems: ['SKR from a funded pool', 'API access', 'Partner rewards'],
   rpcMenuTitle: 'RPC for the read',
 }
 

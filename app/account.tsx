@@ -4,7 +4,9 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from
 import { SafeAreaView } from 'react-native-safe-area-context'
 
 import { ACCOUNT_TEXT as T } from '@/src/kyw/copy'
+import { POINT_RULE, formatPoints, independentRpc, multiplier, multiplierText } from '@/src/kyw/points'
 import { useAccount } from '@/src/kyw/useAccount'
+import { useKyw } from '@/src/kyw/useKyw'
 import { Button } from '@/src/ui/components'
 import { theme } from '@/src/ui/theme'
 
@@ -12,7 +14,20 @@ const short = (a: string) => `${a.slice(0, 4)}…${a.slice(-4)}`
 
 export default function AccountScreen() {
   const router = useRouter()
-  const { wallet, busy, note, link, unlink, status } = useAccount()
+  const { wallet, device, busy, note, link, unlink, status } = useAccount()
+  const kyw = useKyw()
+  const provider = kyw.settings.provider
+  const ctx = {
+    deviceVerified: device?.kind === 'key' && device.check === 'verified',
+    genesis: wallet?.sgt.status === 'verified',
+    independentRpc: independentRpc(provider, kyw.probeReports[provider]),
+  }
+  const now = multiplier(ctx)
+  const rates: [string, string, boolean][] = [
+    [T.rateBase, multiplierText(POINT_RULE.base), ctx.deviceVerified],
+    [T.rateGenesis, multiplierText(POINT_RULE.genesis), ctx.deviceVerified && ctx.genesis],
+    [T.rateRpc, multiplierText(POINT_RULE.independentRpc), ctx.deviceVerified && ctx.independentRpc],
+  ]
   const sgtLine = wallet && (wallet.sgt.status === 'verified' ? T.genesis : wallet.sgt.status === 'none' ? T.noGenesis : T.genesisUnknown)
 
   return (
@@ -25,11 +40,22 @@ export default function AccountScreen() {
         <View style={styles.card}>
           <Text style={styles.cardTitle}>{T.title}</Text>
           <Text style={styles.points}>
-            {T.pointsUnknown} <Text style={styles.muted}>{T.pointsLabel}</Text>
+            {kyw.loaded ? formatPoints(kyw.history.pointHalves) : T.pointsUnknown} <Text style={styles.muted}>{T.pointsLabel}</Text>
           </Text>
           <Text style={styles.muted}>{T.pointsSoon}</Text>
           {status && !status.earns && status.why === 'device_not_verified' && <Text style={styles.muted}>{T.deviceNotVerified}</Text>}
           {!wallet && <Text style={styles.warn}>{T.pendingNote}</Text>}
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>{T.rateTitle}</Text>
+          {rates.map(([label, value, on]) => (
+            <View key={label} style={styles.row}>
+              <Text style={[on ? styles.good : styles.disabled, styles.rate]}>{value}</Text>
+              <Text style={[on ? styles.text : styles.disabled, { flex: 1 }]}>{label}</Text>
+            </View>
+          ))}
+          <Text style={styles.muted}>{now > 0 ? T.rateNow(multiplierText(now)) : T.rateZero}</Text>
         </View>
 
         <View style={styles.card}>
@@ -61,7 +87,7 @@ export default function AccountScreen() {
           <Text style={styles.muted}>{T.redeemNote}</Text>
           {T.redeemItems.map((i) => (
             <Text key={i} style={styles.disabled}>
-              {i} · Coming later
+              {i} · Planned
             </Text>
           ))}
         </View>
@@ -82,4 +108,5 @@ const styles = StyleSheet.create({
   good: { color: theme.action, fontSize: 14 },
   disabled: { color: theme.muted, fontSize: 15, opacity: 0.6 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  rate: { width: 44, fontWeight: '800', fontSize: 15 },
 })

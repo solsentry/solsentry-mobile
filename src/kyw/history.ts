@@ -5,6 +5,8 @@ import { PROVIDERS } from './providers'
 
 export const MAX_RECORDS = 364
 
+const count = (v: unknown): number => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? Math.floor(v) : 0)
+
 export const DAYS_KEPT = 28
 
 export interface Persisted {
@@ -12,9 +14,11 @@ export interface Persisted {
   counters: Counters
   /** Matched results per local day, keyed `YYYY-MM-DD`. Only the last DAYS_KEPT days are kept. */
   days: Record<string, number>
+  /** Estimated points, in halves (see points.ts). */
+  pointHalves: number
 }
 
-export const EMPTY: Persisted = { records: [], counters: { accepted: 0, diverged: 0, unknown: 0 }, days: {} }
+export const EMPTY: Persisted = { records: [], counters: { accepted: 0, diverged: 0, unknown: 0 }, days: {}, pointHalves: 0 }
 
 /** Local calendar day of a timestamp, `YYYY-MM-DD`. */
 export function dayKey(at: number): string {
@@ -53,7 +57,8 @@ export function dayStreak(days: Record<string, number>, now: number): number {
   return n
 }
 
-export function addRecord(state: Persisted, record: TaskRecord): Persisted {
+/** `earnedHalves` is what a matched result is worth (points.ts); other verdicts never add points. */
+export function addRecord(state: Persisted, record: TaskRecord, earnedHalves = 0): Persisted {
   const records = [...state.records, record]
   const key = dayKey(record.at)
   const days = record.verdict === 'accepted' ? pruneDays({ ...state.days, [key]: (state.days[key] ?? 0) + 1 }) : state.days
@@ -61,6 +66,7 @@ export function addRecord(state: Persisted, record: TaskRecord): Persisted {
     records: records.length > MAX_RECORDS ? records.slice(records.length - MAX_RECORDS) : records,
     counters: { ...state.counters, [record.verdict]: state.counters[record.verdict] + 1 },
     days,
+    pointHalves: state.pointHalves + (record.verdict === 'accepted' ? count(earnedHalves) : 0),
   }
 }
 
@@ -79,7 +85,6 @@ function isRecord(r: unknown): r is TaskRecord {
   )
 }
 
-const count = (v: unknown): number => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? Math.floor(v) : 0)
 
 /** Read stored history. Anything unreadable is dropped; it never throws. */
 export function parsePersisted(raw: string | null): Persisted {
@@ -96,6 +101,7 @@ export function parsePersisted(raw: string | null): Persisted {
       records,
       counters: { accepted: count(c.accepted), diverged: count(c.diverged), unknown: count(c.unknown) },
       days: pruneDays(days),
+      pointHalves: count((v as { pointHalves?: unknown }).pointHalves),
     }
   } catch {
     return EMPTY

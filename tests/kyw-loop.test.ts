@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 
 import { PROBE_LABELS, PROBE_REASONS, probeCapabilityText, probePaceText, probeProblemText, probeTestedText, resultSentence, TEXT, VERDICT_LABEL } from '../src/kyw/copy'
 import type { Capability } from '../src/kyw/probe'
+import { formatPoints, independentRpc, multiplier, toHalves } from '../src/kyw/points'
 import { DAYS_KEPT, MAX_RECORDS, EMPTY, addRecord, dayKey, dayStreak, lastDays, parsePersisted, parseSettings, tasksPerHour } from '../src/kyw/history'
 import { BACKOFF_MAX_S, HOLD_RECHECK_S, nextBackoff, runLoop, type LoopStatus, type TurnResult } from '../src/kyw/loop'
 import { runSelfTest, type SelfTestVector } from '../src/kyw/selftest/run'
@@ -104,6 +105,7 @@ describe('history on the phone', () => {
       records: [record(3)],
       counters: { accepted: 0, diverged: 0, unknown: 0 },
       days: {},
+      pointHalves: 0,
     })
     expect(parsePersisted(JSON.stringify({ days: { '2026-10-09': 7, nope: 3, '2026-10-10': -1 } })).days).toEqual({
       '2026-10-09': 7,
@@ -195,5 +197,40 @@ describe('self-test bundle', () => {
     const target = vectors.findIndex((v) => v.name.startsWith('tx_'))
     const tampered = vectors.map((v, i) => (i === target ? { ...v, raw: v.raw.replace(/"fee":\d+/, '"fee":1') } : v))
     expect(runSelfTest(tampered).failures).toEqual([vectors[target].name])
+  })
+})
+
+describe('estimated points', () => {
+  const full = { class: 'full' as const }
+  const report = (over: Record<string, unknown> = {}) =>
+    ({ capabilities: { C1: full, C2: full, C3: full, C4: full, C5: full, C6: { min_interval_ms: 250 }, ...over } }) as never
+
+  it('counts nothing on a phone that is not hardware-verified', () => {
+    expect(multiplier({ deviceVerified: false, genesis: true, independentRpc: true })).toBe(0)
+  })
+
+  it('multiplies the base by Genesis and by an independent, fully capable RPC', () => {
+    expect(multiplier({ deviceVerified: true, genesis: false, independentRpc: false })).toBe(1)
+    expect(multiplier({ deviceVerified: true, genesis: true, independentRpc: false })).toBe(2)
+    expect(multiplier({ deviceVerified: true, genesis: false, independentRpc: true })).toBe(1.5)
+    expect(multiplier({ deviceVerified: true, genesis: true, independentRpc: true })).toBe(3)
+  })
+
+  it('treats an RPC as independent only when it is not ours and every capability is full', () => {
+    expect(independentRpc('helius', report())).toBe(true)
+    expect(independentRpc('solsentry', report())).toBe(false)
+    expect(independentRpc('helius', report({ C4: { class: 'limited' } }))).toBe(false)
+    expect(independentRpc('helius', report({ C6: { min_interval_ms: null } }))).toBe(false)
+    expect(independentRpc('helius', null)).toBe(false)
+  })
+
+  it('adds points only for matched results and survives a reopen', () => {
+    let s = addRecord(EMPTY, record(1), toHalves(1.5))
+    s = addRecord(s, record(2, 'diverged'), toHalves(3))
+    s = addRecord(s, record(3), toHalves(1))
+    expect(s.pointHalves).toBe(5)
+    expect(formatPoints(s.pointHalves)).toBe('2.5')
+    expect(parsePersisted(JSON.stringify(s)).pointHalves).toBe(5)
+    expect(parsePersisted(JSON.stringify({ pointHalves: -9 })).pointHalves).toBe(0)
   })
 })
