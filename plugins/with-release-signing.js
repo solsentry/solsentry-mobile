@@ -13,6 +13,13 @@ def ksPropsPath = System.getenv('KEYSTORE_PROPERTIES') ?: "\${System.getProperty
 def ksProps = new Properties()
 def ksFile = new File(ksPropsPath)
 if (ksFile.exists()) { ksFile.withInputStream { ksProps.load(it) } }
+// Checked when the task graph is known, so a clone without the keystore still builds debug.
+gradle.taskGraph.whenReady { graph ->
+    def wantsRelease = graph.allTasks.any { it.project == project && it.name.endsWith('Release') }
+    if (wantsRelease && !ksFile.exists()) {
+        throw new GradleException("Release keystore properties not found at " + ksPropsPath)
+    }
+}
 `
 
 function patchGradle(src) {
@@ -24,7 +31,7 @@ function patchGradle(src) {
   )
   src = src.replace(
     /(release \{\n\s*\/\/ Caution![^\n]*\n\s*\/\/ see [^\n]*\n\s*)signingConfig signingConfigs\.debug/,
-    `$1if (!ksFile.exists()) { throw new GradleException("Release keystore properties not found at " + ksPropsPath) }\n            signingConfig signingConfigs.release`,
+    `$1signingConfig signingConfigs.release`,
   )
   // A silent miss would leave the release build signed with the debug key.
   if (!src.includes('signingConfig signingConfigs.release') || !src.includes("ksProps['storeFile']") || !src.includes(MARK)) {

@@ -8,7 +8,7 @@
 # The bundle task is always re-run here, and the result is checked before the APK is copied.
 set -euo pipefail
 variant="${1:?release or selftest}"
-out="${2:?output apk path}"
+out="$(realpath -m "${2:?output apk path}")"
 cd "$(dirname "$0")/.."
 : "${JAVA_HOME:?set JAVA_HOME}" "${ANDROID_HOME:?set ANDROID_HOME}"
 export NODE_ENV=production CI=1

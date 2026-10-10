@@ -57,12 +57,19 @@ npm run ci                     # typecheck + tests
 node tools/kyw_mock_server.mjs # stand-in server on :8091 that serves the public vectors as tasks
 ```
 
-Build (release variant, signed with the keystore named in `~/.keys/solsentry-kyw/keystore.properties`
-or in `KEYSTORE_PROPERTIES`; the keystore is never in the repo):
+Build and run on a phone or emulator (needs JDK 17+ and the Android SDK; no signing key required):
 
 ```bash
 npx expo prebuild -p android --clean
-cd android && ./gradlew assembleRelease
+(cd android && ./gradlew assembleDebug)   # android/app/build/outputs/apk/debug/app-debug.apk
+npx expo start --dev-client               # the debug build loads the JavaScript from this server
+```
+
+Release build (signed with the keystore named in `~/.keys/solsentry-kyw/keystore.properties` or in
+`KEYSTORE_PROPERTIES`; the keystore is never in the repo, and without it only release tasks fail):
+
+```bash
+tools/build_apk.sh release dist/solsentry.apk
 ```
 
 Self-test build: set `EXPO_PUBLIC_KYW_SELFTEST=1`
