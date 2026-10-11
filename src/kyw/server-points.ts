@@ -48,6 +48,11 @@ export function parseSkr(v: unknown): SkrBalance | null {
   return { balanceRaw, window: { earnedRaw, capRaw }, minClaimRaw, pool: s.pool, openClaim: s.open_claim }
 }
 
+/** Cap 0 = this device earns no SKR now (Seeker phase: Genesis wallets only); points still count. */
+export function skrClosed(s: SkrBalance): boolean {
+  return s.window.capRaw === 0n
+}
+
 /** The fields the app reads; anything else in the body is ignored. Null when the body is not a balance. */
 export function parseServerPoints(body: unknown): ServerPoints | null {
   if (typeof body !== 'object' || body === null) return null

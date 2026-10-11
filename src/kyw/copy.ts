@@ -16,7 +16,7 @@ export const TEXT = {
   on: 'On',
   off: 'Off',
   explain:
-    'Each task is one public Solana transaction. Your phone reads it from the RPC you choose, recomputes its facts and sends a digest. SolSentry compares the digest with its own reference read. This is data verification, not Solana consensus. Matched, signed results count points, and points turn into SKR paid from a public pool.',
+    'Each task is one public Solana transaction. Your phone reads it from the RPC you choose, recomputes its facts and sends a digest. SolSentry compares the digest with its own reference read. This is data verification, not Solana consensus. Matched, signed results count points. During the Seeker launch, points turn into SKR from a public pool for Seeker Genesis Token holders.',
   gridTitle: 'Recent tasks',
   daysTitle: 'Last 28 days',
   daysUnit: 'matched results',
@@ -142,6 +142,7 @@ export const ACCOUNT_TEXT = {
   skrServer: 'SKR SolSentry owes your linked wallet, from the signed results of this phone. Paid from a public pool.',
   skrServerLater: 'SKR SolSentry owes your linked wallet, from the signed results of this phone. Earned now, paid out after the hackathon.',
   skrRate: '1 SKR per 40 matched results.',
+  skrGenesisOnly: 'SKR rewards are for Seeker Genesis Token holders during the Seeker launch. Your points still count.',
   skrWindow: (earned: string, cap: string) => `${earned}/${cap} SKR today`,
   skrPoints: (points: string) => `${points} points`,
   skrSoon: 'Points turn into SKR from a public pool. The SKR balance shows here once SolSentry turns it on.',

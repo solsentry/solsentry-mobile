@@ -8,7 +8,7 @@ import { figure, fonts, makeStyles, useTheme } from '../ui/theme'
 import { formatSolUp } from './claim'
 import type { ClaimOutcome } from './claim-flow'
 import { ACCOUNT_TEXT as T } from './copy'
-import { formatSkr, skrFigure, type ServerPoints } from './server-points'
+import { formatSkr, skrClosed, skrFigure, type ServerPoints } from './server-points'
 import type { useAccount } from './useAccount'
 
 /** The line under the button after a claim, and its Solscan link when a transaction was sent. */
@@ -51,6 +51,14 @@ export function SkrCard({ account, server }: { account: ReturnType<typeof useAcc
       <View style={styles.card}>
         <Text style={styles.eyebrow}>{T.skrTitle}</Text>
         <Text style={styles.muted}>{T.skrSoon}</Text>
+      </View>
+    )
+  }
+  if (skrClosed(skr)) {
+    return (
+      <View style={styles.card}>
+        <Text style={styles.eyebrow}>{T.skrTitle}</Text>
+        <Text style={styles.muted}>{T.skrGenesisOnly}</Text>
       </View>
     )
   }

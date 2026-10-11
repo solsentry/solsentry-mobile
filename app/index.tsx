@@ -19,7 +19,7 @@ import * as Linking from 'expo-linking'
 
 import { SKR_PAYOUT, solscanTx } from '@/src/config'
 import { outcomeText } from '@/src/kyw/SkrCard'
-import { formatServerPoints, formatSkr as formatSkrShort, skrFigure } from '@/src/kyw/server-points'
+import { formatServerPoints, formatSkr as formatSkrShort, skrClosed, skrFigure } from '@/src/kyw/server-points'
 import { formatPoints, independentRpc, multiplier, multiplierText, POINT_RULE } from '@/src/kyw/points'
 import { PROVIDERS, providerInfo, type ProviderId } from '@/src/kyw/providers'
 import { RateDial } from '@/src/kyw/RateDial'
@@ -54,7 +54,9 @@ export default function ValidateScreen() {
   const account = useAccount()
   const { settings, history, running, status } = kyw
   const server = account.server
-  const skr = server?.skr ?? null
+  // Cap 0 = no SKR for this device now (Genesis only in the Seeker phase): points take the figure, no Claim.
+  const skr = server?.skr && !skrClosed(server.skr) ? server.skr : null
+  const skrGenesisOnly = server?.skr != null && skr === null
   // Claim takes the CTA once SolSentry sends the SKR block and the claim is not off (never with a later payout).
   const claimHere = SKR_PAYOUT === 'claim' && skr !== null && skr.pool !== 'empty' && account.claim?.kind !== 'disabled'
   const claimReady = claimHere && account.wallet !== null && (skr.balanceRaw >= skr.minClaimRaw || skr.openClaim !== null)
@@ -225,23 +227,23 @@ export default function ValidateScreen() {
           </Pressable>
           <View style={styles.valueRow}>
             <View style={styles.value}>
-              {server?.skr ? (
+              {skr ? (
                 // SKR as SolSentry's ledger states it; points stay a detail below.
                 <>
-                  <FlashText value={Number(server.skr.balanceRaw)} armed={kyw.loaded} color={theme.text} flash={theme.actionText} style={styles.valueMain}>
-                    {skrFigure(server.skr.balanceRaw).main}
+                  <FlashText value={Number(skr.balanceRaw)} armed={kyw.loaded} color={theme.text} flash={theme.actionText} style={styles.valueMain}>
+                    {skrFigure(skr.balanceRaw).main}
                   </FlashText>
-                  <Text style={styles.valueSmall}>{skrFigure(server.skr.balanceRaw).tail}</Text>
+                  <Text style={styles.valueSmall}>{skrFigure(skr.balanceRaw).tail}</Text>
                 </>
               ) : (
                 <FlashText value={server ? server.points * 2 : history.pointHalves} armed={kyw.loaded} color={theme.text} flash={theme.actionText} style={styles.valueMain}>
                   {server ? formatServerPoints(server.points) : kyw.loaded ? formatPoints(history.pointHalves) : ACCOUNT_TEXT.pointsUnknown}
                 </FlashText>
               )}
-              <Text style={styles.valueTail}>{server?.skr ? ACCOUNT_TEXT.skrUnit : HOME_TEXT.pointsUnit}</Text>
+              <Text style={styles.valueTail}>{skr ? ACCOUNT_TEXT.skrUnit : HOME_TEXT.pointsUnit}</Text>
             </View>
-            {server?.skr ? (
-              <Text style={styles.rateTag}>{ACCOUNT_TEXT.skrWindow(formatSkrShort(server.skr.window.earnedRaw), formatSkrShort(server.skr.window.capRaw))}</Text>
+            {skr ? (
+              <Text style={styles.rateTag}>{ACCOUNT_TEXT.skrWindow(formatSkrShort(skr.window.earnedRaw), formatSkrShort(skr.window.capRaw))}</Text>
             ) : server ? (
               server.today.cap !== null && <Text style={styles.rateTag}>{ACCOUNT_TEXT.today(server.today.counted, server.today.cap)}</Text>
             ) : (
@@ -250,11 +252,12 @@ export default function ValidateScreen() {
               )
             )}
           </View>
-          {server?.skr && <Text style={styles.muted}>{ACCOUNT_TEXT.skrPoints(formatServerPoints(server.points))}</Text>}
+          {skr && server && <Text style={styles.muted}>{ACCOUNT_TEXT.skrPoints(formatServerPoints(server.points))}</Text>}
+          {skrGenesisOnly && <Text style={styles.muted}>{ACCOUNT_TEXT.skrGenesisOnly}</Text>}
           <Text accessibilityLiveRegion="polite" style={styles.muted}>
             {running ? statusText(status) : statusText({ kind: 'idle' })} · {readingViaText(provider.label)}
           </Text>
-          {server?.skr?.pool === 'empty' && <Text style={styles.warnLine}>{ACCOUNT_TEXT.poolEmpty}</Text>}
+          {skr?.pool === 'empty' && <Text style={styles.warnLine}>{ACCOUNT_TEXT.poolEmpty}</Text>}
           {claimHere ? (
             // The mockup's Claim: signs and sends from here; without a wallet or enough SKR it opens Points, which says why.
             <Pressable

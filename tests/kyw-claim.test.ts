@@ -23,7 +23,7 @@ import {
   solNeeded,
 } from '../src/kyw/claim'
 import { runClaim, WrongWalletError, type ClaimDeps } from '../src/kyw/claim-flow'
-import { formatSkr, parseServerPoints, parseSkr, skrFigure } from '../src/kyw/server-points'
+import { formatSkr, parseServerPoints, parseSkr, skrClosed, skrFigure } from '../src/kyw/server-points'
 
 const TOKEN = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA')
 const ATA_PROGRAM = new PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL')
@@ -143,6 +143,11 @@ describe('claim answers and amounts', () => {
     expect(parseSkr({ ...skr, balance: '3550000' })).toBeNull()
     expect(parseSkr({ ...skr, decimals: 9 })).toBeNull()
     expect(parseSkr({ ...skr, pool: 'full' })).toBeNull()
+  })
+  it('a window cap of 0 closes SKR for the device (Genesis only in the Seeker phase); the shape still parses', () => {
+    const skr = { decimals: 6, balance: 0, window: { earned: 0, cap: 0 }, claim_min: 1000000, pool: 'ok', open_claim: null }
+    expect(skrClosed(parseSkr(skr)!)).toBe(true)
+    expect(skrClosed(parseSkr({ ...skr, window: { earned: 0, cap: 5000000 } })!)).toBe(false)
   })
   it('expired blockhash is recognised in the wallet and RPC wording', () => {
     expect(isExpiredBlockhash(new Error('Transaction simulation failed: Blockhash not found'))).toBe(true)
