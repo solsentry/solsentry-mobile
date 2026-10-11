@@ -9,6 +9,7 @@ import { mode, startValidation, statusText, stopValidation } from '@/src/kyw/eng
 import { Avatar } from '@/src/kyw/Avatar'
 import { ClaimSheet } from '@/src/kyw/ClaimSheet'
 import { DayGrid } from '@/src/kyw/DayGrid'
+import { NoGenesisCard } from '@/src/kyw/NoGenesisCard'
 import { Grid, verdictColor } from '@/src/kyw/Grid'
 import { countedToday, tasksPerHour } from '@/src/kyw/history'
 import { useAccount } from '@/src/kyw/useAccount'
@@ -18,7 +19,7 @@ import * as Linking from 'expo-linking'
 import { SKR_PAYOUT, solscanTx } from '@/src/config'
 import { outcomeText } from '@/src/kyw/SkrCard'
 import { formatServerPoints, formatSkr as formatSkrShort, skrClosed, skrFigure } from '@/src/kyw/server-points'
-import { formatPoints, independentRpc, multiplier, multiplierText, POINT_RULE, withServerClass } from '@/src/kyw/points'
+import { formatPoints, independentRpc, multiplier, multiplierText, POINT_RULE, showNoGenesis, withServerClass } from '@/src/kyw/points'
 import { providerInfo } from '@/src/kyw/providers'
 import { RateDial } from '@/src/kyw/RateDial'
 import { updateSettings } from '@/src/kyw/store'
@@ -173,6 +174,11 @@ export default function ValidateScreen() {
         {!wallet && (
           <FadeUp order={0}>
             <WalletCard account={account} onOpen={() => router.push('/account')} />
+          </FadeUp>
+        )}
+        {showNoGenesis(wallet, settings.seenNoGenesis) && (
+          <FadeUp order={0}>
+            <NoGenesisCard account={account} />
           </FadeUp>
         )}
 

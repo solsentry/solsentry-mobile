@@ -29,6 +29,10 @@ export interface Settings {
   intervalS: number
   /** Look of the app; the validation ignores it. */
   theme: 'dark' | 'light'
+  /** Wallet whose "no Genesis Token" notice the user closed; the notice comes back for another one. */
+  seenNoGenesis: string | null
+  /** The first-run explainer (points, SKR, Genesis) was read or skipped. */
+  seenIntro: boolean
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -38,6 +42,8 @@ export const DEFAULT_SETTINGS: Settings = {
   chargingOnly: false,
   intervalS: 5,
   theme: 'dark',
+  seenNoGenesis: null,
+  seenIntro: false,
 }
 
 export const INTERVAL_CHOICES_S = [2, 5, 15, 60] as const

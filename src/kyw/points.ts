@@ -74,3 +74,8 @@ export function formatPoints(halves: number): string {
 export function multiplierText(m: number): string {
   return `${Number.isInteger(m) ? m : m.toFixed(1)}×`
 }
+
+/** Shown while the linked wallet is known to hold no Genesis Token and the user has not closed it for that wallet. */
+export function showNoGenesis(wallet: { address: string; genesis: boolean; sgt: { status: string } } | null, seen: string | null): boolean {
+  return wallet !== null && !wallet.genesis && wallet.sgt.status === 'none' && seen !== wallet.address
+}

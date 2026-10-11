@@ -169,6 +169,8 @@ export function parseSettings(raw: string | null): Settings {
         ? (v.intervalS as number)
         : DEFAULT_SETTINGS.intervalS,
       theme: v.theme === 'light' ? 'light' : 'dark',
+      seenNoGenesis: typeof v.seenNoGenesis === 'string' && v.seenNoGenesis.length <= 64 ? v.seenNoGenesis : null,
+      seenIntro: v.seenIntro === true,
     }
   } catch {
     return DEFAULT_SETTINGS

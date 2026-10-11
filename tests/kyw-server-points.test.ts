@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { fetchServerPoints, formatServerPoints, parseServerPoints } from '../src/kyw/server-points'
-import { withServerClass } from '../src/kyw/points'
+import { showNoGenesis, withServerClass } from '../src/kyw/points'
 
 const body = { points: 12, matched: 15, since: '2026-10-10T12:00:00Z', today: { counted: 12, cap: 200 }, user_class: 'unattested' }
 
@@ -69,5 +69,17 @@ describe('phone and wallet totals', () => {
     expect(got?.points).toBe(84)
     expect(got?.wallet).toEqual({ address: 'EfCs…fmZa', linkId: 3, points: 0 })
     expect(parseServerPoints({ ...base, wallet: { address: 'x', link_id: 3 } })?.wallet?.points).toBeNull()
+  })
+})
+
+describe('no-Genesis notice', () => {
+  const w = (genesis: boolean, status: string) => ({ address: 'EfCs1', genesis, sgt: { status } })
+  it('shows for a wallet known to hold no Genesis Token until closed for that wallet', () => {
+    expect(showNoGenesis(w(false, 'none'), null)).toBe(true)
+    expect(showNoGenesis(w(false, 'none'), 'EfCs1')).toBe(false)
+    expect(showNoGenesis(w(false, 'none'), 'other')).toBe(true)
+    expect(showNoGenesis(w(true, 'verified'), null)).toBe(false)
+    expect(showNoGenesis(w(false, 'unknown'), null)).toBe(false)
+    expect(showNoGenesis(null, null)).toBe(false)
   })
 })
