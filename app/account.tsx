@@ -7,7 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { Avatar } from '@/src/kyw/Avatar'
 import { SkrCard } from '@/src/kyw/SkrCard'
 import { ACCOUNT_TEXT as T, HOME_TEXT, TEXT } from '@/src/kyw/copy'
-import { formatServerPoints } from '@/src/kyw/server-points'
+import { formatServerPoints, skrClosed } from '@/src/kyw/server-points'
 import { POINT_RULE, formatPoints, independentRpc, multiplier, multiplierText, withServerClass } from '@/src/kyw/points'
 import { useAccount } from '@/src/kyw/useAccount'
 import { useKyw } from '@/src/kyw/useKyw'
@@ -39,6 +39,7 @@ export default function AccountScreen() {
     userClass,
   )
   const now = multiplier(ctx)
+  const skrOpen = server?.skr != null && !skrClosed(server.skr)
   const signed = device?.kind === 'key'
   const rates: [string, string, boolean][] = [
     [T.rateGenesis, multiplierText(POINT_RULE.genesis), ctx.deviceVerified && ctx.genesis],
@@ -58,55 +59,7 @@ export default function AccountScreen() {
         }
       />
       <ScrollView contentContainerStyle={styles.body}>
-        <FadeUp order={0}>
-          <SkrCard account={account} server={server} />
-        </FadeUp>
-
         <FadeUp order={0} style={styles.card}>
-          <Text style={styles.eyebrow}>{server?.skr ? T.pointsLabel : T.balance}</Text>
-          <View style={styles.value}>
-            <FlashText value={server ? server.points * 2 : kyw.history.pointHalves} armed={kyw.loaded} color={theme.text} flash={theme.actionText} style={styles.points}>
-              {server ? formatServerPoints(server.points) : kyw.loaded ? formatPoints(kyw.history.pointHalves) : T.pointsUnknown}
-            </FlashText>
-            <Text style={styles.unit}>{HOME_TEXT.pointsUnit}</Text>
-          </View>
-          <Text style={styles.muted}>{server ? T.pointsServer : T.pointsSoon}</Text>
-          {/* The phone's own count (1 per result) would contradict the server's multipliers: once SolSentry answers, only its totals show. */}
-          {server && (
-            <Text style={styles.muted}>
-              {T.pointsSplit(formatServerPoints(server.points), server.wallet?.points != null ? formatServerPoints(server.wallet.points) : null)}
-            </Text>
-          )}
-          {!wallet && <Text style={styles.warn}>{T.pendingNote}</Text>}
-        </FadeUp>
-
-        <FadeUp order={1} style={styles.card}>
-          <Text style={styles.eyebrow}>
-            {T.rateTitle}{now > 0 ? ` · ${multiplierText(now)}` : ''}{live ? '' : ` · ${T.planned}`}
-          </Text>
-          {rates.map(([label, value, on]) => (
-            <View key={label} style={styles.row}>
-              <Text style={[styles.rate, { color: on ? theme.actionText : theme.muted }]}>{value}</Text>
-              <Text style={[styles.text, !on && styles.off]}>{label}</Text>
-              {(!live || on) && <Text style={styles.tag}>{live ? T.active : T.planned}</Text>}
-            </View>
-          ))}
-          {!signed ? (
-            <Text style={styles.muted}>{T.rateZero}</Text>
-          ) : live && server ? (
-            <>
-              <Text style={styles.muted}>{T.rateLive(multiplierText(Math.max(now, 1)).replace('×', ''), server.today.cap)}</Text>
-              {!ctx.deviceVerified && <Text style={styles.muted}>{T.rateUnverified}</Text>}
-            </>
-          ) : (
-            <>
-              <Text style={styles.muted}>{T.rateNow(POINT_RULE.dailyCap)}</Text>
-              <Text style={styles.muted}>{T.ratePlanned}</Text>
-            </>
-          )}
-        </FadeUp>
-
-        <FadeUp order={2} style={styles.card}>
           <Text style={styles.eyebrow}>{T.walletTitle}</Text>
           {wallet ? (
             <>
@@ -130,6 +83,53 @@ export default function AccountScreen() {
             <Button title={T.link} onPress={() => void link()} />
           )}
           {note && <Text style={styles.warn}>{note}</Text>}
+        </FadeUp>
+        <FadeUp order={1}>
+          <SkrCard account={account} server={server} />
+        </FadeUp>
+        {!skrOpen && (
+        <FadeUp order={1} style={styles.card}>
+          <Text style={styles.eyebrow}>{T.rewardsTitle}</Text>
+          <View style={styles.value}>
+            <FlashText value={server ? server.points * 2 : kyw.history.pointHalves} armed={kyw.loaded} color={theme.text} flash={theme.actionText} style={styles.points}>
+              {server ? formatServerPoints(server.points) : kyw.loaded ? formatPoints(kyw.history.pointHalves) : T.pointsUnknown}
+            </FlashText>
+            <Text style={styles.unit}>{HOME_TEXT.pointsUnit}</Text>
+          </View>
+          <Text style={styles.muted}>{server?.skr ? T.skrGenesisOnly : server ? T.pointsServer : T.pointsSoon}</Text>
+          {/* The phone's own count (1 per result) would contradict the server's multipliers: once SolSentry answers, only its totals show. */}
+          {server && (
+            <Text style={styles.muted}>
+              {T.pointsSplit(formatServerPoints(server.points), server.wallet?.points != null ? formatServerPoints(server.wallet.points) : null)}
+            </Text>
+          )}
+          {!wallet && <Text style={styles.warn}>{T.pendingNote}</Text>}
+        </FadeUp>
+        )}
+        <FadeUp order={2} style={styles.card}>
+          <Text style={styles.eyebrow}>
+            {T.rateTitle}{now > 0 ? ` · ${multiplierText(now)}` : ''}{live ? '' : ` · ${T.planned}`}
+          </Text>
+          {rates.map(([label, value, on]) => (
+            <View key={label} style={styles.row}>
+              <Text style={[styles.rate, { color: on ? theme.actionText : theme.muted }]}>{value}</Text>
+              <Text style={[styles.text, !on && styles.off]}>{label}</Text>
+              {(!live || on) && <Text style={styles.tag}>{live ? T.active : T.planned}</Text>}
+            </View>
+          ))}
+          {!signed ? (
+            <Text style={styles.muted}>{T.rateZero}</Text>
+          ) : live && server ? (
+            <>
+              <Text style={styles.muted}>{T.rateLive(multiplierText(Math.max(now, 1)).replace('×', ''), server.today.cap)}</Text>
+              {!ctx.deviceVerified && <Text style={styles.muted}>{T.rateUnverified}</Text>}
+            </>
+          ) : (
+            <>
+              <Text style={styles.muted}>{T.rateNow(POINT_RULE.dailyCap)}</Text>
+              <Text style={styles.muted}>{T.ratePlanned}</Text>
+            </>
+          )}
         </FadeUp>
 
         <FadeUp order={3} style={styles.card}>

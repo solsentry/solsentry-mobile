@@ -8,7 +8,7 @@ import { figure, fonts, makeStyles, useTheme } from '../ui/theme'
 import { formatSolUp } from './claim'
 import type { ClaimOutcome } from './claim-flow'
 import { ACCOUNT_TEXT as T } from './copy'
-import { formatSkr, skrClosed, skrFigure, type ServerPoints } from './server-points'
+import { formatServerPoints, formatSkr, skrClosed, skrFigure, type ServerPoints } from './server-points'
 import type { useAccount } from './useAccount'
 
 /** The line under the button after a claim, and its Solscan link when a transaction was sent. */
@@ -46,37 +46,29 @@ export function SkrCard({ account, server }: { account: ReturnType<typeof useAcc
   const styles = useStyles()
   const skr = server?.skr ?? null
   const { wallet, claiming, claim, claimSkr } = account
-  if (!skr) {
-    return (
-      <View style={styles.card}>
-        <Text style={styles.eyebrow}>{T.skrTitle}</Text>
-        <Text style={styles.muted}>{T.skrSoon}</Text>
-      </View>
-    )
-  }
-  if (skrClosed(skr)) {
-    return (
-      <View style={styles.card}>
-        <Text style={styles.eyebrow}>{T.skrTitle}</Text>
-        <Text style={styles.muted}>{T.skrGenesisOnly}</Text>
-      </View>
-    )
-  }
+  // No SKR for this phone (not sent yet, or Genesis only): the Account screen shows points instead.
+  if (!skr || skrClosed(skr)) return null
   const out = claim ? outcomeText(claim) : null
   // The server says the claim is off only when asked; after that answer the button goes.
   const canClaim = claim?.kind !== 'disabled'
   const enough = skr.balanceRaw >= skr.minClaimRaw
   return (
     <View style={styles.card}>
-      <Text style={styles.eyebrow}>{T.skrTitle}</Text>
+      <View style={styles.headRow}>
+        <Text style={styles.eyebrow}>{T.rewardsTitle}</Text>
+        <Text style={styles.chip}>{T.skrWindow(formatSkr(skr.window.earnedRaw), formatSkr(skr.window.capRaw))}</Text>
+      </View>
       <View style={styles.value}>
         <Text style={styles.amount}>{skrFigure(skr.balanceRaw).main}</Text>
         <Text style={[styles.unit, { marginLeft: -4 }]}>{skrFigure(skr.balanceRaw).tail}</Text>
         <Text style={styles.unit}>{T.skrUnit}</Text>
       </View>
       <Text style={styles.muted}>{SKR_PAYOUT === 'later' ? T.skrServerLater : T.skrServer}</Text>
-      <Text style={styles.muted}>{T.skrWindow(formatSkr(skr.window.earnedRaw), formatSkr(skr.window.capRaw))}</Text>
-      <Text style={styles.muted}>{T.skrRate}</Text>
+      {server && (
+        <Text style={styles.muted}>
+          {T.pointsSplit(formatServerPoints(server.points), server.wallet?.points != null ? formatServerPoints(server.wallet.points) : null)}
+        </Text>
+      )}
       {skr.pool === 'empty' ? (
         <Text style={styles.warn}>{T.poolEmpty}</Text>
       ) : SKR_PAYOUT === 'later' ? (
@@ -93,7 +85,7 @@ export function SkrCard({ account, server }: { account: ReturnType<typeof useAcc
           {skr.openClaim && <Text style={styles.muted}>{T.claimOpen}</Text>}
           <Button title={T.claim} disabled={!enough && !skr.openClaim} onPress={() => void claimSkr()} />
           {!enough && !skr.openClaim && <Text style={styles.muted}>{T.claimMin(formatSkr(skr.minClaimRaw))}</Text>}
-          <Text style={styles.muted}>{T.claimFee}</Text>
+          {(enough || skr.openClaim) && <Text style={styles.muted}>{T.claimFee}</Text>}
         </>
       )}
       {out && <Text style={out.good ? styles.good : styles.warn}>{out.text}</Text>}
@@ -113,5 +105,7 @@ const useStyles = makeStyles((t) =>
     warn: { color: t.actionText, fontFamily: fonts.body, fontSize: 12, lineHeight: 17 },
     good: { color: t.actionText, fontFamily: fonts.body, fontSize: 13, lineHeight: 18 },
     row: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+    headRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
+    chip: { color: t.actionText, fontFamily: fonts.mono, fontSize: 11 },
   }),
 )

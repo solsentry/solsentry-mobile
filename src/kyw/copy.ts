@@ -131,7 +131,7 @@ const REASON_TEXT: Record<string, string> = {
 }
 
 export const ACCOUNT_TEXT = {
-  title: 'Points',
+  title: 'Account',
   balance: 'Balance',
   walletTitle: 'Wallet',
   planned: 'Planned',
@@ -141,8 +141,8 @@ export const ACCOUNT_TEXT = {
     'Points are held for this install only. Link a wallet to keep them and to claim SKR (one with a Seeker Genesis Token is Genesis). Uninstalling or clearing the app loses them.',
   skrUnit: 'SKR',
   skrTitle: 'SKR balance',
-  skrServer: 'SKR SolSentry owes your linked wallet, from the signed results of this phone. Paid from a public pool.',
-  skrServerLater: 'SKR SolSentry owes your linked wallet, from the signed results of this phone. Earned now, paid out after the hackathon.',
+  skrServer: 'Owed to your linked wallet, paid from a public pool.',
+  skrServerLater: 'Owed to your linked wallet, paid out after the hackathon.',
   skrRate: '1 SKR per 40 points. A Genesis wallet earns 2 points per matched result (2.2 with your own RPC).',
   skrGenesisOnly: 'SKR rewards are for Seeker Genesis Token holders during the Seeker launch. Your points still count.',
   skrWindow: (earned: string, cap: string) => `${earned}/${cap} SKR today`,
@@ -171,7 +171,8 @@ export const ACCOUNT_TEXT = {
   viewTx: 'View on Solscan',
   pointsSoon: 'Estimate kept on this phone. The balance that counts is the one SolSentry computes from your signed results.',
   pointsServer: 'Balance from SolSentry, computed from the signed results of this phone.',
-  rateTitle: 'Multipliers',
+  rateTitle: 'How points add up',
+  rewardsTitle: 'Rewards',
   rateGenesis: 'Wallet with a Seeker Genesis Token',
   rateRpc: 'Your own RPC, tested with every capability full',
   rateNow: (cap: number) => `Today each matched, signed result counts 1 point, up to ${cap} a day.`,
@@ -219,7 +220,7 @@ export const HOME_TEXT = {
   statusOff: 'Paused',
   pace: (n: number) => `${n} tasks/h`,
   pointsUnit: 'pts',
-  pointsCta: 'Points and rate',
+  pointsCta: 'Your rewards',
   rate: 'Multiplier',
   rateDevice: 'Verified phone',
   badgeVerified: 'Verified',
