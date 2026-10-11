@@ -1,11 +1,12 @@
+import Ionicons from '@expo/vector-icons/Ionicons'
 import { useRouter } from 'expo-router'
 import React from 'react'
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
 import { Avatar } from '@/src/kyw/Avatar'
 import { SkrCard } from '@/src/kyw/SkrCard'
-import { ACCOUNT_TEXT as T, HOME_TEXT } from '@/src/kyw/copy'
+import { ACCOUNT_TEXT as T, HOME_TEXT, TEXT } from '@/src/kyw/copy'
 import { formatServerPoints } from '@/src/kyw/server-points'
 import { POINT_RULE, formatPoints, independentRpc, multiplier, multiplierText, withServerClass } from '@/src/kyw/points'
 import { useAccount } from '@/src/kyw/useAccount'
@@ -47,7 +48,15 @@ export default function AccountScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <ScreenBar title={T.title} onBack={() => router.back()} />
+      <ScreenBar
+        title={T.title}
+        onBack={() => router.back()}
+        right={
+          <Pressable accessibilityRole="button" accessibilityLabel={TEXT.settings} onPress={() => router.push('/settings')} style={styles.round}>
+            <Ionicons name="settings-outline" size={17} color={theme.text} />
+          </Pressable>
+        }
+      />
       <ScrollView contentContainerStyle={styles.body}>
         <FadeUp order={0}>
           <SkrCard account={account} server={server} />
@@ -141,6 +150,7 @@ export default function AccountScreen() {
 const useStyles = makeStyles((t) =>
   StyleSheet.create({
     safe: { flex: 1, backgroundColor: t.bg },
+    round: { width: 40, height: 40, borderRadius: 20, borderWidth: 1, borderColor: t.border2, alignItems: 'center', justifyContent: 'center' },
     body: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 24, gap: 10 },
     card: { backgroundColor: t.surface, borderWidth: 1, borderColor: t.border, borderRadius: 16, paddingHorizontal: 16, paddingVertical: 14, gap: 10 },
     eyebrow: { color: t.muted, fontFamily: fonts.mono, fontSize: 10, letterSpacing: 1, textTransform: 'uppercase' },

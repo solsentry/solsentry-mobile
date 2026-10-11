@@ -6,7 +6,10 @@ import { avatarCells, N } from './identicon'
 
 const SIZE = 36
 
-/** Round picture of the wallet, drawn from its address in the day-grid colors; the app icon with no wallet. */
+/** Solana's purple-to-green, darkest to brightest; cell 0 stays the panel color. */
+const PALETTE = ['#9945FF', '#6E6BEA', '#3FB8C9', '#14F195']
+
+/** Round pixel picture of the wallet, drawn from its address in Solana colors; the app icon with no wallet. */
 export function Avatar({ address, ring }: { address: string | null; ring: boolean }) {
   const t = useTheme()
   const cells = useMemo(() => (address ? avatarCells(address) : null), [address])
@@ -16,7 +19,7 @@ export function Avatar({ address, ring }: { address: string | null; ring: boolea
     <View style={frame}>
       <View style={styles.grid}>
         {cells.map((level, i) => (
-          <View key={i} style={[styles.cell, { backgroundColor: t.levels[level] }]} />
+          <View key={i} style={[styles.cell, { backgroundColor: level === 0 ? t.levels[0] : PALETTE[level - 1] }]} />
         ))}
       </View>
     </View>

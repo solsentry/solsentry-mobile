@@ -152,7 +152,9 @@ export default function ValidateScreen() {
             <View style={styles.badges}>
               {ctx.deviceVerified && <Text style={[styles.badge, styles.badgeOn]}>{HOME_TEXT.badgeVerified}</Text>}
               {ctx.genesis && <Text style={[styles.badge, styles.badgeOn]}>{HOME_TEXT.rateGenesis}</Text>}
-              <Text style={styles.badge}>{provider.id === 'solsentry' ? HOME_TEXT.badgeRpcDefault : HOME_TEXT.rateRpc}</Text>
+              <Pressable accessibilityRole="button" accessibilityLabel={TEXT.rpcTitle} hitSlop={6} onPress={() => router.push('/rpc')}>
+                <Text style={styles.badge}>{provider.id === 'solsentry' ? HOME_TEXT.badgeRpcDefault : HOME_TEXT.rateRpc} ›</Text>
+              </Pressable>
             </View>
           </View>
         </Pressable>
@@ -164,9 +166,6 @@ export default function ValidateScreen() {
             style={styles.roundBtn}
           >
             <Ionicons name={theme.name === 'dark' ? 'sunny-outline' : 'moon-outline'} size={16} color={theme.text} />
-          </Pressable>
-          <Pressable accessibilityRole="button" accessibilityLabel={TEXT.settings} onPress={() => router.push('/settings')} style={styles.roundBtn}>
-            <Ionicons name="settings-outline" size={17} color={theme.text} />
           </Pressable>
         </View>
       </View>

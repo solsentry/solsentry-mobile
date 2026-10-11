@@ -1,3 +1,4 @@
+import Ionicons from '@expo/vector-icons/Ionicons'
 import { useRouter } from 'expo-router'
 import React, { useEffect, useState } from 'react'
 import { Alert, AppState, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native'
@@ -10,7 +11,7 @@ import { TEXT, deviceLines } from '@/src/kyw/copy'
 import type { DeviceIdentity } from '@/src/kyw/device'
 import { getDevice } from '@/src/kyw/device-runtime'
 import { mode } from '@/src/kyw/engine'
-import { RpcSection } from '@/src/kyw/RpcSection'
+import { providerInfo } from '@/src/kyw/providers'
 import { clearHistory, updateSettings } from '@/src/kyw/store'
 import { INTERVAL_CHOICES_S } from '@/src/kyw/types'
 import { useKyw } from '@/src/kyw/useKyw'
@@ -149,8 +150,14 @@ export default function SettingsScreen() {
           </View>
         </FadeUp>
 
-        <FadeUp order={3} style={styles.card}>
-          <RpcSection />
+        <FadeUp order={3}>
+          <Pressable accessibilityRole="button" onPress={() => router.push('/rpc')} style={styles.card}>
+            <Text style={styles.eyebrow}>{TEXT.rpcTitle}</Text>
+            <View style={styles.linkRow}>
+              <Text style={styles.linkText}>{providerInfo(settings.provider).label}</Text>
+              <Ionicons name="chevron-forward" size={16} color={theme.muted} />
+            </View>
+          </Pressable>
         </FadeUp>
 
         <FadeUp order={3} style={styles.card}>
@@ -178,6 +185,8 @@ export default function SettingsScreen() {
 
 const useStyles = makeStyles((t) =>
   StyleSheet.create({
+    linkRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    linkText: { color: t.text, fontFamily: fonts.body, fontSize: 14, fontWeight: '600' },
     safe: { flex: 1, backgroundColor: t.bg },
     body: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 24, gap: 10 },
     card: { backgroundColor: t.surface, borderColor: t.border, borderWidth: 1, borderRadius: 16, paddingHorizontal: 16, paddingVertical: 14, gap: 10 },
