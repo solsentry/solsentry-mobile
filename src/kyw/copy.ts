@@ -285,3 +285,24 @@ export function resultSentence(record: Pick<TaskRecord, 'verdict' | 'reason'>): 
 export function formatBytes(bytes: number): string {
   return bytes < 1024 ? `${bytes} B` : `${(bytes / 1024).toFixed(1)} kB`
 }
+
+/** First run: what the app does, in three steps (points, then SKR). */
+export const INTRO_TEXT = {
+  steps: [
+    {
+      title: 'Your phone checks Solana',
+      body: 'Each task is one public Solana transaction. Your phone reads it, recomputes its facts and sends a digest. SolSentry compares the digest with its own reference read.',
+    },
+    {
+      title: 'Matched results count points',
+      body: "Each matched result signed by this phone's hardware key counts points. A Seeker Genesis Token on your linked wallet doubles them, and your own RPC adds 1.1×.",
+    },
+    {
+      title: 'Points turn into SKR',
+      body: 'During the Seeker launch, wallets that hold a Seeker Genesis Token get SKR from a public pool: 1 SKR per 40 points, up to a daily cap shown in the app. Claim sends it to your wallet.',
+    },
+  ],
+  skip: 'Skip',
+  next: 'Next',
+  start: 'Start',
+} as const

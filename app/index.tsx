@@ -9,6 +9,7 @@ import { mode, startValidation, statusText, stopValidation } from '@/src/kyw/eng
 import { Avatar } from '@/src/kyw/Avatar'
 import { ClaimSheet } from '@/src/kyw/ClaimSheet'
 import { DayGrid } from '@/src/kyw/DayGrid'
+import { IntroSheet } from '@/src/kyw/IntroSheet'
 import { NoGenesisCard } from '@/src/kyw/NoGenesisCard'
 import { Grid, verdictColor } from '@/src/kyw/Grid'
 import { countedToday, tasksPerHour } from '@/src/kyw/history'
@@ -319,6 +320,7 @@ export default function ValidateScreen() {
         <Text style={styles.footer}>{TEXT.about}</Text>
       </ScrollView>
 
+      <IntroSheet visible={kyw.loaded && !settings.seenIntro} />
       {skr && wallet && (
         <ClaimSheet
           visible={claimSheet}
