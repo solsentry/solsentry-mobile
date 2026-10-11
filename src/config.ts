@@ -42,3 +42,9 @@ export const DEVICE_CHECK_ENABLED: boolean = true
  * the screen redirects to Check & Send; nothing in it runs.
  */
 export const REVOKE_ENABLED: boolean = true
+
+/**
+ * How SKR reaches the linked wallet. 'claim': the Claim button builds the transaction the wallet
+ * signs and sends. 'daily': no Claim; SolSentry pays linked wallets in one daily run from the pool.
+ */
+export const SKR_PAYOUT: 'claim' | 'daily' = 'claim'

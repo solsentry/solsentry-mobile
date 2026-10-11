@@ -17,7 +17,7 @@ export interface ServerPoints {
 export interface SkrBalance {
   /** In base units (6 decimals); the phone never derives it from points. Belongs to the linked wallet. */
   balanceRaw: bigint
-  /** SKR earned in this window and the cap through SolSentry's RPC; `earned` may pass `cap` with an own RPC. */
+  /** SKR earned in this window and the cap the server pays under (a valid own-RPC probe lifts it). */
   window: { earnedRaw: bigint; capRaw: bigint }
   minClaimRaw: bigint
   /** unknown = SolSentry has not read the pool yet. */

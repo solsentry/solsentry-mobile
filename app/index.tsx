@@ -17,7 +17,7 @@ import { WalletCard } from '@/src/kyw/WalletCard'
 import { chosenRpcProbeIsStale, probeChosenRpc } from '@/src/kyw/probe-client'
 import * as Linking from 'expo-linking'
 
-import { solscanTx } from '@/src/config'
+import { SKR_PAYOUT, solscanTx } from '@/src/config'
 import { outcomeText } from '@/src/kyw/SkrCard'
 import { formatServerPoints, formatSkr as formatSkrShort, skrFigure } from '@/src/kyw/server-points'
 import { formatPoints, independentRpc, multiplier, multiplierText, POINT_RULE } from '@/src/kyw/points'
@@ -55,8 +55,8 @@ export default function ValidateScreen() {
   const { settings, history, running, status } = kyw
   const server = account.server
   const skr = server?.skr ?? null
-  // Claim takes the CTA once SolSentry sends the SKR block and the claim is not off.
-  const claimHere = skr !== null && skr.pool !== 'empty' && account.claim?.kind !== 'disabled'
+  // Claim takes the CTA once SolSentry sends the SKR block and the claim is not off (never with daily payout).
+  const claimHere = SKR_PAYOUT === 'claim' && skr !== null && skr.pool !== 'empty' && account.claim?.kind !== 'disabled'
   const claimReady = claimHere && account.wallet !== null && (skr.balanceRaw >= skr.minClaimRaw || skr.openClaim !== null)
   const claimOut = account.claim ? outcomeText(account.claim) : null
 

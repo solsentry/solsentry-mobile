@@ -2,7 +2,7 @@ import * as Linking from 'expo-linking'
 import React from 'react'
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native'
 
-import { solscanTx } from '../config'
+import { SKR_PAYOUT, solscanTx } from '../config'
 import { Button } from '../ui/components'
 import { figure, fonts, makeStyles, useTheme } from '../ui/theme'
 import { formatSolUp } from './claim'
@@ -66,11 +66,13 @@ export function SkrCard({ account, server }: { account: ReturnType<typeof useAcc
         <Text style={[styles.unit, { marginLeft: -4 }]}>{skrFigure(skr.balanceRaw).tail}</Text>
         <Text style={styles.unit}>{T.skrUnit}</Text>
       </View>
-      <Text style={styles.muted}>{T.skrServer}</Text>
+      <Text style={styles.muted}>{SKR_PAYOUT === 'daily' ? T.skrServerDaily : T.skrServer}</Text>
       <Text style={styles.muted}>{T.skrWindow(formatSkr(skr.window.earnedRaw), formatSkr(skr.window.capRaw))}</Text>
       <Text style={styles.muted}>{T.skrRate}</Text>
       {skr.pool === 'empty' ? (
         <Text style={styles.warn}>{T.poolEmpty}</Text>
+      ) : SKR_PAYOUT === 'daily' ? (
+        !wallet && <Text style={styles.warn}>{T.dailyNeedsWallet}</Text>
       ) : !canClaim ? null : !wallet ? (
         <Text style={styles.warn}>{T.claimNeedsWallet}</Text>
       ) : claiming ? (
