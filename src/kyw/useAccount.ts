@@ -143,5 +143,7 @@ export function useAccount() {
   }
 
   const status = device ? pointsStatus({ deviceCheck: device.check, deviceKind: device.kind, wallet }) : null
-  return { device, wallet, busy, note, link, unlink, status, server, claiming, claim, claimSkr }
+  /** A new claim starts with no result on screen (the sheet opens on Approve, not on the last receipt). */
+  const resetClaim = () => setClaim(null)
+  return { device, wallet, busy, note, link, unlink, status, server, claiming, claim, claimSkr, resetClaim }
 }

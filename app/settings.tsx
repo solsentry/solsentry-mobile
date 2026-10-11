@@ -10,6 +10,7 @@ import { TEXT, deviceLines } from '@/src/kyw/copy'
 import type { DeviceIdentity } from '@/src/kyw/device'
 import { getDevice } from '@/src/kyw/device-runtime'
 import { mode } from '@/src/kyw/engine'
+import { RpcSection } from '@/src/kyw/RpcSection'
 import { clearHistory, updateSettings } from '@/src/kyw/store'
 import { INTERVAL_CHOICES_S } from '@/src/kyw/types'
 import { useKyw } from '@/src/kyw/useKyw'
@@ -146,6 +147,10 @@ export default function SettingsScreen() {
               )
             })}
           </View>
+        </FadeUp>
+
+        <FadeUp order={3} style={styles.card}>
+          <RpcSection />
         </FadeUp>
 
         <FadeUp order={3} style={styles.card}>

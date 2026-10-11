@@ -25,6 +25,8 @@ export const TEXT = {
   gridEmpty: 'Turn verification on to fill these rows. One dot is one task.',
   latest: 'Selected task',
   rpcTitle: 'RPC for the read',
+  rpcInfo:
+    'Each task is read from a Solana mainnet RPC. By default the read goes through SolSentry, nothing to set up. You can use your own RPC instead: paste its HTTPS URL below. Once "Test this RPC" passes every check, on a phone whose hardware key SolSentry has checked, each matched result counts 1.1× and the daily point cap is lifted.',
   probeButton: 'Test this RPC',
   probeStale: 'Out of date, test again',
   rpcNote:
@@ -211,6 +213,8 @@ export const ACCOUNT_TEXT = {
 export const HOME_TEXT = {
   statusOn: 'Verifying',
   claimCta: 'Claim',
+  claimTo: '→ Your wallet',
+  approve: 'Approve in wallet',
   creditToast: 'MATCHED RESULTS',
   statusOff: 'Paused',
   pace: (n: number) => `${n} tasks/h`,
@@ -218,6 +222,8 @@ export const HOME_TEXT = {
   pointsCta: 'Points and rate',
   rate: 'Multiplier',
   rateDevice: 'Verified phone',
+  badgeVerified: 'Verified',
+  badgeRpcDefault: 'SolSentry RPC',
   rateGenesis: 'Genesis',
   rateRpc: 'Own RPC',
   tasks: 'Recent tasks',

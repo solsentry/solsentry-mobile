@@ -12,10 +12,12 @@ export const POINT_RULE = {
   base: 1,
   /** Points a phone can earn per day while the server treats it as not attested. */
   dailyCap: 200,
-  /** Planned: the linked wallet holds a Seeker Genesis Token. */
+  /** The linked wallet holds a Seeker Genesis Token (server rule since 11/10). */
   genesis: 2,
-  /** Planned: the read came from an RPC other than SolSentry's own, tested with every capability full. */
+  /** The read came from the user's own RPC, tested with every capability full. */
   independentRpc: 1.1,
+  /** Points per SKR (integrations/kyw/points.py SKR_PER_POINT = 1/40). */
+  pointsPerSkr: 40,
 } as const
 
 export interface PointsContext {

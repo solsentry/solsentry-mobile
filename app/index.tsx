@@ -1,40 +1,34 @@
 import Ionicons from '@expo/vector-icons/Ionicons'
-import Constants from 'expo-constants'
 import { useRouter } from 'expo-router'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { Alert, AppState, KeyboardAvoidingView, Modal, PermissionsAndroid, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native'
+import { AppState, PermissionsAndroid, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
-import { KYW_API_BASE } from '@/src/kyw/config'
-import { ACCOUNT_TEXT, HOME_TEXT, TEXT, VERDICT_LABEL, formatBytes, readingViaText, switchProviderPrompt, probeProblemText, probeReportLines, probeTestedText, resultSentence } from '@/src/kyw/copy'
+import { ACCOUNT_TEXT, HOME_TEXT, TEXT, VERDICT_LABEL, formatBytes, readingViaText, resultSentence } from '@/src/kyw/copy'
 import { mode, startValidation, statusText, stopValidation } from '@/src/kyw/engine'
 import { Avatar } from '@/src/kyw/Avatar'
+import { ClaimSheet } from '@/src/kyw/ClaimSheet'
 import { DayGrid } from '@/src/kyw/DayGrid'
 import { Grid, verdictColor } from '@/src/kyw/Grid'
 import { countedToday, tasksPerHour } from '@/src/kyw/history'
 import { useAccount } from '@/src/kyw/useAccount'
 import { WalletCard } from '@/src/kyw/WalletCard'
-import { chosenRpcProbeIsStale, probeChosenRpc } from '@/src/kyw/probe-client'
 import * as Linking from 'expo-linking'
 
 import { SKR_PAYOUT, solscanTx } from '@/src/config'
 import { outcomeText } from '@/src/kyw/SkrCard'
 import { formatServerPoints, formatSkr as formatSkrShort, skrClosed, skrFigure } from '@/src/kyw/server-points'
 import { formatPoints, independentRpc, multiplier, multiplierText, POINT_RULE, withServerClass } from '@/src/kyw/points'
-import { PROVIDERS, providerInfo, type ProviderId } from '@/src/kyw/providers'
+import { providerInfo } from '@/src/kyw/providers'
 import { RateDial } from '@/src/kyw/RateDial'
-import { recordProbeReport, setSecret, updateSettings } from '@/src/kyw/store'
+import { updateSettings } from '@/src/kyw/store'
 import type { Verdict } from '@/src/kyw/types'
 import { useKyw } from '@/src/kyw/useKyw'
 import { useSkrName } from '@/src/kyw/useSkrName'
-import { Button } from '@/src/ui/components'
-import { Fan, FadeUp, FlashText } from '@/src/ui/motion'
+import { Bump, Fan, FadeUp, FlashText } from '@/src/ui/motion'
 import { figure, fonts, makeStyles, useTheme } from '@/src/ui/theme'
 
 const short = (a: string) => `${a.slice(0, 4)}…${a.slice(-4)}`
-
-/** Two letters for the RPC pill and the sheet rows. */
-const RPC_CODE: Record<ProviderId, string> = { solsentry: 'SS', helius: 'HE', quicknode: 'QN', solami: 'SO' }
 
 async function askNotificationPermission(): Promise<void> {
   if (Platform.OS !== 'android' || Platform.Version < 33) return
@@ -61,6 +55,7 @@ export default function ValidateScreen() {
   const claimHere = SKR_PAYOUT === 'claim' && skr !== null && skr.pool !== 'empty' && account.claim?.kind !== 'disabled'
   const claimReady = claimHere && account.wallet !== null && (skr.balanceRaw >= skr.minClaimRaw || skr.openClaim !== null)
   const claimOut = account.claim ? outcomeText(account.claim) : null
+  const [claimSheet, setClaimSheet] = useState(false)
 
   // The mockup's credit toast: SKR the server added since the last read, shown for 2.4 s.
   const [credit, setCredit] = useState<bigint | null>(null)
@@ -75,14 +70,10 @@ export default function ValidateScreen() {
     return () => clearTimeout(t)
   }, [skrBalance])
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [rpcMenu, setRpcMenu] = useState(false)
   const provider = providerInfo(settings.provider)
-  const [probing, setProbing] = useState<ProviderId | null>(null)
-  const probeInFlight = useRef(false)
-  const [probeProblem, setProbeProblem] = useState<{ provider: ProviderId; text: string } | null>(null)
-  const [probeNow, setProbeNow] = useState(Date.now)
+  // The read's RPC is chosen in Settings; here it only sets the own-RPC multiplier and the status line.
   const report = kyw.probeReports[provider.id]
-  const reportStale = chosenRpcProbeIsStale(report ?? null, provider.id, kyw.secrets[provider.id] ?? '', probeNow)
+  const [probeNow, setProbeNow] = useState(Date.now)
 
   useEffect(() => {
     const refresh = () => setProbeNow(Date.now())
@@ -96,44 +87,6 @@ export default function ValidateScreen() {
     }
   }, [])
 
-  // A tap on another RPC while validation runs asks first: an accidental tap must not move the reads
-  // (and the user's key) to another provider without the user seeing it.
-  const chooseProvider = (id: ProviderId) => {
-    if (id === settings.provider) return
-    if (!running) {
-      void updateSettings({ provider: id })
-      return
-    }
-    const next = providerInfo(id)
-    const prompt = switchProviderPrompt(next.label, next.secretLabel !== null)
-    Alert.alert(prompt.title, prompt.body, [
-      { text: prompt.cancel, style: 'cancel' },
-      { text: prompt.confirm, onPress: () => void updateSettings({ provider: id }) },
-    ])
-  }
-
-  const testRpc = async () => {
-    if (probeInFlight.current) return
-    probeInFlight.current = true
-    const id = provider.id
-    setProbing(id)
-    setProbeProblem(null)
-    try {
-      const result = await probeChosenRpc({
-        fetch,
-        apiBase: KYW_API_BASE,
-        provider: id,
-        secret: kyw.secrets[id] ?? '',
-        clientVersion: Constants.expoConfig?.version ?? '0',
-      })
-      if (!result.ok) setProbeProblem({ provider: id, text: probeProblemText(result.problem) })
-      else if (result.kind === 'report') await recordProbeReport(id, result.report)
-    } finally {
-      setProbeNow(Date.now())
-      setProbing(null)
-      probeInFlight.current = false
-    }
-  }
   const records = history.records
   const selected = useMemo(
     () => records.find((r) => r.id === selectedId) ?? records[records.length - 1] ?? null,
@@ -158,6 +111,20 @@ export default function ValidateScreen() {
     [HOME_TEXT.rateRpc, ctx.deviceVerified && ctx.independentRpc],
   ]
 
+  // The mockup's bump: each matched result shows the SKR it adds, while this phone still earns SKR today.
+  const [bump, setBump] = useState<{ key: number; text: string } | null>(null)
+  const lastAccepted = useRef<number | null>(null)
+  const accepted = history.counters.accepted
+  const skrPerResult = skr && skr.window.earnedRaw < skr.window.capRaw ? multiplier(ctx) / POINT_RULE.pointsPerSkr : 0
+  useEffect(() => {
+    const before = lastAccepted.current
+    lastAccepted.current = accepted
+    if (before === null || accepted <= before || skrPerResult <= 0) return
+    setBump((b) => ({ key: (b?.key ?? 0) + 1, text: `+${Number(skrPerResult.toFixed(4))} SKR` }))
+    const t = setTimeout(() => setBump(null), 1_600)
+    return () => clearTimeout(t)
+  }, [accepted, skrPerResult])
+
   const toggle = async (next: boolean) => {
     if (!next) return stopValidation()
     if (mode() === 'service') await askNotificationPermission()
@@ -175,21 +142,19 @@ export default function ValidateScreen() {
           style={styles.identity}
         >
           <Avatar address={wallet?.address ?? null} ring={ctx.genesis} />
-          <Text numberOfLines={1} style={wallet && !skrName ? styles.identityMono : styles.identityText}>
-            {skrName ?? (wallet ? short(wallet.address) : TEXT.appName)}
-          </Text>
+          <View style={styles.identityCol}>
+            <Text numberOfLines={1} style={wallet && !skrName ? styles.identityMono : styles.identityText}>
+              {skrName ?? (wallet ? short(wallet.address) : TEXT.appName)}
+            </Text>
+            {/* What SolSentry holds for this phone now, and where its reads go. */}
+            <View style={styles.badges}>
+              {ctx.deviceVerified && <Text style={[styles.badge, styles.badgeOn]}>{HOME_TEXT.badgeVerified}</Text>}
+              {ctx.genesis && <Text style={[styles.badge, styles.badgeOn]}>{HOME_TEXT.rateGenesis}</Text>}
+              <Text style={styles.badge}>{provider.id === 'solsentry' ? HOME_TEXT.badgeRpcDefault : HOME_TEXT.rateRpc}</Text>
+            </View>
+          </View>
         </Pressable>
         <View style={styles.barRight}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`${ACCOUNT_TEXT.rpcMenuTitle}: ${provider.label}`}
-            onPress={() => setRpcMenu(true)}
-            style={styles.rpcPill}
-          >
-            <Text style={styles.rpcCode}>{RPC_CODE[provider.id]}</Text>
-            <Text style={styles.tag}>RPC</Text>
-            <Ionicons name="chevron-down" size={13} color={theme.text} />
-          </Pressable>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={theme.name === 'dark' ? HOME_TEXT.themeLight : HOME_TEXT.themeDark}
@@ -271,7 +236,11 @@ export default function ValidateScreen() {
             <Pressable
               accessibilityRole="button"
               disabled={account.claiming}
-              onPress={() => (claimReady ? void account.claimSkr() : router.push('/account'))}
+              onPress={() => {
+                if (!claimReady) return router.push('/account')
+                account.resetClaim()
+                setClaimSheet(true)
+              }}
               style={({ pressed }) => [styles.cta, (pressed || account.claiming) && { opacity: 0.85 }]}
             >
               <Text style={styles.ctaText}>{account.claiming ? ACCOUNT_TEXT.claiming : HOME_TEXT.claimCta}</Text>
@@ -294,7 +263,10 @@ export default function ValidateScreen() {
         <FadeUp order={2} style={styles.card}>
           <View style={styles.head}>
             <Text style={styles.eyebrow}>{HOME_TEXT.tasks}</Text>
-            <Text style={styles.headValue}>{(history.counters.accepted + history.counters.diverged + history.counters.unknown).toLocaleString('en-US')}</Text>
+            <View style={styles.headRight}>
+              {bump !== null && <Bump key={bump.key} text={bump.text} style={styles.bump} />}
+              <Text style={styles.headValue}>{(history.counters.accepted + history.counters.diverged + history.counters.unknown).toLocaleString('en-US')}</Text>
+            </View>
           </View>
           <Grid records={records} loaded={kyw.loaded} selectedId={selected?.id ?? null} onSelect={(r) => setSelectedId(r.id)} />
           <View style={styles.counters}>
@@ -341,87 +313,18 @@ export default function ValidateScreen() {
         <Text style={styles.footer}>{TEXT.about}</Text>
       </ScrollView>
 
-      <Modal visible={rpcMenu} transparent animationType="slide" onRequestClose={() => setRpcMenu(false)}>
-        <KeyboardAvoidingView behavior="padding" style={styles.sheetWrap}>
-          <Pressable accessibilityRole="button" accessibilityLabel={HOME_TEXT.close} style={styles.scrim} onPress={() => setRpcMenu(false)} />
-          <View style={styles.sheet}>
-            <View style={styles.grabber} />
-            <ScrollView contentContainerStyle={styles.sheetBody} keyboardShouldPersistTaps="handled">
-              <Text style={styles.sheetTitle}>{ACCOUNT_TEXT.rpcMenuTitle}</Text>
-              {PROVIDERS.map((p) => {
-                const active = p.id === settings.provider
-                return (
-                  <Pressable
-                    key={p.id}
-                    accessibilityRole="radio"
-                    accessibilityState={{ selected: active }}
-                    onPress={() => chooseProvider(p.id)}
-                    style={[styles.prow, active && { borderColor: theme.action }]}
-                  >
-                    <View style={styles.pcode}>
-                      <Text style={styles.pcodeText}>{RPC_CODE[p.id]}</Text>
-                    </View>
-                    <View style={styles.pname}>
-                      <Text style={styles.pnameText}>{p.label}</Text>
-                      {p.beta && <Text style={styles.tag}>{TEXT.beta}</Text>}
-                    </View>
-                    <View style={[styles.radio, active && { borderColor: theme.action }]}>{active && <View style={styles.radioFill} />}</View>
-                  </Pressable>
-                )
-              })}
-              {provider.secretLabel && (
-                <View style={styles.keyBox}>
-                  <Text style={styles.eyebrow}>{provider.secretLabel}</Text>
-                  <TextInput
-                    key={provider.id}
-                    style={styles.input}
-                    defaultValue={kyw.secrets[provider.id] ?? ''}
-                    onChangeText={(v) => void setSecret(provider.id, v)}
-                    placeholder={provider.secretHint ?? ''}
-                    placeholderTextColor={theme.muted}
-                    secureTextEntry
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    autoComplete="off"
-                    importantForAutofill="no"
-                  />
-                  <View style={styles.row}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.label}>{TEXT.saveKey}</Text>
-                      <Text style={styles.muted}>{settings.saveKey ? TEXT.saveKeyOn : TEXT.saveKeyOff}</Text>
-                    </View>
-                    <Switch
-                      accessibilityLabel={TEXT.saveKey}
-                      value={settings.saveKey}
-                      onValueChange={(v) => void updateSettings({ saveKey: v })}
-                      trackColor={{ false: theme.track, true: theme.action }}
-                      thumbColor={theme.text}
-                    />
-                  </View>
-                  <Text style={styles.muted}>{TEXT.rpcNote}</Text>
-                  <Button
-                    variant="secondary"
-                    title={TEXT.probeButton}
-                    busy={probing === provider.id}
-                    disabled={!kyw.loaded || probing !== null}
-                    onPress={() => void testRpc()}
-                  />
-                  <View accessibilityLiveRegion="polite" style={{ gap: 4 }}>
-                    {probeProblem?.provider === provider.id && <Text style={styles.muted}>{probeProblem.text}</Text>}
-                    {report && (
-                      <>
-                        {probeReportLines(report).map((line) => <Text key={line} style={styles.muted}>{line}</Text>)}
-                        <Text style={styles.muted}>{probeTestedText(report.measured_at)}</Text>
-                        {reportStale && <Text style={styles.label}>{TEXT.probeStale}</Text>}
-                      </>
-                    )}
-                  </View>
-                </View>
-              )}
-            </ScrollView>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
+      {skr && wallet && (
+        <ClaimSheet
+          visible={claimSheet}
+          onClose={() => setClaimSheet(false)}
+          amountRaw={skr.balanceRaw}
+          wallet={wallet.address}
+          walletName={skrName}
+          claiming={account.claiming}
+          outcome={account.claim}
+          onApprove={() => void account.claimSkr()}
+        />
+      )}
       {credit !== null && (
         <FadeUp order={0} style={styles.toast}>
           <Text style={styles.toastText}>{HOME_TEXT.creditToast}</Text>
@@ -442,20 +345,11 @@ const useStyles = makeStyles((theme) => StyleSheet.create({
   avatar: { width: 36, height: 36, borderRadius: 18, borderWidth: 1, borderColor: theme.border2, alignItems: 'center', justifyContent: 'center' },
   identityText: { ...sans, color: theme.text, fontSize: 15, fontWeight: '600', letterSpacing: -0.3 },
   identityMono: { ...mono, color: theme.text, fontSize: 14, fontWeight: '500' },
+  identityCol: { flexShrink: 1, gap: 4 },
+  badges: { flexDirection: 'row', gap: 5 },
+  badge: { ...mono, color: theme.muted, fontSize: 8.5, letterSpacing: 0.5, paddingHorizontal: 5, paddingVertical: 1.5, borderRadius: 4, borderWidth: 1, borderColor: theme.border2, textTransform: 'uppercase', overflow: 'hidden' },
+  badgeOn: { color: theme.actionText, borderColor: theme.action },
   barRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  rpcPill: {
-    height: 40,
-    paddingLeft: 12,
-    paddingRight: 10,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: theme.border2,
-    backgroundColor: theme.surface,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 7,
-  },
-  rpcCode: { ...mono, color: theme.text, fontSize: 11 },
   tag: { ...mono, color: theme.muted, fontSize: 9, letterSpacing: 0.5, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, borderWidth: 1, borderColor: theme.border2, textTransform: 'uppercase' },
   roundBtn: { width: 40, height: 40, borderRadius: 20, borderWidth: 1, borderColor: theme.border2, alignItems: 'center', justifyContent: 'center' },
   body: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 24, gap: 10 },
@@ -464,6 +358,8 @@ const useStyles = makeStyles((theme) => StyleSheet.create({
   head: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
   eyebrow: { ...mono, color: theme.muted, fontSize: 10, letterSpacing: 1, textTransform: 'uppercase' },
   headValue: { ...mono, color: theme.text, fontSize: 13 },
+  headRight: { flexDirection: 'row', alignItems: 'baseline', gap: 8 },
+  bump: { ...mono, color: theme.actionText, fontSize: 10.5 },
   balance: { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1, borderRadius: 16, padding: 10, gap: 10 },
   statusBtn: {
     height: 44,
@@ -534,47 +430,4 @@ const useStyles = makeStyles((theme) => StyleSheet.create({
   segText: { ...sans, color: theme.muted, fontSize: 12, fontWeight: '600' },
   label: { ...sans, color: theme.text, fontSize: 14, fontWeight: '600' },
   footer: { ...sans, color: theme.muted, fontSize: 12, lineHeight: 17, paddingHorizontal: 4 },
-  sheetWrap: { flex: 1, justifyContent: 'flex-end' },
-  scrim: { ...StyleSheet.absoluteFillObject, backgroundColor: theme.scrim },
-  sheet: {
-    maxHeight: '90%',
-    backgroundColor: theme.surface,
-    borderTopWidth: 1,
-    borderColor: theme.border2,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingTop: 10,
-  },
-  grabber: { width: 36, height: 4, borderRadius: 2, backgroundColor: theme.border2, alignSelf: 'center' },
-  sheetBody: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 32, gap: 8 },
-  sheetTitle: { ...sans, color: theme.text, fontSize: 19, fontWeight: '600', letterSpacing: -0.4, marginBottom: 4 },
-  prow: {
-    height: 56,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: theme.border,
-    backgroundColor: theme.surface2,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 12,
-  },
-  pcode: { width: 34, height: 34, borderRadius: 17, borderWidth: 1, borderColor: theme.border2, alignItems: 'center', justifyContent: 'center' },
-  pcodeText: { ...mono, color: theme.text, fontSize: 10.5 },
-  pname: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 7 },
-  pnameText: { ...sans, color: theme.text, fontSize: 14, fontWeight: '600' },
-  radio: { width: 18, height: 18, borderRadius: 9, borderWidth: 1.5, borderColor: theme.border2, alignItems: 'center', justifyContent: 'center' },
-  radioFill: { width: 8, height: 8, borderRadius: 4, backgroundColor: theme.action },
-  keyBox: { borderWidth: 1, borderColor: theme.border2, borderRadius: 12, padding: 12, gap: 10, marginTop: 4 },
-  input: {
-    ...mono,
-    height: 44,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: theme.border2,
-    backgroundColor: theme.bg,
-    color: theme.text,
-    paddingHorizontal: 12,
-    fontSize: 12,
-  },
 }))

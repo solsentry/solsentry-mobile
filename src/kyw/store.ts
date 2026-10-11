@@ -50,7 +50,8 @@ function parseCapability(value: unknown): Capability | null {
 function parseReport(value: unknown, provider: ProviderId): ProbeReport | null {
   const r = object(value)
   if (!r || r.probe_version !== PROBE_VERSION || typeof r.rpc_host !== 'string') return null
-  const hostMatches = provider === 'helius' ? r.rpc_host === 'mainnet.helius-rpc.com'
+  const hostMatches = provider === 'custom' ? /^[a-z0-9.-]+\.[a-z0-9-]+$/.test(r.rpc_host)
+    : provider === 'helius' ? r.rpc_host === 'mainnet.helius-rpc.com'
     : provider === 'solami' ? r.rpc_host === 'rpc.solami.dev'
       : provider === 'quicknode' && /^(?:[a-z0-9-]+\.)*quiknode\.pro$/.test(r.rpc_host)
   if (!hostMatches || typeof r.measured_at !== 'string' || !Number.isFinite(Date.parse(r.measured_at))) return null

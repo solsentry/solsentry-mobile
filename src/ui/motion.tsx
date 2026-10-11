@@ -86,3 +86,21 @@ export function FlashText({
   const animated = useAnimatedStyle(() => ({ color: interpolateColor(progress.value, [0, 1], [color, flash]) }), [color, flash])
   return <Animated.Text style={[style, animated]}>{children}</Animated.Text>
 }
+
+const BUMP = {
+  '0%': { opacity: 0, transform: [{ translateY: 6 }] },
+  '20%': { opacity: 1, transform: [{ translateY: 0 }] },
+  '70%': { opacity: 1, transform: [{ translateY: 0 }] },
+  '100%': { opacity: 0, transform: [{ translateY: -6 }] },
+}
+
+/** The mockup's "+0.05 SKR" next to a counter: rises, holds, fades (1.6 s). Remount with a new key to replay. */
+export function Bump({ text, style }: { text: string; style?: StyleProp<TextStyle> }) {
+  const reduced = useReducedMotion()
+  if (reduced) return <Animated.Text style={style}>{text}</Animated.Text>
+  return (
+    <Animated.Text style={[style, { animationName: BUMP, animationDuration: '1600ms', animationTimingFunction: 'ease-out', animationFillMode: 'both' }]}>
+      {text}
+    </Animated.Text>
+  )
+}
