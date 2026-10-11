@@ -11,7 +11,7 @@ export interface ServerPoints {
   /** `cap` is null for a device the server does not cap. */
   today: { counted: number; cap: number | null }
   /** The link SolSentry holds for this device (address abbreviated by the server), or null. */
-  wallet: { address: string; linkId: number } | null
+  wallet: { address: string; linkId: number; points: number | null } | null
   /** SKR the server owes this device or its wallet (CONTRATO_APP_para_DEV_EXEC_skr_claim); null until the server sends it. */
   skr: SkrBalance | null
   /** The class SolSentry holds for this key now; null when the server did not send a known one. */
@@ -80,7 +80,9 @@ export function parseServerPoints(body: unknown): ServerPoints | null {
 function parseWallet(v: unknown): ServerPoints['wallet'] {
   if (typeof v !== 'object' || v === null) return null
   const w = v as Record<string, unknown>
-  return typeof w.address === 'string' && typeof w.link_id === 'number' ? { address: w.address, linkId: w.link_id } : null
+  if (typeof w.address !== 'string' || typeof w.link_id !== 'number') return null
+  // Points written under this wallet, on any phone; the top-level `points` is this phone's.
+  return { address: w.address, linkId: w.link_id, points: count(w.points) ? w.points : null }
 }
 
 /** Null on any failure (route not deployed, network, bad body): the caller keeps the local estimate. */

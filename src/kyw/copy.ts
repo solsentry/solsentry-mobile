@@ -144,7 +144,9 @@ export const ACCOUNT_TEXT = {
   skrRate: '1 SKR per 40 points. A Genesis wallet earns 2 points per matched result (2.2 with your own RPC).',
   skrGenesisOnly: 'SKR rewards are for Seeker Genesis Token holders during the Seeker launch. Your points still count.',
   skrWindow: (earned: string, cap: string) => `${earned}/${cap} SKR today`,
-  skrPoints: (points: string) => `${points} points`,
+  /** The server's two totals: this phone's results, and those written under the linked wallet. */
+  pointsSplit: (phone: string, wallet: string | null) =>
+    wallet === null ? `${phone} points on this phone.` : `${phone} points on this phone · ${wallet} with this wallet.`,
   skrSoon: 'Points turn into SKR from a public pool. The SKR balance shows here once SolSentry turns it on.',
   claim: 'Claim SKR',
   claiming: 'Waiting for the wallet…',
@@ -167,7 +169,6 @@ export const ACCOUNT_TEXT = {
   viewTx: 'View on Solscan',
   pointsSoon: 'Estimate kept on this phone. The balance that counts is the one SolSentry computes from your signed results.',
   pointsServer: 'Balance from SolSentry, computed from the signed results of this phone.',
-  pointsLocal: (estimate: string) => `Estimate kept on this phone: ${estimate} points.`,
   rateTitle: 'Multipliers',
   rateGenesis: 'Wallet with a Seeker Genesis Token',
   rateRpc: 'Your own RPC, tested with every capability full',

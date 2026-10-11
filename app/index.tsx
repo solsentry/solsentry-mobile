@@ -256,7 +256,11 @@ export default function ValidateScreen() {
               )
             )}
           </View>
-          {skr && server && <Text style={styles.muted}>{ACCOUNT_TEXT.skrPoints(formatServerPoints(server.points))}</Text>}
+          {server && (
+            <Text style={styles.muted}>
+              {ACCOUNT_TEXT.pointsSplit(formatServerPoints(server.points), server.wallet?.points != null ? formatServerPoints(server.wallet.points) : null)}
+            </Text>
+          )}
           {skrGenesisOnly && <Text style={styles.muted}>{ACCOUNT_TEXT.skrGenesisOnly}</Text>}
           <Text accessibilityLiveRegion="polite" style={styles.muted}>
             {running ? statusText(status) : statusText({ kind: 'idle' })} · {readingViaText(provider.label)}

@@ -44,6 +44,14 @@ export function useAccount() {
     }, []),
   )
 
+  // A claim result belongs to the wallet it paid: another wallet linked (here or on another screen) clears it.
+  const claimWallet = useRef<string | null>(null)
+  useEffect(() => {
+    const address = wallet?.address ?? null
+    if (claimWallet.current !== address) setClaim(null)
+    claimWallet.current = address
+  }, [wallet?.address])
+
   // Only a hardware key signs results, so only its id can have a server balance.
   const keyId = device?.kind === 'key' ? device.id : null
   const readServer = useRef<(() => void) | null>(null)

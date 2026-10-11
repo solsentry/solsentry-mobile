@@ -61,3 +61,13 @@ describe('server class', () => {
     expect(withServerClass(cached, null)).toBe(cached)
   })
 })
+
+describe('phone and wallet totals', () => {
+  const base = { points: 84, matched: 42, since: null, today: { counted: 42, cap: 200 } }
+  it('keeps the wallet total apart from the phone total', () => {
+    const got = parseServerPoints({ ...base, wallet: { address: 'EfCs…fmZa', points: 0, link_id: 3 } })
+    expect(got?.points).toBe(84)
+    expect(got?.wallet).toEqual({ address: 'EfCs…fmZa', linkId: 3, points: 0 })
+    expect(parseServerPoints({ ...base, wallet: { address: 'x', link_id: 3 } })?.wallet?.points).toBeNull()
+  })
+})

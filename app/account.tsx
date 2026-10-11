@@ -62,7 +62,12 @@ export default function AccountScreen() {
             <Text style={styles.unit}>{HOME_TEXT.pointsUnit}</Text>
           </View>
           <Text style={styles.muted}>{server ? T.pointsServer : T.pointsSoon}</Text>
-          {server && kyw.loaded && <Text style={styles.muted}>{T.pointsLocal(formatPoints(kyw.history.pointHalves))}</Text>}
+          {/* The phone's own count (1 per result) would contradict the server's multipliers: once SolSentry answers, only its totals show. */}
+          {server && (
+            <Text style={styles.muted}>
+              {T.pointsSplit(formatServerPoints(server.points), server.wallet?.points != null ? formatServerPoints(server.wallet.points) : null)}
+            </Text>
+          )}
           {!wallet && <Text style={styles.warn}>{T.pendingNote}</Text>}
         </FadeUp>
 
