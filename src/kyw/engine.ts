@@ -51,7 +51,7 @@ function endpoint() {
 export function statusText(status: LoopStatus): string {
   switch (status.kind) {
     case 'idle':
-      return 'Validation is off'
+      return 'Verification is off'
     case 'requesting':
       return 'Requesting a task'
     case 'reading':
@@ -117,7 +117,7 @@ async function loop(): Promise<void> {
         }
         await recordResult(result.record, earned)
         const { accepted, diverged, unknown } = getState().history.counters
-        KywService.setText(`Validation is on · ${accepted} matched · ${diverged} diverged · ${unknown} no result`)
+        KywService.setText(`Verification is on · ${accepted} matched · ${diverged} diverged · ${unknown} no result`)
       },
       onStatus: (status) => setStatus(stopRequested && status.kind !== 'idle' ? { kind: 'stopping' } : status),
       sleep,
@@ -156,7 +156,7 @@ export async function startValidation(): Promise<void> {
     try {
       // No loop is running here (checked above), so ask for a fresh task even if a service from a
       // previous run is still up.
-      KywService.start('Validation is on', true)
+      KywService.start('Verification is on', true)
       setRunning(true)
       return
     } catch {

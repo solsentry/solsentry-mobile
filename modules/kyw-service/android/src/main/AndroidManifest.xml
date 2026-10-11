@@ -13,7 +13,7 @@
       android:foregroundServiceType="specialUse">
       <property
         android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-        android:value="Reads public Solana transactions and compares them with a reference while the user keeps validation switched on." />
+        android:value="Reads public Solana transactions and compares them with a reference while the user keeps verification switched on." />
     </service>
   </application>
 </manifest>

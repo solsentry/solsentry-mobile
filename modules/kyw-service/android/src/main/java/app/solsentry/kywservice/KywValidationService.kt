@@ -70,13 +70,13 @@ class KywValidationService : HeadlessJsTaskService() {
 
     @Volatile var running = false
     @Volatile private var taskStarted = false
-    @Volatile var lastText = "Validation is on"
+    @Volatile var lastText = "Verification is on"
 
     fun buildNotification(context: Context, text: String): Notification {
       val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && manager.getNotificationChannel(CHANNEL_ID) == null) {
-        val channel = NotificationChannel(CHANNEL_ID, "Validation", NotificationManager.IMPORTANCE_LOW)
-        channel.description = "Shown while validation is running."
+        val channel = NotificationChannel(CHANNEL_ID, "Verification", NotificationManager.IMPORTANCE_LOW)
+        channel.description = "Shown while verification is running."
         channel.setShowBadge(false)
         manager.createNotificationChannel(channel)
       }
