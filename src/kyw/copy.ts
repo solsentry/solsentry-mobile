@@ -141,7 +141,7 @@ export const ACCOUNT_TEXT = {
   skrTitle: 'SKR balance',
   skrServer: 'SKR SolSentry owes your linked wallet, from the signed results of this phone. Paid from a public pool.',
   skrServerLater: 'SKR SolSentry owes your linked wallet, from the signed results of this phone. Earned now, paid out after the hackathon.',
-  skrRate: '1 SKR per 40 matched results.',
+  skrRate: '1 SKR per 40 points. A Genesis wallet earns 2 points per matched result (2.2 with your own RPC).',
   skrGenesisOnly: 'SKR rewards are for Seeker Genesis Token holders during the Seeker launch. Your points still count.',
   skrWindow: (earned: string, cap: string) => `${earned}/${cap} SKR today`,
   skrPoints: (points: string) => `${points} points`,
