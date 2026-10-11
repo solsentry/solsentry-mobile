@@ -45,6 +45,6 @@ export const REVOKE_ENABLED: boolean = true
 
 /**
  * How SKR reaches the linked wallet. 'claim': the Claim button builds the transaction the wallet
- * signs and sends. 'daily': no Claim; SolSentry pays linked wallets in one daily run from the pool.
+ * signs and sends. 'later': no Claim; the balance accrues and is paid out from the ledger later.
  */
-export const SKR_PAYOUT: 'claim' | 'daily' = 'claim'
+export const SKR_PAYOUT: 'claim' | 'later' = 'claim'

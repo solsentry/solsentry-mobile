@@ -55,7 +55,7 @@ export default function ValidateScreen() {
   const { settings, history, running, status } = kyw
   const server = account.server
   const skr = server?.skr ?? null
-  // Claim takes the CTA once SolSentry sends the SKR block and the claim is not off (never with daily payout).
+  // Claim takes the CTA once SolSentry sends the SKR block and the claim is not off (never with a later payout).
   const claimHere = SKR_PAYOUT === 'claim' && skr !== null && skr.pool !== 'empty' && account.claim?.kind !== 'disabled'
   const claimReady = claimHere && account.wallet !== null && (skr.balanceRaw >= skr.minClaimRaw || skr.openClaim !== null)
   const claimOut = account.claim ? outcomeText(account.claim) : null
