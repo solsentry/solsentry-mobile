@@ -7,7 +7,7 @@ import { Avatar } from '@/src/kyw/Avatar'
 import { SkrCard } from '@/src/kyw/SkrCard'
 import { ACCOUNT_TEXT as T, HOME_TEXT } from '@/src/kyw/copy'
 import { formatServerPoints } from '@/src/kyw/server-points'
-import { POINT_RULE, formatPoints, independentRpc, multiplier, multiplierText } from '@/src/kyw/points'
+import { POINT_RULE, formatPoints, independentRpc, multiplier, multiplierText, withServerClass } from '@/src/kyw/points'
 import { useAccount } from '@/src/kyw/useAccount'
 import { useKyw } from '@/src/kyw/useKyw'
 import { useSkrName } from '@/src/kyw/useSkrName'
@@ -26,11 +26,17 @@ export default function AccountScreen() {
   const kyw = useKyw()
   const skrName = useSkrName(wallet?.address ?? null)
   const provider = kyw.settings.provider
-  const ctx = {
-    deviceVerified: device?.kind === 'key' && device.check === 'verified',
-    genesis: wallet?.genesis === true || wallet?.sgt.status === 'verified',
-    independentRpc: independentRpc(provider, kyw.probeReports[provider]),
-  }
+  const userClass = server?.userClass ?? null
+  // Live once SolSentry states the class: its multipliers count; before that they read as planned.
+  const live = userClass !== null
+  const ctx = withServerClass(
+    {
+      deviceVerified: device?.kind === 'key' && device.check === 'verified',
+      genesis: wallet?.genesis === true || wallet?.sgt.status === 'verified',
+      independentRpc: independentRpc(provider, kyw.probeReports[provider]),
+    },
+    userClass,
+  )
   const now = multiplier(ctx)
   const signed = device?.kind === 'key'
   const rates: [string, string, boolean][] = [
@@ -62,17 +68,28 @@ export default function AccountScreen() {
 
         <FadeUp order={1} style={styles.card}>
           <Text style={styles.eyebrow}>
-            {T.rateTitle}{now > 0 ? ` · ${multiplierText(now)}` : ''} · {T.planned}
+            {T.rateTitle}{now > 0 ? ` · ${multiplierText(now)}` : ''}{live ? '' : ` · ${T.planned}`}
           </Text>
           {rates.map(([label, value, on]) => (
             <View key={label} style={styles.row}>
               <Text style={[styles.rate, { color: on ? theme.actionText : theme.muted }]}>{value}</Text>
               <Text style={[styles.text, !on && styles.off]}>{label}</Text>
-              <Text style={styles.tag}>{T.planned}</Text>
+              {(!live || on) && <Text style={styles.tag}>{live ? T.active : T.planned}</Text>}
             </View>
           ))}
-          <Text style={styles.muted}>{signed ? T.rateNow(POINT_RULE.dailyCap) : T.rateZero}</Text>
-          <Text style={styles.muted}>{T.ratePlanned}</Text>
+          {!signed ? (
+            <Text style={styles.muted}>{T.rateZero}</Text>
+          ) : live && server ? (
+            <>
+              <Text style={styles.muted}>{T.rateLive(multiplierText(Math.max(now, 1)).replace('×', ''), server.today.cap)}</Text>
+              {!ctx.deviceVerified && <Text style={styles.muted}>{T.rateUnverified}</Text>}
+            </>
+          ) : (
+            <>
+              <Text style={styles.muted}>{T.rateNow(POINT_RULE.dailyCap)}</Text>
+              <Text style={styles.muted}>{T.ratePlanned}</Text>
+            </>
+          )}
         </FadeUp>
 
         <FadeUp order={2} style={styles.card}>

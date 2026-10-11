@@ -20,7 +20,7 @@ import * as Linking from 'expo-linking'
 import { SKR_PAYOUT, solscanTx } from '@/src/config'
 import { outcomeText } from '@/src/kyw/SkrCard'
 import { formatServerPoints, formatSkr as formatSkrShort, skrClosed, skrFigure } from '@/src/kyw/server-points'
-import { formatPoints, independentRpc, multiplier, multiplierText, POINT_RULE } from '@/src/kyw/points'
+import { formatPoints, independentRpc, multiplier, multiplierText, POINT_RULE, withServerClass } from '@/src/kyw/points'
 import { PROVIDERS, providerInfo, type ProviderId } from '@/src/kyw/providers'
 import { RateDial } from '@/src/kyw/RateDial'
 import { recordProbeReport, setSecret, updateSettings } from '@/src/kyw/store'
@@ -142,11 +142,15 @@ export default function ValidateScreen() {
   const perHour = tasksPerHour(records, Date.now())
   const wallet = account.wallet
   const skrName = useSkrName(wallet?.address ?? null)
-  const ctx = {
-    deviceVerified: account.device?.kind === 'key' && account.device.check === 'verified',
-    genesis: wallet?.sgt.status === 'verified',
-    independentRpc: independentRpc(provider.id, report),
-  }
+  // The chips follow the class SolSentry holds once it states one, not the phone's cached check.
+  const ctx = withServerClass(
+    {
+      deviceVerified: account.device?.kind === 'key' && account.device.check === 'verified',
+      genesis: wallet?.sgt.status === 'verified',
+      independentRpc: independentRpc(provider.id, report),
+    },
+    server?.userClass ?? null,
+  )
   const rate = multiplier(ctx)
   const rateChips: [string, boolean][] = [
     [HOME_TEXT.rateDevice, ctx.deviceVerified],
@@ -316,7 +320,7 @@ export default function ValidateScreen() {
         <FadeUp order={3}>
           <Pressable accessibilityRole="button" accessibilityLabel={ACCOUNT_TEXT.rateTitle} onPress={() => router.push('/account')} style={styles.level}>
             <Text style={styles.eyebrow}>
-              {HOME_TEXT.rate}{rate > 0 ? ` · ${multiplierText(rate)}` : ''} · {ACCOUNT_TEXT.planned}
+              {HOME_TEXT.rate}{rate > 0 ? ` · ${multiplierText(rate)}` : ''}{server?.userClass ? '' : ` · ${ACCOUNT_TEXT.planned}`}
             </Text>
             <RateDial rate={rate} running={running} />
             <View style={styles.segs}>

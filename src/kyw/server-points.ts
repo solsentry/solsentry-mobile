@@ -1,3 +1,5 @@
+import type { UserClass } from './points'
+
 // Balance that SolSentry computes from the signed results of this device (GET /v1/kyw/points).
 // Until the route answers, the app shows its own estimate; a failed read is "not known", never zero.
 
@@ -12,6 +14,8 @@ export interface ServerPoints {
   wallet: { address: string; linkId: number } | null
   /** SKR the server owes this device or its wallet (CONTRATO_APP_para_DEV_EXEC_skr_claim); null until the server sends it. */
   skr: SkrBalance | null
+  /** The class SolSentry holds for this key now; null when the server did not send a known one. */
+  userClass: UserClass | null
 }
 
 export interface SkrBalance {
@@ -69,6 +73,7 @@ export function parseServerPoints(body: unknown): ServerPoints | null {
     today: { counted: today.counted, cap: today.cap },
     wallet: parseWallet(b.wallet),
     skr: parseSkr(b.skr),
+    userClass: b.user_class === 'unattested' || b.user_class === 'attested' || b.user_class === 'attested_genesis' ? b.user_class : null,
   }
 }
 

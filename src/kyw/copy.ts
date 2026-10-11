@@ -173,6 +173,10 @@ export const ACCOUNT_TEXT = {
   rateRpc: 'Your own RPC, tested with every capability full',
   rateNow: (cap: number) => `Today each matched, signed result counts 1 point, up to ${cap} a day.`,
   ratePlanned: 'Multipliers are planned and not counted yet.',
+  rateLive: (points: string, cap: number | null) =>
+    `Each matched, signed result counts ${points} point${points === '1' ? '' : 's'}${cap === null ? ', with no daily cap.' : `, up to ${cap} results a day.`}`,
+  rateUnverified: 'SolSentry has not verified this phone\'s hardware key, so no multiplier applies.',
+  active: 'Active',
   rateZero: 'This phone has no hardware key, so its results are not signed and do not count points.',
   today: (n: number, cap: number) => `${Math.min(n, cap)}/${cap} today`,
   link: 'Link wallet',

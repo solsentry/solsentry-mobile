@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { fetchServerPoints, formatServerPoints, parseServerPoints } from '../src/kyw/server-points'
+import { withServerClass } from '../src/kyw/points'
 
 const body = { points: 12, matched: 15, since: '2026-10-10T12:00:00Z', today: { counted: 12, cap: 200 }, user_class: 'unattested' }
 
@@ -11,7 +12,7 @@ const fakeFetch = (status: number, json: unknown, seen: string[] = []) =>
 
 describe('parseServerPoints', () => {
   it('reads its fields and ignores the rest; no link and no SKR block read as null', () => {
-    expect(parseServerPoints(body)).toEqual({ points: 12, matched: 15, since: '2026-10-10T12:00:00Z', today: { counted: 12, cap: 200 }, wallet: null, skr: null })
+    expect(parseServerPoints(body)).toEqual({ points: 12, matched: 15, since: '2026-10-10T12:00:00Z', today: { counted: 12, cap: 200 }, wallet: null, skr: null, userClass: 'unattested' })
   })
   it('accepts a device with no result yet and a device with no cap', () => {
     expect(parseServerPoints({ ...body, points: 0, matched: 0, since: null, today: { counted: 0, cap: null } })?.today.cap).toBeNull()
@@ -42,5 +43,21 @@ describe('formatServerPoints', () => {
     expect(formatServerPoints(1200)).toBe('1,200')
     expect(formatServerPoints(3.3)).toBe('3.3')
     expect(formatServerPoints(1.105)).toBe('1.11')
+  })
+})
+
+describe('server class', () => {
+  const base = { points: 0, matched: 0, since: null, today: { counted: 0, cap: 200 } }
+  it('reads a known user_class and drops anything else', () => {
+    expect(parseServerPoints({ ...base, user_class: 'attested_genesis' })?.userClass).toBe('attested_genesis')
+    expect(parseServerPoints({ ...base, user_class: 'gold' })?.userClass).toBeNull()
+    expect(parseServerPoints(base)?.userClass).toBeNull()
+  })
+  it('the class SolSentry holds wins over the phone cached check; own RPC stays local', () => {
+    const cached = { deviceVerified: true, genesis: true, independentRpc: true }
+    expect(withServerClass(cached, 'unattested')).toEqual({ deviceVerified: false, genesis: false, independentRpc: true })
+    expect(withServerClass(cached, 'attested')).toEqual({ deviceVerified: true, genesis: false, independentRpc: true })
+    expect(withServerClass({ ...cached, genesis: false }, 'attested_genesis')).toMatchObject({ genesis: true })
+    expect(withServerClass(cached, null)).toBe(cached)
   })
 })

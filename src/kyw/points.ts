@@ -24,6 +24,18 @@ export interface PointsContext {
   independentRpc: boolean
 }
 
+/** The server's classes (integrations/kyw/points.py): attested = SolSentry verified the key; genesis adds a linked Genesis wallet. */
+export type UserClass = 'unattested' | 'attested' | 'attested_genesis'
+
+/**
+ * What SolSentry holds wins over what the phone remembers: a key verified once on the phone may
+ * have no attestation on the server (a cached "verified" is not a class). Own RPC stays local.
+ */
+export function withServerClass(ctx: PointsContext, userClass: UserClass | null): PointsContext {
+  if (userClass === null) return ctx
+  return { ...ctx, deviceVerified: userClass !== 'unattested', genesis: userClass === 'attested_genesis' }
+}
+
 /** True when the report for this provider measured every capability as full and found a safe pace. */
 export function isFullRpc(report: ProbeReport | null | undefined): boolean {
   if (!report) return false
