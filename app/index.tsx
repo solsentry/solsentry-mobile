@@ -15,7 +15,11 @@ import { countedToday, tasksPerHour } from '@/src/kyw/history'
 import { useAccount } from '@/src/kyw/useAccount'
 import { WalletCard } from '@/src/kyw/WalletCard'
 import { chosenRpcProbeIsStale, probeChosenRpc } from '@/src/kyw/probe-client'
-import { formatServerPoints } from '@/src/kyw/server-points'
+import * as Linking from 'expo-linking'
+
+import { solscanTx } from '@/src/config'
+import { outcomeText } from '@/src/kyw/SkrCard'
+import { formatServerPoints, formatSkr as formatSkrShort, skrFigure } from '@/src/kyw/server-points'
 import { formatPoints, independentRpc, multiplier, multiplierText, POINT_RULE } from '@/src/kyw/points'
 import { PROVIDERS, providerInfo, type ProviderId } from '@/src/kyw/providers'
 import { RateDial } from '@/src/kyw/RateDial'
@@ -50,6 +54,24 @@ export default function ValidateScreen() {
   const account = useAccount()
   const { settings, history, running, status } = kyw
   const server = account.server
+  const skr = server?.skr ?? null
+  // Claim takes the CTA once SolSentry sends the SKR block and the claim is not off.
+  const claimHere = skr !== null && skr.pool !== 'empty' && account.claim?.kind !== 'disabled'
+  const claimReady = claimHere && account.wallet !== null && (skr.balanceRaw >= skr.minClaimRaw || skr.openClaim !== null)
+  const claimOut = account.claim ? outcomeText(account.claim) : null
+
+  // The mockup's credit toast: SKR the server added since the last read, shown for 2.4 s.
+  const [credit, setCredit] = useState<bigint | null>(null)
+  const lastSkr = useRef<bigint | null>(null)
+  const skrBalance = skr?.balanceRaw ?? null
+  useEffect(() => {
+    const before = lastSkr.current
+    lastSkr.current = skrBalance
+    if (before === null || skrBalance === null || skrBalance <= before) return
+    setCredit(skrBalance - before)
+    const t = setTimeout(() => setCredit(null), 2_400)
+    return () => clearTimeout(t)
+  }, [skrBalance])
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [rpcMenu, setRpcMenu] = useState(false)
   const provider = providerInfo(settings.provider)
@@ -203,12 +225,24 @@ export default function ValidateScreen() {
           </Pressable>
           <View style={styles.valueRow}>
             <View style={styles.value}>
-              <FlashText value={server ? server.points * 2 : history.pointHalves} armed={kyw.loaded} color={theme.text} flash={theme.actionText} style={styles.valueMain}>
-                {server ? formatServerPoints(server.points) : kyw.loaded ? formatPoints(history.pointHalves) : ACCOUNT_TEXT.pointsUnknown}
-              </FlashText>
-              <Text style={styles.valueTail}>{HOME_TEXT.pointsUnit}</Text>
+              {server?.skr ? (
+                // SKR as SolSentry's ledger states it; points stay a detail below.
+                <>
+                  <FlashText value={Number(server.skr.balanceRaw)} armed={kyw.loaded} color={theme.text} flash={theme.actionText} style={styles.valueMain}>
+                    {skrFigure(server.skr.balanceRaw).main}
+                  </FlashText>
+                  <Text style={styles.valueSmall}>{skrFigure(server.skr.balanceRaw).tail}</Text>
+                </>
+              ) : (
+                <FlashText value={server ? server.points * 2 : history.pointHalves} armed={kyw.loaded} color={theme.text} flash={theme.actionText} style={styles.valueMain}>
+                  {server ? formatServerPoints(server.points) : kyw.loaded ? formatPoints(history.pointHalves) : ACCOUNT_TEXT.pointsUnknown}
+                </FlashText>
+              )}
+              <Text style={styles.valueTail}>{server?.skr ? ACCOUNT_TEXT.skrUnit : HOME_TEXT.pointsUnit}</Text>
             </View>
-            {server ? (
+            {server?.skr ? (
+              <Text style={styles.rateTag}>{ACCOUNT_TEXT.skrWindow(formatSkrShort(server.skr.window.earnedRaw), formatSkrShort(server.skr.window.capRaw))}</Text>
+            ) : server ? (
               server.today.cap !== null && <Text style={styles.rateTag}>{ACCOUNT_TEXT.today(server.today.counted, server.today.cap)}</Text>
             ) : (
               account.device?.kind === 'key' && (
@@ -216,13 +250,34 @@ export default function ValidateScreen() {
               )
             )}
           </View>
+          {server?.skr && <Text style={styles.muted}>{ACCOUNT_TEXT.skrPoints(formatServerPoints(server.points))}</Text>}
           <Text accessibilityLiveRegion="polite" style={styles.muted}>
             {running ? statusText(status) : statusText({ kind: 'idle' })} · {readingViaText(provider.label)}
           </Text>
-          <Pressable accessibilityRole="button" onPress={() => router.push('/account')} style={({ pressed }) => [styles.cta, pressed && { opacity: 0.85 }]}>
-            <Text style={styles.ctaText}>{HOME_TEXT.pointsCta}</Text>
-            <Ionicons name="arrow-forward" size={16} color={theme.ink} />
-          </Pressable>
+          {server?.skr?.pool === 'empty' && <Text style={styles.warnLine}>{ACCOUNT_TEXT.poolEmpty}</Text>}
+          {claimHere ? (
+            // The mockup's Claim: signs and sends from here; without a wallet or enough SKR it opens Points, which says why.
+            <Pressable
+              accessibilityRole="button"
+              disabled={account.claiming}
+              onPress={() => (claimReady ? void account.claimSkr() : router.push('/account'))}
+              style={({ pressed }) => [styles.cta, (pressed || account.claiming) && { opacity: 0.85 }]}
+            >
+              <Text style={styles.ctaText}>{account.claiming ? ACCOUNT_TEXT.claiming : HOME_TEXT.claimCta}</Text>
+              <Ionicons name="arrow-forward" size={16} color={theme.ink} />
+            </Pressable>
+          ) : (
+            <Pressable accessibilityRole="button" onPress={() => router.push('/account')} style={({ pressed }) => [styles.cta, pressed && { opacity: 0.85 }]}>
+              <Text style={styles.ctaText}>{HOME_TEXT.pointsCta}</Text>
+              <Ionicons name="arrow-forward" size={16} color={theme.ink} />
+            </Pressable>
+          )}
+          {claimOut && <Text style={claimOut.good ? styles.goodLine : styles.warnLine}>{claimOut.text}</Text>}
+          {claimOut?.signature && (
+            <Pressable accessibilityRole="link" onPress={() => void Linking.openURL(solscanTx(claimOut.signature!))}>
+              <Text style={styles.link}>{ACCOUNT_TEXT.viewTx}</Text>
+            </Pressable>
+          )}
         </FadeUp>
 
         <FadeUp order={2} style={styles.card}>
@@ -356,6 +411,12 @@ export default function ValidateScreen() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+      {credit !== null && (
+        <FadeUp order={0} style={styles.toast}>
+          <Text style={styles.toastText}>{HOME_TEXT.creditToast}</Text>
+          <Text style={styles.toastChip}>+{formatSkrShort(credit)} SKR</Text>
+        </FadeUp>
+      )}
     </SafeAreaView>
   )
 }
@@ -410,6 +471,30 @@ const useStyles = makeStyles((theme) => StyleSheet.create({
   value: { flexDirection: 'row', alignItems: 'baseline', gap: 6 },
   valueMain: { ...figure, color: theme.text, fontSize: 46, lineHeight: 52, fontWeight: '500', letterSpacing: -1.8 },
   valueTail: { ...mono, color: theme.muted, fontSize: 20 },
+  valueSmall: { ...figure, color: theme.muted, fontSize: 20, marginLeft: -4 },
+  toast: {
+    position: 'absolute',
+    top: 70,
+    left: 16,
+    right: 16,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: theme.action,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingLeft: 18,
+    paddingRight: 8,
+    shadowColor: theme.action,
+    shadowOpacity: 0.35,
+    shadowRadius: 20,
+    elevation: 8,
+  },
+  toastText: { ...mono, color: theme.ink, fontSize: 12, letterSpacing: 0.5 },
+  toastChip: { ...mono, color: theme.ink, fontSize: 13, fontWeight: '500', height: 32, lineHeight: 32, paddingHorizontal: 12, borderRadius: 16, overflow: 'hidden', backgroundColor: 'rgba(23,16,10,0.14)' },
+  warnLine: { ...sans, color: theme.actionText, fontSize: 12, lineHeight: 17, paddingHorizontal: 6 },
+  goodLine: { ...sans, color: theme.actionText, fontSize: 13, lineHeight: 18, paddingHorizontal: 6 },
+  link: { ...mono, color: theme.actionText, fontSize: 12, textDecorationLine: 'underline', paddingHorizontal: 6 },
   rateTag: { ...mono, color: theme.actionText, fontSize: 11, marginBottom: 8 },
   cta: {
     height: 48,

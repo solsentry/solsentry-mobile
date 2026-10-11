@@ -10,8 +10,8 @@ const fakeFetch = (status: number, json: unknown, seen: string[] = []) =>
   }) as unknown as typeof fetch
 
 describe('parseServerPoints', () => {
-  it('reads the four fields and ignores the rest', () => {
-    expect(parseServerPoints(body)).toEqual({ points: 12, matched: 15, since: '2026-10-10T12:00:00Z', today: { counted: 12, cap: 200 } })
+  it('reads its fields and ignores the rest; no link and no SKR block read as null', () => {
+    expect(parseServerPoints(body)).toEqual({ points: 12, matched: 15, since: '2026-10-10T12:00:00Z', today: { counted: 12, cap: 200 }, wallet: null, skr: null })
   })
   it('accepts a device with no result yet and a device with no cap', () => {
     expect(parseServerPoints({ ...body, points: 0, matched: 0, since: null, today: { counted: 0, cap: null } })?.today.cap).toBeNull()

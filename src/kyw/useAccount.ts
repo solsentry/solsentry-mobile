@@ -5,7 +5,9 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { fetchWithTimeout } from '../guard/fetch-timeout'
 
 import { pointsStatus, type LinkedWallet } from './account'
-import { forgetLinkedWallet, linkWalletNow, loadLinkedWallet } from './account-runtime'
+import { forgetLinkedWallet, linkWalletNow, loadLinkedWallet, unlinkWalletNow } from './account-runtime'
+import type { ClaimOutcome } from './claim-flow'
+import { claimNow } from './claim-runtime'
 import { KYW_API_BASE } from './config'
 import { ACCOUNT_TEXT as T } from './copy'
 import type { DeviceIdentity } from './device'
@@ -25,6 +27,8 @@ export function useAccount() {
   const [note, setNote] = useState<string | null>(null)
   const [server, setServer] = useState<ServerPoints | null>(null)
   const [focused, setFocused] = useState(false)
+  const [claiming, setClaiming] = useState(false)
+  const [claim, setClaim] = useState<ClaimOutcome | null>(null)
 
   // Re-read on focus: the wallet can be linked or unlinked on another screen.
   useFocusEffect(
@@ -44,13 +48,20 @@ export function useAccount() {
   const keyId = device?.kind === 'key' ? device.id : null
   const readServer = useRef<(() => void) | null>(null)
   const lastRead = useRef(0)
+  /** When the request behind `server` started: an answer older than a link says nothing about it. */
+  const readStarted = useRef(0)
   useEffect(() => {
     if (!focused || !keyId) return
     let live = true
     const deps = { fetch: fetchWithTimeout(fetch, 10_000, 'Request'), apiBase: KYW_API_BASE }
     const read = () => {
-      lastRead.current = Date.now()
-      void fetchServerPoints(deps, keyId).then((p) => live && p && setServer(p))
+      const started = Date.now()
+      lastRead.current = started
+      void fetchServerPoints(deps, keyId).then((p) => {
+        if (!live || !p) return
+        readStarted.current = started
+        setServer(p)
+      })
     }
     readServer.current = read
     read()
@@ -61,6 +72,15 @@ export function useAccount() {
       clearInterval(timer)
     }
   }, [focused, keyId])
+
+  // The server is the record of the link: one it no longer holds (unlinked, or replaced) is dropped here.
+  useEffect(() => {
+    if (!server || !wallet || readStarted.current <= wallet.linkedAt) return
+    if (server.wallet === null || server.wallet.linkId !== wallet.linkId) {
+      void forgetLinkedWallet()
+      setWallet(null)
+    }
+  }, [server, wallet])
 
   // While validating, the balance follows the matched results instead of jumping once a minute.
   const accepted = useKyw().history.counters.accepted
@@ -76,17 +96,44 @@ export function useAccount() {
     setBusy(false)
     if (r.ok) setWallet(r.wallet)
     else {
-      const text = { cancelled: T.cancelled, timeout: T.timedOut, bad_signature: T.badSignature, failed: T.failed }
+      const text = {
+        cancelled: T.cancelled,
+        timeout: T.timedOut,
+        bad_signature: T.badSignature,
+        failed: T.failed,
+        server: T.linkRefused,
+        no_device_key: T.noDeviceKey,
+      }
       setNote(text[r.reason])
-      if (r.reason === 'failed' && r.detail) console.warn('wallet link failed:', r.detail)
+      if (r.detail) console.warn('wallet link failed:', r.reason, r.detail)
     }
+    readServer.current?.()
   }
 
   const unlink = async () => {
-    await forgetLinkedWallet()
-    setWallet(null)
+    if (!wallet || busy) return
+    setBusy(true)
+    setNote(null)
+    const ok = await unlinkWalletNow(wallet)
+    setBusy(false)
+    if (ok) {
+      setWallet(null)
+      setClaim(null)
+      readServer.current?.()
+    } else setNote(T.unlinkFailed)
+  }
+
+  const claimSkr = async () => {
+    if (!wallet || claiming) return
+    setClaiming(true)
+    setClaim(null)
+    const out = await claimNow(wallet).catch((e): ClaimOutcome => ({ kind: 'error', detail: String(e).slice(0, 200) }))
+    setClaiming(false)
+    setClaim(out)
+    if (out.kind === 'error' || out.kind === 'refused') console.warn('claim:', out.kind, 'detail' in out ? out.detail : out.why)
+    readServer.current?.()
   }
 
   const status = device ? pointsStatus({ deviceCheck: device.check, deviceKind: device.kind, wallet }) : null
-  return { device, wallet, busy, note, link, unlink, status, server }
+  return { device, wallet, busy, note, link, unlink, status, server, claiming, claim, claimSkr }
 }

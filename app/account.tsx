@@ -4,6 +4,7 @@ import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-nat
 import { SafeAreaView } from 'react-native-safe-area-context'
 
 import { Avatar } from '@/src/kyw/Avatar'
+import { SkrCard } from '@/src/kyw/SkrCard'
 import { ACCOUNT_TEXT as T, HOME_TEXT } from '@/src/kyw/copy'
 import { formatServerPoints } from '@/src/kyw/server-points'
 import { POINT_RULE, formatPoints, independentRpc, multiplier, multiplierText } from '@/src/kyw/points'
@@ -20,13 +21,14 @@ export default function AccountScreen() {
   const router = useRouter()
   const theme = useTheme()
   const styles = useStyles()
-  const { wallet, device, busy, note, link, unlink, server } = useAccount()
+  const account = useAccount()
+  const { wallet, device, busy, note, link, unlink, server } = account
   const kyw = useKyw()
   const skrName = useSkrName(wallet?.address ?? null)
   const provider = kyw.settings.provider
   const ctx = {
     deviceVerified: device?.kind === 'key' && device.check === 'verified',
-    genesis: wallet?.sgt.status === 'verified',
+    genesis: wallet?.genesis === true || wallet?.sgt.status === 'verified',
     independentRpc: independentRpc(provider, kyw.probeReports[provider]),
   }
   const now = multiplier(ctx)
@@ -41,8 +43,12 @@ export default function AccountScreen() {
     <SafeAreaView style={styles.safe}>
       <ScreenBar title={T.title} onBack={() => router.back()} />
       <ScrollView contentContainerStyle={styles.body}>
+        <FadeUp order={0}>
+          <SkrCard account={account} server={server} />
+        </FadeUp>
+
         <FadeUp order={0} style={styles.card}>
-          <Text style={styles.eyebrow}>{T.balance}</Text>
+          <Text style={styles.eyebrow}>{server?.skr ? T.pointsLabel : T.balance}</Text>
           <View style={styles.value}>
             <FlashText value={server ? server.points * 2 : kyw.history.pointHalves} armed={kyw.loaded} color={theme.text} flash={theme.actionText} style={styles.points}>
               {server ? formatServerPoints(server.points) : kyw.loaded ? formatPoints(kyw.history.pointHalves) : T.pointsUnknown}
@@ -81,8 +87,8 @@ export default function AccountScreen() {
                 </View>
               </View>
               {sgtLine && <Text style={wallet.sgt.status === 'verified' ? styles.good : styles.muted}>{sgtLine}</Text>}
-              {!wallet.synced && <Text style={styles.muted}>{T.notSynced}</Text>}
-              <Button variant="secondary" title={T.unlink} onPress={() => void unlink()} />
+              <Text style={styles.muted}>{T.synced}</Text>
+              <Button variant="secondary" title={T.unlink} busy={busy} onPress={() => void unlink()} />
             </>
           ) : busy ? (
             <View style={styles.row}>
@@ -97,7 +103,7 @@ export default function AccountScreen() {
 
         <FadeUp order={3} style={styles.card}>
           <Text style={styles.eyebrow}>{T.redeemTitle}</Text>
-          <Text style={styles.muted}>{T.redeemNote}</Text>
+          <Text style={styles.muted}>{server?.skr ? T.redeemNoteSkr : T.redeemNote}</Text>
           {T.redeemItems.map((i) => (
             <View key={i} style={styles.item}>
               <Text style={[styles.text, styles.off]}>{i}</Text>
