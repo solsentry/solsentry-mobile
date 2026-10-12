@@ -1,7 +1,7 @@
 import { sha256 } from '@noble/hashes/sha2.js'
 import { utf8ToBytes } from '@noble/hashes/utils.js'
 import { PublicKey } from '@solana/web3.js'
-import { fetchWithTimeout } from '../guard/fetch-timeout'
+import { fetchWithTimeout } from '../net/fetch-timeout'
 
 /**
  * Name -> address resolution for the recipient field.

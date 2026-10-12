@@ -3,7 +3,7 @@ import Constants from 'expo-constants'
 import { useCallback, useEffect, useState } from 'react'
 import { Linking } from 'react-native'
 
-import { fetchWithTimeout } from '../guard/fetch-timeout'
+import { fetchWithTimeout } from '../net/fetch-timeout'
 import { LATEST_URL, parseLatest, updateToOffer, type LatestBuild } from './update'
 
 const DISMISSED_KEY = 'kyw:update-dismissed'

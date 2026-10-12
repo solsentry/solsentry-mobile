@@ -5,7 +5,7 @@ import Constants from 'expo-constants'
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake'
 
 import * as KywService from '@/modules/kyw-service'
-import { fetchWithTimeout } from '../guard/fetch-timeout'
+import { fetchWithTimeout } from '../net/fetch-timeout'
 import { KYW_API_BASE } from './config'
 import { getDevice, signWithDevice } from './device-runtime'
 import { runLoop, type LoopStatus } from './loop'

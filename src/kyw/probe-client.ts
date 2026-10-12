@@ -2,7 +2,7 @@ import { sha256 } from '@noble/hashes/sha2.js'
 import { bytesToHex, utf8ToBytes } from '@noble/hashes/utils.js'
 
 import { bytesToBase64 } from '../device/attest-logic'
-import { fetchWithTimeout } from '../guard/fetch-timeout'
+import { fetchWithTimeout } from '../net/fetch-timeout'
 import { parseProbeTargets, probeIsStale, runProbe, type ProbeReport, type ProbeTargets } from './probe'
 import { independentRpc } from './points'
 import { resolveEndpoint, type ProviderId } from './providers'

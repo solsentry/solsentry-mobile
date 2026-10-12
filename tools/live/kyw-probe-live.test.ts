@@ -5,7 +5,7 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { expect, it } from 'vitest'
 
-import { fetchWithTimeout } from '../../src/guard/fetch-timeout'
+import { fetchWithTimeout } from '../../src/net/fetch-timeout'
 import { runProbe, type ProbeTargets } from '../../src/kyw/probe'
 
 const out = process.env.KYW_PROBE_OUT ?? ''

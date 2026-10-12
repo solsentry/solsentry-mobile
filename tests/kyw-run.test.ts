@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-import { fetchWithTimeout } from '../src/guard/fetch-timeout'
+import { fetchWithTimeout } from '../src/net/fetch-timeout'
 import { parseTask, shortId } from '../src/kyw-core'
 import { resolveEndpoint, type Endpoint } from '../src/kyw/providers'
 import { runOneTask, type RunDeps } from '../src/kyw/run'

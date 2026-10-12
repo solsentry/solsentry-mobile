@@ -57,7 +57,7 @@ export const light: Palette = {
   levels: ['#E7E2D8', '#F5CFA6', '#EFA764', '#E5852F', '#B95E12'],
 }
 
-/** Dark palette for screens that do not follow the theme switch (Guard, self-test). */
+/** Dark palette for screens that do not follow the theme switch (self-test). */
 export const theme = dark
 
 export const ThemeContext = createContext<Palette>(dark)

@@ -2,42 +2,44 @@
 
 Verify public Solana transactions on your phone.
 
-The app asks the SolSentry server for a task (the signature of one public transaction), reads that
-transaction from a Solana RPC, recomputes a small set of facts from it on the phone, and sends back
-a sha256 digest of those facts. The server compares the digest with its own reference read and
-answers `accepted`, `diverged` or `unknown`. An accepted result reads "Matched SolSentry's
-reference read." It says nothing about any wallet, token or person. Matched, signed results
-count points (one each, up to 200 a day while the server treats every phone as not attested);
-the Genesis and own-RPC multipliers are planned, nothing can be redeemed yet and points have no set value.
+Package id `app.solsentry.mobile`. The public name, slug, scheme and package id are set in `brand.json` only.
+Expo / React Native, Android only. Built for the Solana Seeker; runs on any Android phone.
 
-Package id `app.solsentry.mobile`. The public name, slug, scheme and package id are set in `brand.json` only. Expo / React Native, Android only. It is a sibling of SolSentry
-Guard (`app.solsentry.guard`) and installs next to it.
+## How verification works
+
+1. **Task.** The phone asks SolSentry for a task: the signature of one public Solana transaction.
+2. **Read and recompute.** The phone reads that transaction from a Solana RPC (SolSentry's, or your own URL),
+   recomputes a small set of facts from it (`tx.core`, below) and hashes them into a `fact_digest`.
+3. **Sign and compare.** The phone signs the result with a key that lives in its hardware keystore and sends it.
+   SolSentry compares the digest with its own reference read and answers `accepted`, `diverged` or `unknown`.
+
+An accepted result reads "Matched SolSentry's reference read." It is data verification, not Solana consensus,
+and it says nothing about any wallet, token or person. The server half (task issue, reference read,
+comparison, Android key attestation, points and the SKR claim) lives in
+[`solsentry-mobile-core`](https://github.com/solsentry/solsentry-mobile-core).
 
 ## What it does
 
-- **Home.** The app bar shows the linked wallet (its avatar is drawn from the address, its name is
-  the `.skr` Seeker ID when the wallet has one) and the RPC in use. Below: the points block with
-  the validation switch, a dial pointing at the phone's point rate, the last 28 days as a grid of four
-  weeks (brighter = more matched results), and the last 100 tasks as dots (matched, diverged, no
-  result). Tapping a dot shows that task: part of the signature, the result, the time the read
-  took, the size of the response and the RPC host.
-- **Points.** One point per matched, signed result, up to 200 per UTC day. Only a phone with a
-  hardware key signs its results, so only such a phone counts points. The balance shown is an
-  estimate kept on the phone; the one that counts is computed by SolSentry from the signed
-  results. Linking a wallet (one signed message through the wallet on the phone, no transaction)
-  keeps the points beyond this install. The Genesis and own-RPC multipliers and the redeem list
-  are shown as planned.
-- **RPC choice** (bottom sheet from the RPC pill). `SolSentry (default)` reads through the
-  SolSentry server, which only reads the open task. `Helius`, `QuickNode` and `Solami` (beta) use
-  a key or endpoint URL you paste. The key is sent only to that provider. SolSentry receives the
-  provider host name, never the key. With "Save my key" on, the key is stored with
-  `expo-secure-store` (Android Keystore); with it off, the key lives in memory until the app closes.
-- **Settings.** Light or dark theme (also the sun/moon switch on Home). A foreground service with
-  a fixed notification keeps validation running with the app in the background and with the
-  screen off; battery optimization exemption, only on Wi-Fi, only while charging, pause between
-  tasks; clear the history on this phone.
-- **Kept on the phone.** The last 364 tasks, the activity of the last 28 days, the counters and
-  the points estimate (AsyncStorage). Only part of each signature is stored.
+- **Home.** The app bar shows the linked wallet (avatar drawn from the address, its `.skr` name when it has
+  one) with Verified, Genesis and RPC badges. Below: the last 28 days as a grid, the verification switch and
+  the points (or SKR) figure with today's cap, and the last tasks as dots (matched, diverged, no result).
+- **Points.** Each matched, signed result counts 1 point; bonuses add up: attested device +0.2, linked wallet
+  holding a Seeker Genesis Token +0.3, your own tested RPC +0.1. SolSentry computes the balance from the signed
+  results and caps it per day; past the cap the phone slows down (or spreads tasks over the day, in Settings).
+  Points have no cash value and are not a token. In this test phase of the Seeker launch, Seeker Genesis
+  wallets also get SKR from a pool SolSentry funds, claimed to the wallet with one transaction (Claim).
+  Caps, rates and the Genesis-only rule belong to the test phase and will change.
+- **Wallet.** Linking a wallet is one signed message through Mobile Wallet Adapter, no transaction.
+- **RPC.** `SolSentry (default)` reads through the SolSentry server, which only reads the open task. `Your RPC`
+  takes any HTTPS mainnet URL; "Test this RPC" measures what it serves. The URL is sent only to that RPC;
+  SolSentry receives its host name, never the URL.
+- **Background.** A foreground service keeps verification running with the screen off; only on Wi-Fi, only
+  while charging and the pause between tasks are in Settings. Verification left on turns on again when the
+  app opens after an update or a reboot.
+- **Updates.** Outside a store, the app reads `https://solsentry.app/app/latest.json` and offers a newer build
+  as a link that opens in the browser. Each build carries its own `versionCode` (`app.json`).
+- **Kept on the phone.** The last 364 tasks, the last 28 days, the counters (AsyncStorage). Only part of each
+  signature is stored.
 
 ## The fact (`tx.core`, spec version 0)
 
@@ -86,9 +88,3 @@ tools/build_apk.sh release dist/solsentry.apk
 Self-test build: set `EXPO_PUBLIC_KYW_SELFTEST=1`
 for both commands. It adds a screen that runs the 48 vectors on the device and lets the app talk to
 a server on the PC (`adb reverse tcp:8092 tcp:8092`). A normal build contains neither the screen nor the vectors.
-
-## Guard code
-
-The screens of SolSentry Guard (Check & Send, Approvals, History, QR scanner) are kept in
-`src/guard-screens/` and are not reachable in this app. Their README is
-`src/guard-screens/GUARD_README.md`.

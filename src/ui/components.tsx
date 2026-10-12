@@ -2,10 +2,6 @@ import React from 'react'
 import Ionicons from '@expo/vector-icons/Ionicons'
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native'
 import { fonts, makeStyles, theme, useTheme } from './theme'
-import type { UiState } from './verdict'
-
-export const ABOUT_TEXT =
-  'Risk signals, not guarantees. Allow means no risk signal was found, not that the recipient is safe. An address with no on-chain history shows as a Warning. SolSentry never holds your keys; your wallet signs.'
 
 export function Button({
   title,
@@ -66,46 +62,6 @@ export function ScreenBar({ title, onBack, right }: { title: string; onBack: () 
       {right}
     </View>
   )
-}
-
-export function VerdictCard({
-  state,
-  checkedAt,
-  extra,
-}: {
-  state: UiState
-  checkedAt: number
-  extra?: string | null
-}) {
-  return (
-    <View
-      accessibilityLiveRegion="polite"
-      style={[styles.card, { backgroundColor: state.background, borderColor: state.color }]}
-    >
-      <VerdictBadge state={state} large />
-      {!!state.message && <Text style={[styles.cardText, { color: state.textColor }]}>{state.message}</Text>}
-      {!!extra && <Text style={[styles.cardText, { color: state.textColor }]}>{extra}</Text>}
-      <Text style={[styles.cardTime, { color: state.tone === 'stop' ? state.textColor : theme.muted }]}>
-        Checked {new Date(checkedAt).toLocaleString()}
-      </Text>
-    </View>
-  )
-}
-
-/** Decision as icon + word on the verdict color. */
-export function VerdictBadge({ state, large }: { state: UiState; large?: boolean }) {
-  return (
-    <View style={[styles.badge, { backgroundColor: state.color }]}>
-      <Ionicons name={state.icon} size={large ? 22 : 16} color={state.onColor} />
-      <Text style={[large ? styles.cardLabel : styles.badgeText, { color: state.onColor }]}>
-        {state.label.toUpperCase()}
-      </Text>
-    </View>
-  )
-}
-
-export function Footer() {
-  return <Text style={styles.footer}>{ABOUT_TEXT}</Text>
 }
 
 export const styles = StyleSheet.create({

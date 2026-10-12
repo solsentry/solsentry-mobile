@@ -3,7 +3,7 @@ import 'react-native-get-random-values'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 
 import * as Attestation from '@/modules/device-attestation'
-import { fetchWithTimeout } from '../guard/fetch-timeout'
+import { fetchWithTimeout } from '../net/fetch-timeout'
 import { KYW_API_BASE } from './config'
 import { DEVICE_ALIAS, ensureDevice, signResult, type DeviceIdentity, type DeviceNative } from './device'
 

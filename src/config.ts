@@ -6,8 +6,6 @@ export const CLUSTER: Cluster = 'mainnet-beta'
 export const RPC_URL = 'https://api.mainnet-beta.solana.com'
 export const API_BASE = 'https://api.solsentry.app'
 
-/** .skr names live on mainnet whatever CLUSTER is. */
-export const NAME_RPC_URL = 'https://api.mainnet-beta.solana.com'
 /** Seeker Genesis Tokens exist on mainnet only, whatever CLUSTER is. */
 export const SGT_RPC_URL = 'https://api.mainnet-beta.solana.com'
 /** Official SNS REST proxy (v2); the v1 host sdk-proxy.sns.id is scheduled for retirement. */
@@ -22,26 +20,16 @@ export const APP_IDENTITY = {
   icon: 'favicon-192.png',
 } as const
 
-/** A verdict older than this must be re-run before sending. */
-export const VERDICT_MAX_AGE_MS = 5 * 60 * 1000
-
 export function solscanTx(signature: string): string {
   const suffix = CLUSTER === 'mainnet-beta' ? '' : `?cluster=${CLUSTER}`
   return `https://solscan.io/tx/${signature}${suffix}`
 }
 
 /**
- * Optional "Device check" (Android hardware key attestation). With false the
- * section does not render and the native module is never called. Turn on only once the
- * server route /v1/device-attestation/verify is deployed.
+ * Android hardware key attestation of this phone's signing key. With false the native module is
+ * never called and the phone signs with a random id (no attested class on SolSentry).
  */
 export const DEVICE_CHECK_ENABLED: boolean = true
-
-/**
- * "Approvals" tab (list and revoke SPL token delegates). With false the tab is not shown and
- * the screen redirects to Check & Send; nothing in it runs.
- */
-export const REVOKE_ENABLED: boolean = true
 
 /**
  * How SKR reaches the linked wallet. 'claim': the Claim button builds the transaction the wallet

@@ -2,7 +2,7 @@
 //   KYW_LIVE_API=http://127.0.0.1:8092 [KYW_LIVE_HELIUS_KEY=...] npx vitest run --config tools/live/vitest.config.ts
 import { expect, it } from 'vitest'
 
-import { fetchWithTimeout } from '../../src/guard/fetch-timeout'
+import { fetchWithTimeout } from '../../src/net/fetch-timeout'
 import { resolveEndpoint, type ProviderId } from '../../src/kyw/providers'
 import { runOneTask } from '../../src/kyw/run'
 

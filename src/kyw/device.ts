@@ -1,6 +1,6 @@
 // Install identity for KYW. With the native module: one EC P-256 key per install in the Android
 // Keystore, created over a server challenge so its attestation chain can be checked once by
-// POST /v1/device-attestation/verify (the Guard's Device check). device_key_id is the public key
+// POST /v1/device-attestation/verify (the server's attestation check). device_key_id is the public key
 // itself, so the server can check device_sig without a registry. Without the module: a random id,
 // stable per install, unsigned. Neither carries a wallet, a serial or any hardware identifier.
 import {

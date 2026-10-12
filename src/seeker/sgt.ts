@@ -2,7 +2,7 @@
 // A wallet holds an SGT iff it has a Token-2022 account with a non-zero balance whose MINT has
 // BOTH metadataPointer.metadataAddress and tokenGroupMember.group equal to the SGT group.
 // This proves the WALLET was activated on a Seeker; it says nothing about the phone running the app.
-import { fetchWithTimeout, RPC_TIMEOUT_MS } from '../guard/fetch-timeout'
+import { fetchWithTimeout, RPC_TIMEOUT_MS } from '../net/fetch-timeout'
 
 /** SGT metadata address and group mint: intentionally the same value. Mainnet only. */
 export const SGT_GROUP = 'GT22s89nU4iWFkNXj1Bw6uYhJJWDRPpShHt4Bk8f99Te'

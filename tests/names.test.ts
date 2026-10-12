@@ -1,8 +1,6 @@
 import { PublicKey } from '@solana/web3.js'
 import { describe, expect, it } from 'vitest'
-import { ANS_PROGRAM, deriveAnsAccount, deriveMainDomain, deriveSkrNameAccount, deriveSkrReverseAccount, parseMainDomain, parseName, resolveName, reverseSkr, ROOT_ANS } from '../src/pay/names'
-import { nameBlockVerdict, resolveRecipientInput } from '../src/pay/recipient'
-import { toUiState } from '../src/ui/verdict'
+import { ANS_PROGRAM, deriveAnsAccount, deriveMainDomain, deriveSkrNameAccount, deriveSkrReverseAccount, parseMainDomain, parseName, resolveName, reverseSkr, ROOT_ANS } from '../src/seeker/names'
 
 const OWNER = 'Fw1ETanDZafof7xEULsnq9UY6o71Tpds89tNwPkWLb1v'
 const RPC = 'https://rpc.test'
@@ -98,24 +96,6 @@ describe('.skr via AllDomains ANS on mainnet RPC', () => {
     expect(!t.ok && t.error).toMatch(/timed out/)
     const b = await resolveName('x.skr', deps('stall-body'))
     expect(!b.ok && b.error).toMatch(/timed out/)
-  })
-})
-
-describe('recipient field -> address to check', () => {
-  it('address passes through, name resolves, failure becomes a Block verdict', async () => {
-    expect(await resolveRecipientInput(` ${OWNER} `, deps('hang'))).toEqual({ ok: true, address: OWNER, name: null })
-    const named = await resolveRecipientInput('alice.skr', deps(skrAccount(OWNER)))
-    expect(named).toEqual({ ok: true, address: OWNER, name: { name: 'alice.skr', tld: 'skr', source: 'AllDomains (.skr)' } })
-    const failed = await resolveRecipientInput('alice.skr', deps('hang'))
-    expect(failed.ok).toBe(false)
-    if (failed.ok) return
-    expect(failed.isName).toBe(true)
-    const ui = toUiState(nameBlockVerdict(failed.error))
-    expect(ui.decision).toBe('block')
-    expect(ui.canSend).toBe(false)
-    expect(ui.message).toMatch(/Could not resolve alice\.skr/)
-    expect((await resolveRecipientInput('hello', deps('hang'))).ok).toBe(false)
-    expect((await resolveRecipientInput('a.b.c.sol', deps('hang'))).ok).toBe(false)
   })
 })
 

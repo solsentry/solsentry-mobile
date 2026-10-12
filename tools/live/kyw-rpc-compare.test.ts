@@ -8,7 +8,7 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { expect, it } from 'vitest'
 
-import { fetchWithTimeout } from '../../src/guard/fetch-timeout'
+import { fetchWithTimeout } from '../../src/net/fetch-timeout'
 import { READ_PARAMS, readOutcome, sha256Hex } from '../../src/kyw-core'
 
 const out = process.env.KYW_COMPARE_OUT ?? ''

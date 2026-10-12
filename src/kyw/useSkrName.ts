@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useEffect, useState } from 'react'
 
 import { SGT_RPC_URL } from '../config'
-import { reverseSkr } from '../pay/names'
+import { reverseSkr } from '../seeker/names'
 
 const KEY = 'solsentry-kyw.skr-name.v2'
 /** A name can be transferred or expire: read it again after a day; "no name" (or a failed read) after an hour. */

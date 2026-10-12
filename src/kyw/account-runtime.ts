@@ -5,7 +5,7 @@ import { PublicKey } from '@solana/web3.js'
 
 import { SGT_RPC_URL } from '../config'
 import { bytesToBase64 } from '../device/attest-logic'
-import { fetchWithTimeout } from '../guard/fetch-timeout'
+import { fetchWithTimeout } from '../net/fetch-timeout'
 import { utf8 } from '../kyw-core'
 import { fetchSgt } from '../seeker/sgt'
 import { withAuthorizedWallet } from '../wallet/mwa-session'

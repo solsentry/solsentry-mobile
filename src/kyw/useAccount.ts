@@ -2,7 +2,7 @@
 import { useFocusEffect } from 'expo-router'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-import { fetchWithTimeout } from '../guard/fetch-timeout'
+import { fetchWithTimeout } from '../net/fetch-timeout'
 
 import { pointsStatus, type LinkedWallet } from './account'
 import { forgetLinkedWallet, linkWalletNow, loadLinkedWallet, unlinkWalletNow } from './account-runtime'

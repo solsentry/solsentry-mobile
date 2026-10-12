@@ -3,7 +3,7 @@ import { transact } from '@solana-mobile/mobile-wallet-adapter-protocol-web3js'
 import { Connection, PublicKey } from '@solana/web3.js'
 
 import { RPC_URL } from '../config'
-import { fetchWithTimeout } from '../guard/fetch-timeout'
+import { fetchWithTimeout } from '../net/fetch-timeout'
 import { withAuthorizedWallet } from '../wallet/mwa-session'
 import type { LinkedWallet } from './account'
 import { runClaim, WrongWalletError, type ClaimOutcome } from './claim-flow'
