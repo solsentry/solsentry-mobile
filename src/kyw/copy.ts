@@ -16,7 +16,7 @@ export const TEXT = {
   on: 'On',
   off: 'Off',
   explain:
-    'Each task is one public Solana transaction. Your phone reads it from the RPC you choose, recomputes its facts and sends a digest. SolSentry compares the digest with its own reference read. This is data verification, not Solana consensus. Matched, signed results count points. During the Seeker launch, points turn into SKR from a public pool for Seeker Genesis Token holders.',
+    'Each task is one public Solana transaction. Your phone reads it from the RPC you choose, recomputes its facts and sends a digest. SolSentry compares the digest with its own reference read. This is data verification, not Solana consensus. Matched, signed results count points. In this test phase of the Seeker launch, Seeker Genesis Token holders also get SKR from a public pool.',
   gridTitle: 'Recent tasks',
   daysTitle: 'Last 28 days',
   daysUnit: 'matched results',
@@ -148,14 +148,14 @@ export const ACCOUNT_TEXT = {
   skrTitle: 'SKR balance',
   skrServer: 'Owed to your linked wallet, paid from a public pool.',
   skrServerLater: 'Owed to your linked wallet, paid out after the hackathon.',
-  skrRate: 'Every matched result earns 1 point. Bonuses: attested device +0.2, Seeker Genesis wallet +0.3, your own tested RPC +0.1. 40 points = 1 SKR. During the Seeker launch, SKR goes to Seeker Genesis holders.',
+  skrRate: 'Every matched result earns 1 point. Bonuses: attested device +0.2, Seeker Genesis wallet +0.3, your own tested RPC +0.1. 40 points = 1 SKR. In this test phase of the Seeker launch, SKR goes to Seeker Genesis holders, and claiming SKR does not spend points.',
   rateAttested: 'Attested device: SolSentry checked this phone\'s hardware key',
-  skrGenesisOnly: 'SKR rewards are for Seeker Genesis Token holders during the Seeker launch. Your points still count.',
+  skrGenesisOnly: 'In this test phase of the Seeker launch, SKR rewards are for Seeker Genesis Token holders. Your points still count.',
   skrWindow: (earned: string, cap: string) => `${earned}/${cap} SKR today`,
   /** The server's two totals: this phone's results, and those written under the linked wallet. */
   pointsSplit: (phone: string, wallet: string | null) =>
     wallet === null ? `${pointsWord(phone)} on this phone.` : `${pointsWord(phone)} on this phone · ${wallet} with this wallet.`,
-  skrSoon: 'Points turn into SKR from a public pool. The SKR balance shows here once SolSentry turns it on.',
+  skrSoon: 'Seeker Genesis wallets also earn SKR from a public pool. The SKR balance shows here once SolSentry turns it on.',
   claim: 'Claim SKR',
   claiming: 'Waiting for the wallet…',
   laterNeedsWallet: 'Link a wallet to receive SKR. SKR accrues only to a linked wallet.',
@@ -214,7 +214,7 @@ export const ACCOUNT_TEXT = {
   redeemNote: 'Planned. Nothing can be redeemed yet and points have no set value.',
   redeemNoteSkr: 'Planned: more ways to use points besides SKR.',
   redeemLine:
-    'Points have no cash value and are not a token. SolSentry will let you use them for its own services: SolSentry access, wallet tracking and wallet attestation. RPC credits from other providers and events depend on partners. During the Seeker launch, Seeker Genesis wallets can also turn points into SKR from a pool SolSentry funds, while it lasts. Rates and rules can change.',
+    'Points have no cash value and are not a token. SolSentry will let you use them for its own services: SolSentry access, wallet tracking and wallet attestation. RPC credits from other providers and events depend on partners. In this test phase of the Seeker launch, Seeker Genesis wallets also earn SKR from a pool SolSentry funds, while it lasts; claiming SKR does not spend points. Daily caps and the Genesis-only rule belong to this test phase and will change, and so can rates.',
   redeemItems: ['SolSentry access', 'RPC credits', 'Events'],
   rpcMenuTitle: 'RPC for the read',
 }
@@ -311,8 +311,8 @@ export const INTRO_TEXT = {
       body: "Each matched result signed by this phone's hardware key earns 1 point. Bonuses add up: attested device +0.2, Seeker Genesis wallet +0.3, your own tested RPC +0.1.",
     },
     {
-      title: 'Points turn into SKR',
-      body: 'During the Seeker launch, wallets that hold a Seeker Genesis Token get SKR from a public pool: 1 SKR per 40 points, up to a daily cap shown in the app. Claim sends it to your wallet. Points have no cash value; SolSentry will open its own services for them (access, wallet tracking, wallet attestation). Rates and rules can change.',
+      title: 'SKR for Seeker Genesis wallets',
+      body: 'In this test phase of the Seeker launch, wallets that hold a Seeker Genesis Token also earn SKR from a pool SolSentry funds: 1 SKR per 40 points, up to a daily cap shown in the app. Claim sends it to your wallet and does not spend your points. Points have no cash value; SolSentry will open its own services for them (access, wallet tracking, wallet attestation). Caps and the Genesis-only rule are for this test phase and will change.',
     },
   ],
   skip: 'Skip',
@@ -324,7 +324,7 @@ export const INTRO_TEXT = {
 export const UPDATE_TEXT = {
   title: (name: string) => `Update available: ${name}`,
   body: 'A newer version of SolSentry is out.',
-  how: 'Download opens the APK in your browser. Install it over this one: points, history and the wallet link stay.',
+  how: 'Download opens the APK in your browser. Install it over this one: points, history and the wallet link stay. Verification turns off during the update; turn it on again after installing.',
   download: 'Download',
   later: 'Later',
 }

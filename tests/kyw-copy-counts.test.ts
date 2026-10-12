@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ACCOUNT_TEXT, HOME_TEXT, INTRO_TEXT, switchProviderPrompt } from '../src/kyw/copy'
+import { ACCOUNT_TEXT, HOME_TEXT, INTRO_TEXT, UPDATE_TEXT, switchProviderPrompt } from '../src/kyw/copy'
 
 describe('points and caps on screen', () => {
   it('says 1 point, and points for any other figure', () => {
@@ -29,5 +29,20 @@ describe('the daily cap on the Home', () => {
   it('says tasks still run and gives no reset hour (the window length is a server setting)', () => {
     expect(HOME_TEXT.capReached).toMatch(/Tasks still run/)
     expect(HOME_TEXT.capReached).not.toMatch(/\d/)
+  })
+})
+
+describe('points and SKR are told apart', () => {
+  it('never says points turn into SKR, and says a claim does not spend points', () => {
+    for (const step of INTRO_TEXT.steps) expect(step.title).not.toMatch(/turn into SKR/)
+    expect(INTRO_TEXT.steps[2].body).toMatch(/does not spend your points/)
+    expect(ACCOUNT_TEXT.redeemLine).toMatch(/does not spend points/)
+  })
+  it('says the caps and the Genesis-only rule belong to the test phase', () => {
+    expect(ACCOUNT_TEXT.redeemLine).toMatch(/test phase/)
+    expect(INTRO_TEXT.steps[2].body).toMatch(/test phase and will change/)
+  })
+  it('tells an updated phone to turn verification on again', () => {
+    expect(UPDATE_TEXT.how).toMatch(/turn it on again/)
   })
 })
