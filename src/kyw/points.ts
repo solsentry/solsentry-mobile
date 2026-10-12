@@ -4,18 +4,20 @@
 import type { ProbeReport } from './probe'
 import type { ProviderId } from './providers'
 
-// Rule closed 10/10/2026 (rev. 2). Until the server binds the key to its attestation and the wallet
-// to its Genesis token, it treats every phone as not attested: base points, daily cap, no
-// multiplier. The estimate follows what the server counts today; the multipliers are shown as planned.
+// Rule decided 11/10/2026 22:30 (PROPOSTA_badges_multiplicadores, "DECIDIDO"): bonuses add up, they do
+// not multiply. 1 point per matched result, +0.2 attested device, +0.3 Seeker Genesis wallet, +0.1 own
+// tested RPC; at most 1.6. The server (integrations/kyw/points.py) is the record; this is its mirror.
 export const POINT_RULE = {
   /** One matched, signed result. */
   base: 1,
   /** Points a phone can earn per day while the server treats it as not attested. */
   dailyCap: 200,
-  /** The linked wallet holds a Seeker Genesis Token (server rule since 11/10). */
-  genesis: 2,
+  /** SolSentry checked this phone's hardware key (class attested). */
+  attested: 0.2,
+  /** The linked wallet holds a Seeker Genesis Token (class attested_genesis). */
+  genesis: 0.3,
   /** The read came from the user's own RPC, tested with every capability full. */
-  independentRpc: 1.1,
+  independentRpc: 0.1,
   /** Points per SKR (integrations/kyw/points.py SKR_PER_POINT = 1/40). */
   pointsPerSkr: 40,
 } as const
@@ -57,10 +59,11 @@ export function earnedNow(p: { signed: boolean; matchedToday: number }): number 
   return p.signed && p.matchedToday < POINT_RULE.dailyCap ? POINT_RULE.base : 0
 }
 
-/** Planned multiplier for this phone (not applied to the estimate yet). */
-export function multiplier(ctx: PointsContext): number {
-  if (!ctx.deviceVerified) return 0
-  return POINT_RULE.base * (ctx.genesis ? POINT_RULE.genesis : 1) * (ctx.independentRpc ? POINT_RULE.independentRpc : 1)
+/** Points one matched result earns on this phone: the base plus each bonus it holds (bonuses need an attested key). */
+export function pointsPerResult(ctx: PointsContext): number {
+  if (!ctx.deviceVerified) return POINT_RULE.base
+  const p = POINT_RULE.base + POINT_RULE.attested + (ctx.genesis ? POINT_RULE.genesis : 0) + (ctx.independentRpc ? POINT_RULE.independentRpc : 0)
+  return Math.round(p * 10) / 10
 }
 
 /** Points are stored as halves (rev. 1 had a 1.5 multiplier); today only whole points are added. */
@@ -71,8 +74,14 @@ export function formatPoints(halves: number): string {
   return `${whole.toLocaleString('en-US')}${halves % 2 ? '.5' : ''}`
 }
 
-export function multiplierText(m: number): string {
-  return `${Number.isInteger(m) ? m : m.toFixed(1)}×`
+/** 1.5 → "1.5", 1 → "1.0": points per result, always one decimal. */
+export function pointsText(p: number): string {
+  return p.toFixed(1)
+}
+
+/** A bonus as the app shows it: 0.3 → "+0.3". */
+export function bonusText(b: number): string {
+  return `+${b.toFixed(1)}`
 }
 
 /** Shown while the linked wallet is known to hold no Genesis Token and the user has not closed it for that wallet. */

@@ -20,7 +20,7 @@ import * as Linking from 'expo-linking'
 import { SKR_PAYOUT, solscanTx } from '@/src/config'
 import { outcomeText } from '@/src/kyw/SkrCard'
 import { formatServerPoints, formatSkr as formatSkrShort, skrClosed, skrFigure } from '@/src/kyw/server-points'
-import { formatPoints, independentRpc, multiplier, multiplierText, POINT_RULE, showNoGenesis, withServerClass } from '@/src/kyw/points'
+import { bonusText, formatPoints, independentRpc, pointsPerResult, pointsText, POINT_RULE, showNoGenesis, withServerClass } from '@/src/kyw/points'
 import { providerInfo } from '@/src/kyw/providers'
 import { RateDial } from '@/src/kyw/RateDial'
 import { updateSettings } from '@/src/kyw/store'
@@ -107,18 +107,18 @@ export default function ValidateScreen() {
     },
     server?.userClass ?? null,
   )
-  const rate = multiplier(ctx)
+  const rate = pointsPerResult(ctx)
   const rateChips: [string, boolean][] = [
-    [HOME_TEXT.rateDevice, ctx.deviceVerified],
-    [HOME_TEXT.rateGenesis, ctx.deviceVerified && ctx.genesis],
-    [HOME_TEXT.rateRpc, ctx.deviceVerified && ctx.independentRpc],
+    [`${HOME_TEXT.rateDevice} ${bonusText(POINT_RULE.attested)}`, ctx.deviceVerified],
+    [`${HOME_TEXT.rateGenesis} ${bonusText(POINT_RULE.genesis)}`, ctx.deviceVerified && ctx.genesis],
+    [`${HOME_TEXT.rateRpc} ${bonusText(POINT_RULE.independentRpc)}`, ctx.deviceVerified && ctx.independentRpc],
   ]
 
   // The mockup's bump: each matched result shows the SKR it adds, while this phone still earns SKR today.
   const [bump, setBump] = useState<{ key: number; text: string } | null>(null)
   const lastAccepted = useRef<number | null>(null)
   const accepted = history.counters.accepted
-  const skrPerResult = skr && skr.window.earnedRaw < skr.window.capRaw ? multiplier(ctx) / POINT_RULE.pointsPerSkr : 0
+  const skrPerResult = skr && skr.window.earnedRaw < skr.window.capRaw ? pointsPerResult(ctx) / POINT_RULE.pointsPerSkr : 0
   useEffect(() => {
     const before = lastAccepted.current
     lastAccepted.current = accepted
@@ -320,7 +320,7 @@ export default function ValidateScreen() {
         <FadeUp order={3}>
           <Pressable accessibilityRole="button" accessibilityLabel={ACCOUNT_TEXT.rateTitle} onPress={() => router.push('/account')} style={styles.level}>
             <Text style={styles.eyebrow}>
-              {HOME_TEXT.rate}{rate > 0 ? ` · ${multiplierText(rate)}` : ''}
+              {HOME_TEXT.rate} · {pointsText(rate)}
             </Text>
             <RateDial rate={rate} running={running} />
             <View style={styles.segs}>

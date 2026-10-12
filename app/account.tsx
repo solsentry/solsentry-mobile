@@ -9,7 +9,7 @@ import { ClaimSheet } from '@/src/kyw/ClaimSheet'
 import { SkrCard } from '@/src/kyw/SkrCard'
 import { ACCOUNT_TEXT as T, HOME_TEXT, TEXT } from '@/src/kyw/copy'
 import { formatServerPoints, skrClosed } from '@/src/kyw/server-points'
-import { POINT_RULE, formatPoints, independentRpc, multiplier, multiplierText, withServerClass } from '@/src/kyw/points'
+import { POINT_RULE, bonusText, formatPoints, independentRpc, pointsPerResult, pointsText, withServerClass } from '@/src/kyw/points'
 import { useAccount } from '@/src/kyw/useAccount'
 import { useKyw } from '@/src/kyw/useKyw'
 import { useSkrName } from '@/src/kyw/useSkrName'
@@ -39,13 +39,14 @@ export default function AccountScreen() {
     },
     userClass,
   )
-  const now = multiplier(ctx)
+  const now = pointsPerResult(ctx)
   const skrOpen = server?.skr != null && !skrClosed(server.skr)
   const [claimSheet, setClaimSheet] = useState(false)
   const signed = device?.kind === 'key'
   const rates: [string, string, boolean][] = [
-    [T.rateGenesis, multiplierText(POINT_RULE.genesis), ctx.deviceVerified && ctx.genesis],
-    [T.rateRpc, multiplierText(POINT_RULE.independentRpc), ctx.deviceVerified && ctx.independentRpc],
+    [T.rateAttested, bonusText(POINT_RULE.attested), ctx.deviceVerified],
+    [T.rateGenesis, bonusText(POINT_RULE.genesis), ctx.deviceVerified && ctx.genesis],
+    [T.rateRpc, bonusText(POINT_RULE.independentRpc), ctx.deviceVerified && ctx.independentRpc],
   ]
   const sgtLine = wallet && (wallet.sgt.status === 'verified' ? T.genesis : wallet.sgt.status === 'none' ? T.noGenesis : T.genesisUnknown)
 
@@ -117,7 +118,7 @@ export default function AccountScreen() {
         )}
         <FadeUp order={2} style={styles.card}>
           <Text style={styles.eyebrow}>
-            {T.rateTitle}{live && now > 0 ? ` · ${multiplierText(now)}` : ''}
+            {T.rateTitle}{live ? ` · ${pointsText(now)}` : ''}
           </Text>
           {rates.map(([label, value, on]) => (
             <View key={label} style={styles.row}>
@@ -130,8 +131,9 @@ export default function AccountScreen() {
             <Text style={styles.muted}>{T.rateZero}</Text>
           ) : live && server ? (
             <>
-              <Text style={styles.muted}>{T.rateLive(multiplierText(Math.max(now, 1)).replace('×', ''), server.today.cap)}</Text>
+              <Text style={styles.muted}>{T.rateLive(pointsText(now), server.today.cap)}</Text>
               {!ctx.deviceVerified && <Text style={styles.muted}>{T.rateUnverified}</Text>}
+              <Text style={styles.muted}>{T.skrRate}</Text>
             </>
           ) : (
             <>

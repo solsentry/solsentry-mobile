@@ -26,7 +26,7 @@ export const TEXT = {
   latest: 'Selected task',
   rpcTitle: 'RPC for the read',
   rpcInfo:
-    'Each task is read from a Solana mainnet RPC. By default the read goes through SolSentry, nothing to set up. You can use your own RPC instead: paste its HTTPS URL below. Once "Test this RPC" passes every check, on a phone whose hardware key SolSentry has checked, each matched result counts 1.1× and the daily point cap is lifted.',
+    'Each task is read from a Solana mainnet RPC. By default the read goes through SolSentry, nothing to set up. You can use your own RPC instead: paste its HTTPS URL below. Once "Test this RPC" passes every check, on a phone whose hardware key SolSentry has checked, each matched result gets +0.1 point.',
   probeButton: 'Test this RPC',
   probeStale: 'Out of date, test again',
   rpcNote:
@@ -144,7 +144,8 @@ export const ACCOUNT_TEXT = {
   skrTitle: 'SKR balance',
   skrServer: 'Owed to your linked wallet, paid from a public pool.',
   skrServerLater: 'Owed to your linked wallet, paid out after the hackathon.',
-  skrRate: '1 SKR per 40 points. A Genesis wallet earns 2 points per matched result (2.2 with your own RPC).',
+  skrRate: 'Every matched result earns 1 point. Bonuses: attested device +0.2, Seeker Genesis wallet +0.3, your own tested RPC +0.1. 40 points = 1 SKR. During the Seeker launch, SKR goes to Seeker Genesis holders.',
+  rateAttested: 'Attested device: SolSentry checked this phone\'s hardware key',
   skrGenesisOnly: 'SKR rewards are for Seeker Genesis Token holders during the Seeker launch. Your points still count.',
   skrWindow: (earned: string, cap: string) => `${earned}/${cap} SKR today`,
   /** The server's two totals: this phone's results, and those written under the linked wallet. */
@@ -174,13 +175,13 @@ export const ACCOUNT_TEXT = {
   pointsServer: 'Balance from SolSentry, computed from the signed results of this phone.',
   rateTitle: 'How points add up',
   rewardsTitle: 'Rewards',
-  rateGenesis: 'Wallet with a Seeker Genesis Token',
+  rateGenesis: 'Linked wallet with a Seeker Genesis Token',
   rateRpc: 'Your own RPC, tested with every capability full',
   rateNow: (cap: number) => `Today each matched, signed result counts 1 point, up to ${cap} a day.`,
   ratePlanned: 'Multipliers show here once SolSentry confirms this phone and its wallet.',
   rateLive: (points: string, cap: number | null) =>
     `Each matched, signed result counts ${points} point${points === '1' ? '' : 's'}${cap === null ? ', with no daily cap.' : `, up to ${cap} results a day.`}`,
-  rateUnverified: 'SolSentry has not verified this phone\'s hardware key, so no multiplier applies.',
+  rateUnverified: 'SolSentry has not verified this phone\'s hardware key, so no bonus applies.',
   active: 'Active',
   rateZero: 'This phone has no hardware key, so its results are not signed and do not count points.',
   today: (n: number, cap: number) => `${Math.min(n, cap)}/${cap} today`,
@@ -223,8 +224,8 @@ export const HOME_TEXT = {
   pace: (n: number) => `${n} tasks/h`,
   pointsUnit: 'pts',
   pointsCta: 'Your rewards',
-  rate: 'Multiplier',
-  rateDevice: 'Verified phone',
+  rate: 'Points per result',
+  rateDevice: 'Attested',
   badgeVerified: 'Verified',
   noGenesisTitle: 'No Seeker Genesis Token on this wallet',
   noGenesisBody: 'During the Seeker launch, SKR goes only to wallets that hold a Seeker Genesis Token. With this wallet your phone still counts points, and they stay with this wallet.',
@@ -299,7 +300,7 @@ export const INTRO_TEXT = {
     },
     {
       title: 'Matched results count points',
-      body: "Each matched result signed by this phone's hardware key counts points. A Seeker Genesis Token on your linked wallet doubles them, and your own RPC adds 1.1×.",
+      body: "Each matched result signed by this phone's hardware key earns 1 point. Bonuses add up: attested device +0.2, Seeker Genesis wallet +0.3, your own tested RPC +0.1.",
     },
     {
       title: 'Points turn into SKR',

@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 
 import { PROBE_LABELS, PROBE_REASONS, probeCapabilityText, probePaceText, probeProblemText, probeTestedText, resultSentence, TEXT, VERDICT_LABEL } from '../src/kyw/copy'
 import type { Capability } from '../src/kyw/probe'
-import { earnedNow, formatPoints, independentRpc, multiplier, multiplierText, toHalves } from '../src/kyw/points'
+import { earnedNow, formatPoints, independentRpc, pointsPerResult, pointsText, toHalves } from '../src/kyw/points'
 import { DAYS_KEPT, MAX_RECORDS, EMPTY, addRecord, dayKey, dayStreak, lastDays, parsePersisted, parseSettings, tasksPerHour } from '../src/kyw/history'
 import { BACKOFF_MAX_S, HOLD_RECHECK_S, nextBackoff, runLoop, type LoopStatus, type TurnResult } from '../src/kyw/loop'
 import { runSelfTest, type SelfTestVector } from '../src/kyw/selftest/run'
@@ -209,16 +209,15 @@ describe('estimated points', () => {
   const report = (over: Record<string, unknown> = {}) =>
     ({ capabilities: { C1: full, C2: full, C3: full, C4: full, C5: full, C6: { min_interval_ms: 250 }, ...over } }) as never
 
-  it('counts nothing on a phone that is not hardware-verified', () => {
-    expect(multiplier({ deviceVerified: false, genesis: true, independentRpc: true })).toBe(0)
+  it('gives only the base to a phone that is not attested', () => {
+    expect(pointsPerResult({ deviceVerified: false, genesis: true, independentRpc: true })).toBe(1)
   })
 
-  it('multiplies the base by Genesis and by an independent, fully capable RPC', () => {
-    expect(multiplier({ deviceVerified: true, genesis: false, independentRpc: false })).toBe(1)
-    expect(multiplier({ deviceVerified: true, genesis: true, independentRpc: false })).toBe(2)
-    expect(multiplier({ deviceVerified: true, genesis: false, independentRpc: true })).toBe(1.1)
-    expect(multiplier({ deviceVerified: true, genesis: true, independentRpc: true })).toBeCloseTo(2.2)
-    expect(multiplierText(multiplier({ deviceVerified: true, genesis: true, independentRpc: true }))).toBe('2.2×')
+  it('adds the bonuses for attested, Genesis and an independent, fully capable RPC', () => {
+    expect(pointsPerResult({ deviceVerified: true, genesis: false, independentRpc: false })).toBe(1.2)
+    expect(pointsPerResult({ deviceVerified: true, genesis: true, independentRpc: false })).toBe(1.5)
+    expect(pointsPerResult({ deviceVerified: true, genesis: true, independentRpc: true })).toBe(1.6)
+    expect(pointsText(pointsPerResult({ deviceVerified: true, genesis: true, independentRpc: true }))).toBe('1.6')
   })
 
   it('adds the base for a signed match until the daily cap, whatever the multiplier', () => {

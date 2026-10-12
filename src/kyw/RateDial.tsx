@@ -3,17 +3,18 @@ import { StyleSheet, Text, View } from 'react-native'
 import Animated, { cubicBezier, useReducedMotion } from 'react-native-reanimated'
 
 import { fonts, makeStyles, useTheme } from '../ui/theme'
-import { multiplierText, POINT_RULE } from './points'
+import { pointsText, POINT_RULE } from './points'
 
 const BARS = 37
 const HEIGHT = 54
-/** The rates a phone can have, left to right, and the bar each one points at. */
-const STOPS = [
-  POINT_RULE.base,
-  POINT_RULE.independentRpc,
-  POINT_RULE.genesis,
-  POINT_RULE.genesis * POINT_RULE.independentRpc,
-].map((rate, i) => ({ rate, bar: 4 + i * 9 }))
+const MIN = POINT_RULE.base
+const MAX = POINT_RULE.base + POINT_RULE.attested + POINT_RULE.genesis + POINT_RULE.independentRpc
+/** Bar a rate points at: the scale runs from the base (bar 4) to the top rate (bar 32). */
+const barOf = (rate: number) => 4 + Math.max(0, Math.min(1, (rate - MIN) / (MAX - MIN))) * 28
+/** Labelled rates: base, attested, Genesis, Genesis with own RPC. */
+const STOPS = [MIN, MIN + POINT_RULE.attested, MIN + POINT_RULE.attested + POINT_RULE.genesis, MAX]
+  .map((r) => Math.round(r * 10) / 10)
+  .map((rate) => ({ rate, bar: barOf(rate) }))
 
 // Fixed per-bar height so the idle dial is not a flat line (same noise on every render).
 const NOISE = Array.from({ length: BARS }, (_, i) => Math.abs(Math.sin((i + 2) * 12.9898) * 43758.5453) % 1)
@@ -39,15 +40,15 @@ export function RateDial({ rate, running }: { rate: number; running: boolean }) 
     return () => clearInterval(timer)
   }, [running, reduced])
 
-  const stop = STOPS.find((x) => x.rate === rate)
-  const live = running && stop !== undefined
-  const at = stop?.bar ?? 0
-  const amp = 22 + 7 * rate
-  const sig = 3.5 + rate
+  const live = running && rate > 0
+  const at = barOf(rate)
+  const level = (rate - MIN) / (MAX - MIN)
+  const amp = 29 + 15 * level
+  const sig = 4.5 + 2 * level
   const step = width > 0 ? (width - 3) / (BARS - 1) : 0
 
   return (
-    <View accessibilityRole="image" accessibilityLabel={`Rate ${multiplierText(rate)}`}>
+    <View accessibilityRole="image" accessibilityLabel={`${pointsText(rate)} points per result`}>
       <View style={s.dial} onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
         <View style={s.bars}>
           {NOISE.map((noise, i) => {
@@ -73,7 +74,7 @@ export function RateDial({ rate, running }: { rate: number; running: boolean }) 
             )
           })}
         </View>
-        {stop && width > 0 && (
+        {width > 0 && (
           <Animated.View
             style={[
               s.pointer,
@@ -93,8 +94,8 @@ export function RateDial({ rate, running }: { rate: number; running: boolean }) 
       <View style={s.stops}>
         {width > 0 &&
           STOPS.map((x) => (
-            <Text key={x.rate} style={[s.stop, { left: x.bar * step + 1.5 - 30, color: x.rate === rate ? t.actionText : t.muted }]}>
-              {multiplierText(x.rate)}
+            <Text key={x.rate} style={[s.stop, { left: x.bar * step + 1.5 - 18, color: x.rate === rate ? t.actionText : t.muted }]}>
+              {pointsText(x.rate)}
             </Text>
           ))}
       </View>
@@ -111,6 +112,6 @@ const useStyles = makeStyles((t) =>
     needle: { position: 'absolute', left: 0, top: 8, bottom: 0, width: 2, borderRadius: 1, backgroundColor: t.text },
     knob: { position: 'absolute', left: -4, top: 0, width: 10, height: 10, borderRadius: 5, backgroundColor: t.action },
     stops: { height: 12, marginTop: 10, position: 'relative' },
-    stop: { position: 'absolute', width: 60, textAlign: 'center', fontFamily: fonts.mono, fontSize: 9, letterSpacing: 0.9 },
+    stop: { position: 'absolute', width: 36, textAlign: 'center', fontFamily: fonts.mono, fontSize: 9, letterSpacing: 0.9 },
   }),
 )

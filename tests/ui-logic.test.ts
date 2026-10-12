@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { addRecord, countedToday, dayLevel, EMPTY, parsePersisted, parseSettings, utcDayKey, type Persisted } from '../src/kyw/history'
 import { avatarCells, N } from '../src/kyw/identicon'
-import { earnedNow, multiplier, multiplierText, POINT_RULE, toHalves } from '../src/kyw/points'
+import { bonusText, earnedNow, pointsPerResult, pointsText, POINT_RULE, toHalves } from '../src/kyw/points'
 import { DEFAULT_SETTINGS, type TaskRecord, type Verdict } from '../src/kyw/types'
 
 let seq = 0
@@ -42,25 +42,20 @@ describe('earnedNow at the daily cap', () => {
   })
 })
 
-describe('multiplier and multiplierText', () => {
-  it('is 0 for an unverified device whatever else holds', () => {
-    expect(multiplier({ deviceVerified: false, genesis: true, independentRpc: true })).toBe(0)
+describe('pointsPerResult and pointsText (bonuses add up, 11/10 rule)', () => {
+  it('is the base for a phone SolSentry has not attested, whatever else holds', () => {
+    expect(pointsPerResult({ deviceVerified: false, genesis: true, independentRpc: true })).toBe(1)
   })
-  it('combines genesis and independent RPC (2 * 1.1 float)', () => {
-    expect(multiplier({ deviceVerified: true, genesis: false, independentRpc: false })).toBe(1)
-    expect(multiplier({ deviceVerified: true, genesis: true, independentRpc: false })).toBe(2)
-    expect(multiplier({ deviceVerified: true, genesis: false, independentRpc: true })).toBeCloseTo(1.1, 10)
-    const both = multiplier({ deviceVerified: true, genesis: true, independentRpc: true })
-    expect(both).toBeCloseTo(2.2, 10)
-    expect(multiplierText(both)).toBe('2.2×')
+  it('adds +0.2 attested, +0.3 Genesis, +0.1 own RPC, up to 1.6', () => {
+    expect(pointsPerResult({ deviceVerified: true, genesis: false, independentRpc: false })).toBe(1.2)
+    expect(pointsPerResult({ deviceVerified: true, genesis: true, independentRpc: false })).toBe(1.5)
+    expect(pointsPerResult({ deviceVerified: true, genesis: false, independentRpc: true })).toBe(1.3)
+    expect(pointsPerResult({ deviceVerified: true, genesis: true, independentRpc: true })).toBe(1.6)
   })
-  it('formats 0, 1, 1.1, 2, 2.2', () => {
-    expect(multiplierText(0)).toBe('0×')
-    expect(multiplierText(1)).toBe('1×')
-    expect(multiplierText(1.1)).toBe('1.1×')
-    expect(multiplierText(2)).toBe('2×')
-    expect(multiplierText(2.2)).toBe('2.2×')
-    expect(multiplierText(2 * 1.1)).toBe('2.2×')
+  it('formats points with one decimal and bonuses with a sign', () => {
+    expect(pointsText(1)).toBe('1.0')
+    expect(pointsText(1.6)).toBe('1.6')
+    expect(bonusText(POINT_RULE.genesis)).toBe('+0.3')
   })
 })
 
