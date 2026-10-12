@@ -11,8 +11,9 @@ const ROWS = 4
 const GAP = 5
 
 export const verdictColor = (t: Palette): Record<Verdict, string> => ({
-  accepted: t.allow,
-  diverged: t.warn,
+  // The mockup's dots: orange for a matched result; a diverged one stands out in red.
+  accepted: t.action,
+  diverged: t.block,
   unknown: t.unknown,
 })
 

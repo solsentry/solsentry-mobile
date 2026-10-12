@@ -1,4 +1,4 @@
-// First run: three short steps before the Home, once per install (Settings.seenIntro).
+// How it works: three short steps before the Home, once per INTRO_VERSION; Settings opens them again.
 import React, { useState } from 'react'
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -8,12 +8,17 @@ import { FadeUp } from '../ui/motion'
 import { fonts, makeStyles } from '../ui/theme'
 import { INTRO_TEXT as T } from './copy'
 import { updateSettings } from './store'
+import { INTRO_VERSION } from './types'
 
-export function IntroSheet({ visible }: { visible: boolean }) {
+export function IntroSheet({ visible, onDone }: { visible: boolean; onDone?: () => void }) {
   const styles = useStyles()
   const [step, setStep] = useState(0)
   const last = step === T.steps.length - 1
-  const done = () => void updateSettings({ seenIntro: true })
+  const done = () => {
+    setStep(0)
+    void updateSettings({ introSeen: INTRO_VERSION })
+    onDone?.()
+  }
   return (
     <Modal visible={visible} animationType="fade" onRequestClose={done}>
       <SafeAreaView style={styles.safe}>

@@ -36,6 +36,7 @@ export const TEXT = {
   saveKeyOff: 'Kept only until you close the app.',
   beta: 'beta',
   settings: 'Settings',
+  howItWorks: 'How it works',
   background: 'Background',
   backgroundService:
     'Verification keeps running in the background and with the screen off. Android shows a notification while it runs.',
@@ -176,7 +177,7 @@ export const ACCOUNT_TEXT = {
   rateGenesis: 'Wallet with a Seeker Genesis Token',
   rateRpc: 'Your own RPC, tested with every capability full',
   rateNow: (cap: number) => `Today each matched, signed result counts 1 point, up to ${cap} a day.`,
-  ratePlanned: 'Multipliers are planned and not counted yet.',
+  ratePlanned: 'Multipliers show here once SolSentry confirms this phone and its wallet.',
   rateLive: (points: string, cap: number | null) =>
     `Each matched, signed result counts ${points} point${points === '1' ? '' : 's'}${cap === null ? ', with no daily cap.' : `, up to ${cap} results a day.`}`,
   rateUnverified: 'SolSentry has not verified this phone\'s hardware key, so no multiplier applies.',

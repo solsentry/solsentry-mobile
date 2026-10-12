@@ -31,8 +31,8 @@ export interface Settings {
   theme: 'dark' | 'light'
   /** Wallet whose "no Genesis Token" notice the user closed; the notice comes back for another one. */
   seenNoGenesis: string | null
-  /** The first-run explainer (points, SKR, Genesis) was read or skipped. */
-  seenIntro: boolean
+  /** Version of the how-it-works steps last read or skipped; a newer INTRO_VERSION shows them again. */
+  introSeen: number
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -43,8 +43,11 @@ export const DEFAULT_SETTINGS: Settings = {
   intervalS: 5,
   theme: 'dark',
   seenNoGenesis: null,
-  seenIntro: false,
+  introSeen: 0,
 }
+
+/** Bump to show the how-it-works steps once more after an update. */
+export const INTRO_VERSION = 2
 
 export const INTERVAL_CHOICES_S = [2, 5, 15, 60] as const
 

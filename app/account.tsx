@@ -117,13 +117,13 @@ export default function AccountScreen() {
         )}
         <FadeUp order={2} style={styles.card}>
           <Text style={styles.eyebrow}>
-            {T.rateTitle}{now > 0 ? ` · ${multiplierText(now)}` : ''}{live ? '' : ` · ${T.planned}`}
+            {T.rateTitle}{live && now > 0 ? ` · ${multiplierText(now)}` : ''}
           </Text>
           {rates.map(([label, value, on]) => (
             <View key={label} style={styles.row}>
               <Text style={[styles.rate, { color: on ? theme.actionText : theme.muted }]}>{value}</Text>
               <Text style={[styles.text, !on && styles.off]}>{label}</Text>
-              {(!live || on) && <Text style={styles.tag}>{live ? T.active : T.planned}</Text>}
+              {live && on && <Text style={styles.tag}>{T.active}</Text>}
             </View>
           ))}
           {!signed ? (

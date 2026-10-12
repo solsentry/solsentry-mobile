@@ -11,6 +11,7 @@ import { TEXT, deviceLines } from '@/src/kyw/copy'
 import type { DeviceIdentity } from '@/src/kyw/device'
 import { getDevice } from '@/src/kyw/device-runtime'
 import { mode } from '@/src/kyw/engine'
+import { IntroSheet } from '@/src/kyw/IntroSheet'
 import { providerInfo } from '@/src/kyw/providers'
 import { clearHistory, updateSettings } from '@/src/kyw/store'
 import { INTERVAL_CHOICES_S } from '@/src/kyw/types'
@@ -55,6 +56,7 @@ export default function SettingsScreen() {
   const theme = useTheme()
   const styles = useStyles()
   const { settings } = useKyw()
+  const [intro, setIntro] = useState(false)
   const [device, setDevice] = useState<DeviceIdentity | null>(null)
   useEffect(() => {
     let live = true
@@ -151,6 +153,15 @@ export default function SettingsScreen() {
         </FadeUp>
 
         <FadeUp order={3}>
+          <Pressable accessibilityRole="button" onPress={() => setIntro(true)} style={styles.card}>
+            <View style={styles.linkRow}>
+              <Text style={styles.linkText}>{TEXT.howItWorks}</Text>
+              <Ionicons name="chevron-forward" size={16} color={theme.muted} />
+            </View>
+          </Pressable>
+        </FadeUp>
+
+        <FadeUp order={3}>
           <Pressable accessibilityRole="button" onPress={() => router.push('/rpc')} style={styles.card}>
             <Text style={styles.eyebrow}>{TEXT.rpcTitle}</Text>
             <View style={styles.linkRow}>
@@ -179,6 +190,7 @@ export default function SettingsScreen() {
           {SELFTEST_BUILD ? ' (self-test build)' : ''}
         </Text>
       </ScrollView>
+      <IntroSheet visible={intro} onDone={() => setIntro(false)} />
     </SafeAreaView>
   )
 }

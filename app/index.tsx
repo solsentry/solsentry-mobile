@@ -24,7 +24,7 @@ import { formatPoints, independentRpc, multiplier, multiplierText, POINT_RULE, s
 import { providerInfo } from '@/src/kyw/providers'
 import { RateDial } from '@/src/kyw/RateDial'
 import { updateSettings } from '@/src/kyw/store'
-import type { Verdict } from '@/src/kyw/types'
+import { INTRO_VERSION, type Verdict } from '@/src/kyw/types'
 import { useKyw } from '@/src/kyw/useKyw'
 import { useSkrName } from '@/src/kyw/useSkrName'
 import { Bump, Fan, FadeUp, FlashText } from '@/src/ui/motion'
@@ -72,6 +72,7 @@ export default function ValidateScreen() {
     return () => clearTimeout(t)
   }, [skrBalance])
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [details, setDetails] = useState(false)
   const provider = providerInfo(settings.provider)
   // The read's RPC is chosen in Settings; here it only sets the own-RPC multiplier and the status line.
   const report = kyw.probeReports[provider.id]
@@ -274,18 +275,35 @@ export default function ValidateScreen() {
               <Text style={styles.headValue}>{(history.counters.accepted + history.counters.diverged + history.counters.unknown).toLocaleString('en-US')}</Text>
             </View>
           </View>
-          <Grid records={records} loaded={kyw.loaded} selectedId={selected?.id ?? null} onSelect={(r) => setSelectedId(r.id)} />
-          <View style={styles.counters}>
-            {(['accepted', 'diverged', 'unknown'] as Verdict[]).map((v) => (
-              <View key={v} style={styles.counter}>
-                <View style={[styles.dot, { backgroundColor: colors[v] }]} />
-                <Text style={styles.counterValue}>{history.counters[v].toLocaleString('en-US')}</Text>
-                <Text style={styles.counterLabel}>{VERDICT_LABEL[v]}</Text>
-              </View>
-            ))}
-          </View>
+          <Grid
+            records={records}
+            loaded={kyw.loaded}
+            selectedId={selected?.id ?? null}
+            onSelect={(r) => {
+              setSelectedId(r.id)
+              setDetails(true)
+            }}
+          />
           {!selected && <Text style={styles.muted}>{TEXT.gridEmpty}</Text>}
+          {/* Counters and the selected task fold under one row, so the card stays short. */}
           {selected && (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ expanded: details }}
+              onPress={() => setDetails(!details)}
+              style={styles.counters}
+            >
+              {(['accepted', 'diverged', 'unknown'] as Verdict[]).map((v) => (
+                <View key={v} style={styles.counter}>
+                  <View style={[styles.dot, { backgroundColor: colors[v] }]} />
+                  <Text style={styles.counterValue}>{history.counters[v].toLocaleString('en-US')}</Text>
+                  <Text style={styles.counterLabel}>{VERDICT_LABEL[v]}</Text>
+                </View>
+              ))}
+              <Ionicons name={details ? 'chevron-up' : 'chevron-down'} size={14} color={theme.muted} style={{ marginLeft: 'auto' }} />
+            </Pressable>
+          )}
+          {selected && details && (
             <View accessibilityLiveRegion="polite" style={[styles.result, { borderColor: colors[selected.verdict] }]}>
               <Text style={styles.resultHead}>
                 {VERDICT_LABEL[selected.verdict].toUpperCase()}
@@ -302,7 +320,7 @@ export default function ValidateScreen() {
         <FadeUp order={3}>
           <Pressable accessibilityRole="button" accessibilityLabel={ACCOUNT_TEXT.rateTitle} onPress={() => router.push('/account')} style={styles.level}>
             <Text style={styles.eyebrow}>
-              {HOME_TEXT.rate}{rate > 0 ? ` · ${multiplierText(rate)}` : ''}{server?.userClass ? '' : ` · ${ACCOUNT_TEXT.planned}`}
+              {HOME_TEXT.rate}{rate > 0 ? ` · ${multiplierText(rate)}` : ''}
             </Text>
             <RateDial rate={rate} running={running} />
             <View style={styles.segs}>
@@ -319,7 +337,7 @@ export default function ValidateScreen() {
         <Text style={styles.footer}>{TEXT.about}</Text>
       </ScrollView>
 
-      <IntroSheet visible={kyw.loaded && !settings.seenIntro} />
+      <IntroSheet visible={kyw.loaded && settings.introSeen < INTRO_VERSION} />
       {skr && wallet && (
         <ClaimSheet
           visible={claimSheet}
@@ -421,7 +439,7 @@ const useStyles = makeStyles((theme) => StyleSheet.create({
   },
   ctaText: { ...sans, color: theme.ink, fontSize: 14, fontWeight: '600' },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  counters: { flexDirection: 'row', flexWrap: 'wrap', columnGap: 14, rowGap: 4 },
+  counters: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: 14, rowGap: 4, minHeight: 28 },
   counter: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   dot: { width: 8, height: 8, borderRadius: 4 },
   counterValue: { ...mono, color: theme.text, fontSize: 12 },

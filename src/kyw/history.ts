@@ -170,7 +170,7 @@ export function parseSettings(raw: string | null): Settings {
         : DEFAULT_SETTINGS.intervalS,
       theme: v.theme === 'light' ? 'light' : 'dark',
       seenNoGenesis: typeof v.seenNoGenesis === 'string' && v.seenNoGenesis.length <= 64 ? v.seenNoGenesis : null,
-      seenIntro: v.seenIntro === true,
+      introSeen: typeof v.introSeen === 'number' && Number.isInteger(v.introSeen) && v.introSeen >= 0 ? v.introSeen : 0,
     }
   } catch {
     return DEFAULT_SETTINGS
