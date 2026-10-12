@@ -18,7 +18,7 @@ export default function RpcScreen() {
       <ScreenBar title={TEXT.rpcTitle} onBack={() => router.back()} />
       <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
         <FadeUp order={0} style={styles.card}>
-          <RpcSection />
+          <RpcSection showTitle={false} />
         </FadeUp>
       </ScrollView>
     </SafeAreaView>

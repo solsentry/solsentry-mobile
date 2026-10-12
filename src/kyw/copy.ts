@@ -30,8 +30,8 @@ export const TEXT = {
   probeButton: 'Test this RPC',
   probeStale: 'Out of date, test again',
   rpcNote:
-    'Your key stays on this phone. It is sent only to the RPC provider you chose. SolSentry receives the provider host name, never the key.',
-  saveKey: 'Save my key',
+    'Your URL stays on this phone. It goes only to that RPC. SolSentry receives its host name, never the URL or any key in it.',
+  saveKey: 'Save it on this phone',
   saveKeyOn: 'Stored encrypted on this phone (Android Keystore).',
   saveKeyOff: 'Kept only until you close the app.',
   beta: 'beta',

@@ -183,3 +183,11 @@ describe('probe targets and validity', () => {
     expect(probeIsStale(null, 'rpc.example.test', at)).toBe(true)
   })
 })
+
+describe('page without an anchor', () => {
+  it('asks for the newest page when the server sends no before signature', async () => {
+    const h = harness(healthy)
+    await runProbe({ ...h.deps, targets: { ...TARGETS, page_before_signature: null } })
+    expect(h.calls[3].params).toEqual([TARGETS.page_address, { limit: 10 }])
+  })
+})

@@ -12,7 +12,7 @@ import { PROVIDER_CHOICES, providerInfo, type ProviderId } from './providers'
 import { recordProbeReport, setSecret, updateSettings } from './store'
 import { useKyw } from './useKyw'
 
-export function RpcSection() {
+export function RpcSection({ showTitle = true }: { showTitle?: boolean }) {
   const theme = useTheme()
   const styles = useStyles()
   const kyw = useKyw()
@@ -81,7 +81,7 @@ export function RpcSection() {
 
   return (
     <View style={{ gap: 10 }}>
-      <Text style={styles.eyebrow}>{TEXT.rpcTitle}</Text>
+      {showTitle && <Text style={styles.eyebrow}>{TEXT.rpcTitle}</Text>}
       <Text style={styles.muted}>{TEXT.rpcInfo}</Text>
       {choices.map((id) => {
         const p = providerInfo(id)

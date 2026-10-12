@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { probeCapabilityText, probePaceText, probeReportLines } from '../src/kyw/copy'
-import { PROBE_TTL_MS, probeIsStale, type ProbeReport, type ProbeTargets } from '../src/kyw/probe'
+import { PROBE_TTL_MS, parseProbeTargets, probeIsStale, type ProbeReport, type ProbeTargets } from '../src/kyw/probe'
 import { chosenRpcProbeIsStale, fetchProbeTargets, probeChosenRpc } from '../src/kyw/probe-client'
 import { resolveEndpoint, type ProviderId } from '../src/kyw/providers'
 
@@ -218,5 +218,12 @@ describe('probe presentation', () => {
     expect(probePaceText(null)).toBe('rate limited')
     expect(probeCapabilityText({ class: 'rate_limited' })).toBe('not available (rate limited)')
     expect(probeCapabilityText({ class: 'version' })).toBe('not available (transaction version unsupported)')
+  })
+})
+
+describe('probe targets from production', () => {
+  it('accepts a null page anchor, as integrations/kyw/probe.py sends by default', () => {
+    expect(parseProbeTargets({ ...TARGETS, page_before_signature: null })?.page_before_signature).toBeNull()
+    expect(parseProbeTargets({ ...TARGETS, page_before_signature: 'x' })).toBeNull()
   })
 })

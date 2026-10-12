@@ -9,7 +9,8 @@ export interface ProbeTargets {
   recent_signature: string
   archival_signature: string
   page_address: string
-  page_before_signature: string
+  /** null: the server sends no anchor and the page starts at the newest signature. */
+  page_before_signature: string | null
   account: string
   read: { encoding: string; maxSupportedTransactionVersion: number; commitment: string }
 }
@@ -153,7 +154,7 @@ export async function runProbe(deps: ProbeDeps): Promise<ProbeReport> {
   const C1 = await present(deps, 'getTransaction', [t.recent_signature, read])
   const C2 = await present(deps, 'getTransaction', [t.archival_signature, read])
   const C3 = await page(deps, [t.page_address, { limit: PAGE_LIMIT }], PAGE_LIMIT, true)
-  const C4 = await page(deps, [t.page_address, { limit: 10, before: t.page_before_signature }], 10, false)
+  const C4 = await page(deps, [t.page_address, t.page_before_signature ? { limit: 10, before: t.page_before_signature } : { limit: 10 }], 10, false)
   const C5 = await accountState(deps, t.account)
   let minInterval: number | null = null
   for (const gap of PACE_GAPS_MS) {
@@ -179,7 +180,7 @@ export function parseProbeTargets(body: unknown): ProbeTargets | null {
   const read = b.read as Record<string, unknown> | null | undefined
   const base58 = (v: unknown, min: number): v is string => typeof v === 'string' && new RegExp(`^[1-9A-HJ-NP-Za-km-z]{${min},90}$`).test(v)
   if (b.probe_version !== PROBE_VERSION) return null
-  if (!base58(b.recent_signature, 64) || !base58(b.archival_signature, 64) || !base58(b.page_before_signature, 64)) return null
+  if (!base58(b.recent_signature, 64) || !base58(b.archival_signature, 64) || (b.page_before_signature !== null && !base58(b.page_before_signature, 64))) return null
   if (!base58(b.page_address, 32) || !base58(b.account, 32)) return null
   if (typeof read !== 'object' || read === null) return null
   // Version 1 is not negotiable: asking for 0 makes a v1 transaction look missing.
