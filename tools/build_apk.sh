@@ -9,6 +9,7 @@
 set -euo pipefail
 variant="${1:?release or selftest}"
 out="$(realpath -m "${2:?output apk path}")"
+mkdir -p "$(dirname "$out")"
 cd "$(dirname "$0")/.."
 : "${JAVA_HOME:?set JAVA_HOME}" "${ANDROID_HOME:?set ANDROID_HOME}"
 export NODE_ENV=production CI=1
