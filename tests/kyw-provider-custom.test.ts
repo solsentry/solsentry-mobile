@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { PROVIDER_CHOICES, resolveEndpoint, rpcUrlHost } from '../src/kyw/providers'
+import { PROVIDER_CHOICES, loadedProvider, resolveEndpoint, rpcUrlHost } from '../src/kyw/providers'
 
 describe('your own RPC URL', () => {
   it('offers only SolSentry and the user URL', () => {
@@ -13,5 +13,19 @@ describe('your own RPC URL', () => {
     for (const bad of ['http://rpc.example.com', 'https://user:pw@rpc.example.com', 'rpc.example.com', 'https://localhost', '', 'https://rpc.example.com bad'])
       expect(rpcUrlHost(bad)).toBeNull()
     expect(resolveEndpoint('custom', '', 'api.solsentry.app').ok).toBe(false)
+  })
+})
+
+describe('a provider saved by an older version', () => {
+  it('keeps the two choices the app offers, with or without a URL', () => {
+    expect(loadedProvider('solsentry', undefined)).toBe('solsentry')
+    expect(loadedProvider('custom', undefined)).toBe('custom')
+  })
+  it('keeps a named provider whose key is saved', () => {
+    expect(loadedProvider('helius', 'abc')).toBe('helius')
+  })
+  it('falls back to SolSentry for a named provider with no key, so the phone does not sit idle', () => {
+    expect(loadedProvider('helius', undefined)).toBe('solsentry')
+    expect(loadedProvider('quicknode', '  ')).toBe('solsentry')
   })
 })

@@ -19,11 +19,20 @@ function Badge({ label, on }: { label: string; on: boolean }) {
 }
 
 /** Top of the home screen: the wallet of this phone and the badges it carries. */
-export function WalletCard({ account, onOpen }: { account: ReturnType<typeof useAccount>; onOpen: () => void }) {
+/** deviceVerified is the class SolSentry holds (withServerClass), not the phone's cached check: a key
+ * verified on the phone before the server kept attestations is still unattested there. */
+export function WalletCard({
+  account,
+  deviceVerified,
+  onOpen,
+}: {
+  account: ReturnType<typeof useAccount>
+  deviceVerified: boolean
+  onOpen: () => void
+}) {
   const t = useTheme()
   const styles = useStyles()
-  const { wallet, device, busy, note, link } = account
-  const deviceVerified = device?.kind === 'key' && device.check === 'verified'
+  const { wallet, busy, note, link } = account
   if (!wallet) {
     return (
       <View style={styles.card}>

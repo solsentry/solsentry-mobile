@@ -8,7 +8,7 @@ import * as SecureStore from 'expo-secure-store'
 import { EMPTY, addRecord, parsePersisted, parseSettings, type Persisted } from './history'
 import type { LoopStatus } from './loop'
 import { PROBE_VERSION, type Capability, type ProbeReport } from './probe'
-import { PROVIDERS, type ProviderId } from './providers'
+import { PROVIDERS, loadedProvider, type ProviderId } from './providers'
 import { DEFAULT_SETTINGS, type Settings, type TaskRecord } from './types'
 
 const HISTORY_KEY = 'solsentry-kyw/history/v1'
@@ -154,6 +154,7 @@ export function load(): Promise<void> {
         }
       }
     }
+    settings = { ...settings, provider: loadedProvider(settings.provider, secrets[settings.provider]) }
     set({ loaded: true, history, settings, secrets, probeReports })
     // A delete that failed earlier is retried here: with saving off, nothing stays stored.
     if (!settings.saveKey) await syncStoredSecrets()

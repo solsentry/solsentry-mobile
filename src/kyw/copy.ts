@@ -132,6 +132,9 @@ const REASON_TEXT: Record<string, string> = {
   wrong_fact_type: 'This app version does not compute this kind of fact.',
 }
 
+/** "1 point", "8.4 points": the figure comes formatted from formatServerPoints. */
+export const pointsWord = (n: string) => `${n} ${n === '1' ? 'point' : 'points'}`
+
 export const ACCOUNT_TEXT = {
   title: 'Account',
   balance: 'Balance',
@@ -151,7 +154,7 @@ export const ACCOUNT_TEXT = {
   skrWindow: (earned: string, cap: string) => `${earned}/${cap} SKR today`,
   /** The server's two totals: this phone's results, and those written under the linked wallet. */
   pointsSplit: (phone: string, wallet: string | null) =>
-    wallet === null ? `${phone} points on this phone.` : `${phone} points on this phone · ${wallet} with this wallet.`,
+    wallet === null ? `${pointsWord(phone)} on this phone.` : `${pointsWord(phone)} on this phone · ${wallet} with this wallet.`,
   skrSoon: 'Points turn into SKR from a public pool. The SKR balance shows here once SolSentry turns it on.',
   claim: 'Claim SKR',
   claiming: 'Waiting for the wallet…',
@@ -185,7 +188,8 @@ export const ACCOUNT_TEXT = {
   rateUnverified: 'SolSentry has not verified this phone\'s hardware key, so no bonus applies.',
   active: 'Active',
   rateZero: 'This phone has no hardware key, so its results are not signed and do not count points.',
-  today: (n: number, cap: number) => `${Math.min(n, cap)}/${cap} today`,
+  /** The daily cap counts results, not points, so the line says so next to the points figure. */
+  today: (n: number, cap: number) => `${Math.min(n, cap)}/${cap} results today`,
   link: 'Link wallet',
   connectTitle: 'Your Seeker wallet',
   connect: 'Connect wallet',
@@ -272,7 +276,7 @@ export function switchProviderPrompt(
   return {
     title: `Switch to ${providerLabel}?`,
     body: usesKey
-      ? `The next reads will go to ${providerLabel}, with the key saved for it.`
+      ? `The next reads will go to ${providerLabel}, with the URL or key you enter for it.`
       : `The next reads will go through ${providerLabel}.`,
     confirm: 'Switch',
     cancel: 'Keep current',

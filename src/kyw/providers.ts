@@ -31,6 +31,13 @@ export const PROVIDERS: readonly ProviderInfo[] = [
  * providers stay readable for installs that saved one before; the app no longer lists them. */
 export const PROVIDER_CHOICES: readonly ProviderId[] = ['solsentry', 'custom']
 
+/** A named provider the app no longer lists, saved before without its key, reads nothing: the phone
+ * would sit on "verifying" until the user found the old field. It falls back to SolSentry's read. */
+export function loadedProvider(provider: ProviderId, secret: string | undefined): ProviderId {
+  if (PROVIDER_CHOICES.includes(provider)) return provider
+  return secret && secret.trim() ? provider : 'solsentry'
+}
+
 /** Host of an https RPC URL with no credentials in its authority; null when it is not one.
  * A regex, not URL: React Native's URL does not implement every getter. */
 export function rpcUrlHost(value: string): string | null {

@@ -175,7 +175,7 @@ export default function ValidateScreen() {
       <ScrollView contentContainerStyle={styles.body}>
         {!wallet && (
           <FadeUp order={0}>
-            <WalletCard account={account} onOpen={() => router.push('/account')} />
+            <WalletCard account={account} deviceVerified={ctx.deviceVerified} onOpen={() => router.push('/account')} />
           </FadeUp>
         )}
         {showNoGenesis(wallet, settings.seenNoGenesis) && (
