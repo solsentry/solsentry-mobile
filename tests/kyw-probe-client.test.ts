@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { probeCapabilityText, probePaceText, probeReportLines } from '../src/kyw/copy'
 import { PROBE_TTL_MS, parseProbeTargets, probeIsStale, type ProbeReport, type ProbeTargets } from '../src/kyw/probe'
-import { chosenRpcProbeIsStale, fetchProbeTargets, probeChosenRpc } from '../src/kyw/probe-client'
+import { chosenRpcProbeIsStale, fetchProbeTargets, ownRpcActive, probeChosenRpc, probeSigningMessage, submitProbe } from '../src/kyw/probe-client'
 import { resolveEndpoint, type ProviderId } from '../src/kyw/providers'
 
 const storage = vi.hoisted(() => new Map<string, string>())
@@ -225,5 +225,35 @@ describe('probe targets from production', () => {
   it('accepts a null page anchor, as integrations/kyw/probe.py sends by default', () => {
     expect(parseProbeTargets({ ...TARGETS, page_before_signature: null })?.page_before_signature).toBeNull()
     expect(parseProbeTargets({ ...TARGETS, page_before_signature: 'x' })).toBeNull()
+  })
+})
+
+describe('signed probe to SolSentry', () => {
+  it('signs the domain and the sha256 of the exact body (integrations/kyw/device.py probe_message)', () => {
+    // sha256("{}") = 44136fa3...
+    expect(probeSigningMessage('{}')).toBe('kyw-probe-v0\n44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a')
+  })
+  it('posts the report with the key id and the signature header; never the URL', async () => {
+    const REPORT = await report()
+    const seen: { body: string; headers: Record<string, string> }[] = []
+    const fetchMock = (async (_u: RequestInfo | URL, init?: RequestInit) => {
+      seen.push({ body: String(init?.body), headers: init?.headers as Record<string, string> })
+      return new Response(JSON.stringify({ accepted: true, signed: true }), { status: 200 })
+    }) as typeof fetch
+    const r = await submitProbe({ fetch: fetchMock, apiBase: 'https://api.test', report: REPORT, deviceKeyId: 'k1:abc', signWithDevice: async () => 'SIG' })
+    expect(r).toEqual({ ok: true, signed: true })
+    expect(JSON.parse(seen[0].body)).toMatchObject({ rpc_host: REPORT.rpc_host, device_key_id: 'k1:abc' })
+    expect(seen[0].body).not.toMatch(/api-key|https:\/\//)
+    expect(seen[0].headers['X-KYW-Device-Sig']).toBe('SIG')
+  })
+  it('sends nothing when the key will not sign', async () => {
+    const REPORT = await report()
+    const r = await submitProbe({ fetch: (async () => { throw new Error('no call') }) as never, apiBase: 'https://api.test', report: REPORT, deviceKeyId: 'k1:abc', signWithDevice: async () => null })
+    expect(r).toEqual({ ok: false, problem: 'no_signature' })
+  })
+  it('the own-RPC bonus is off without the URL the report was made for', async () => {
+    const REPORT = await report()
+    const now = Date.parse(REPORT.measured_at) + 60_000
+    expect(ownRpcActive('custom', REPORT, '', now)).toBe(false)
   })
 })

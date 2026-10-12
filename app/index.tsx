@@ -13,6 +13,7 @@ import { IntroSheet } from '@/src/kyw/IntroSheet'
 import { NoGenesisCard } from '@/src/kyw/NoGenesisCard'
 import { Grid, verdictColor } from '@/src/kyw/Grid'
 import { countedToday, tasksPerHour } from '@/src/kyw/history'
+import { ownRpcActive } from '@/src/kyw/probe-client'
 import { useAccount } from '@/src/kyw/useAccount'
 import { WalletCard } from '@/src/kyw/WalletCard'
 import * as Linking from 'expo-linking'
@@ -20,7 +21,7 @@ import * as Linking from 'expo-linking'
 import { SKR_PAYOUT, solscanTx } from '@/src/config'
 import { outcomeText } from '@/src/kyw/SkrCard'
 import { formatServerPoints, formatSkr as formatSkrShort, skrClosed, skrFigure } from '@/src/kyw/server-points'
-import { bonusText, formatPoints, independentRpc, pointsPerResult, pointsText, POINT_RULE, showNoGenesis, withServerClass } from '@/src/kyw/points'
+import { bonusText, formatPoints, pointsPerResult, pointsText, POINT_RULE, showNoGenesis, withServerClass } from '@/src/kyw/points'
 import { providerInfo } from '@/src/kyw/providers'
 import { RateDial } from '@/src/kyw/RateDial'
 import { updateSettings } from '@/src/kyw/store'
@@ -103,7 +104,7 @@ export default function ValidateScreen() {
     {
       deviceVerified: account.device?.kind === 'key' && account.device.check === 'verified',
       genesis: wallet?.sgt.status === 'verified',
-      independentRpc: independentRpc(provider.id, report),
+      independentRpc: ownRpcActive(provider.id, report, kyw.secrets[provider.id] ?? '', probeNow),
     },
     server?.userClass ?? null,
   )

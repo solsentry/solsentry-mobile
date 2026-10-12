@@ -9,7 +9,8 @@ import { ClaimSheet } from '@/src/kyw/ClaimSheet'
 import { SkrCard } from '@/src/kyw/SkrCard'
 import { ACCOUNT_TEXT as T, HOME_TEXT, TEXT } from '@/src/kyw/copy'
 import { formatServerPoints, skrClosed } from '@/src/kyw/server-points'
-import { POINT_RULE, bonusText, formatPoints, independentRpc, pointsPerResult, pointsText, withServerClass } from '@/src/kyw/points'
+import { POINT_RULE, bonusText, formatPoints, pointsPerResult, pointsText, withServerClass } from '@/src/kyw/points'
+import { ownRpcActive } from '@/src/kyw/probe-client'
 import { useAccount } from '@/src/kyw/useAccount'
 import { useKyw } from '@/src/kyw/useKyw'
 import { useSkrName } from '@/src/kyw/useSkrName'
@@ -35,7 +36,7 @@ export default function AccountScreen() {
     {
       deviceVerified: device?.kind === 'key' && device.check === 'verified',
       genesis: wallet?.genesis === true || wallet?.sgt.status === 'verified',
-      independentRpc: independentRpc(provider, kyw.probeReports[provider]),
+      independentRpc: ownRpcActive(provider, kyw.probeReports[provider], kyw.secrets[provider] ?? '', Date.now()),
     },
     userClass,
   )

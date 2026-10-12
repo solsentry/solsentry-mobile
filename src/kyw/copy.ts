@@ -29,6 +29,7 @@ export const TEXT = {
     'Each task is read from a Solana mainnet RPC. By default the read goes through SolSentry, nothing to set up. You can use your own RPC instead: paste its HTTPS URL below. Once "Test this RPC" passes every check, on a phone whose hardware key SolSentry has checked, each matched result gets +0.1 point.',
   probeButton: 'Test this RPC',
   probeStale: 'Out of date, test again',
+  probeNotSent: 'Tested here, but SolSentry did not receive the signed result. Test again to get the RPC bonus.',
   rpcNote:
     'Your URL stays on this phone. It goes only to that RPC. SolSentry receives its host name, never the URL or any key in it.',
   saveKey: 'Save it on this phone',

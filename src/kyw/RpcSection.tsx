@@ -7,7 +7,8 @@ import { Button } from '../ui/components'
 import { fonts, makeStyles, useTheme } from '../ui/theme'
 import { KYW_API_BASE } from './config'
 import { TEXT, probeProblemText, probeReportLines, probeTestedText, switchProviderPrompt } from './copy'
-import { chosenRpcProbeIsStale, probeChosenRpc } from './probe-client'
+import { getDevice, signMessageWithDevice } from './device-runtime'
+import { chosenRpcProbeIsStale, probeChosenRpc, submitProbe } from './probe-client'
 import { PROVIDER_CHOICES, providerInfo, type ProviderId } from './providers'
 import { recordProbeReport, setSecret, updateSettings } from './store'
 import { useKyw } from './useKyw'
@@ -68,7 +69,19 @@ export function RpcSection({ showTitle = true }: { showTitle?: boolean }) {
         clientVersion: Constants.expoConfig?.version ?? '0',
       })
       if (!result.ok) setProbeProblem({ provider: id, text: probeProblemText(result.problem) })
-      else if (result.kind === 'report') await recordProbeReport(id, result.report)
+      else if (result.kind === 'report') {
+        await recordProbeReport(id, result.report)
+        // The bonus counts only once SolSentry holds the signed report.
+        const device = await getDevice()
+        const sent = await submitProbe({
+          fetch,
+          apiBase: KYW_API_BASE,
+          report: result.report,
+          deviceKeyId: device.kind === 'key' ? device.id : null,
+          signWithDevice: signMessageWithDevice(device),
+        })
+        if (!sent.ok || !sent.signed) setProbeProblem({ provider: id, text: TEXT.probeNotSent })
+      }
     } finally {
       setNow(Date.now())
       setProbing(null)
