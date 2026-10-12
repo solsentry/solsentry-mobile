@@ -400,7 +400,8 @@ const useStyles = makeStyles((theme) => StyleSheet.create({
   },
   statusText: { ...mono, color: theme.text, fontSize: 11, letterSpacing: 1, textTransform: 'uppercase', flex: 1 },
   statusPace: { ...mono, color: theme.muted, fontSize: 11 },
-  valueRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', paddingHorizontal: 6, paddingTop: 4 },
+  // Wraps: a long figure (115.2 pts) pushes the cap line below instead of over the unit and past the edge.
+  valueRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', justifyContent: 'space-between', columnGap: 12, paddingHorizontal: 6, paddingTop: 4 },
   value: { flexDirection: 'row', alignItems: 'baseline', gap: 6 },
   valueMain: { ...figure, color: theme.text, fontSize: 46, lineHeight: 52, fontWeight: '500', letterSpacing: -1.8 },
   valueTail: { ...mono, color: theme.muted, fontSize: 20 },

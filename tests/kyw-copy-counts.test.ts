@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ACCOUNT_TEXT, switchProviderPrompt } from '../src/kyw/copy'
+import { ACCOUNT_TEXT, INTRO_TEXT, switchProviderPrompt } from '../src/kyw/copy'
 
 describe('points and caps on screen', () => {
   it('says 1 point, and points for any other figure', () => {
@@ -13,5 +13,13 @@ describe('points and caps on screen', () => {
   })
   it('does not claim a URL is already saved when switching to your RPC', () => {
     expect(switchProviderPrompt('Your RPC', true).body).not.toMatch(/saved/)
+  })
+})
+
+describe('what points are worth', () => {
+  it('says points have no cash value where the uses are listed and in how-it-works', () => {
+    expect(ACCOUNT_TEXT.redeemLine).toMatch(/no cash value/)
+    expect(ACCOUNT_TEXT.redeemLine).toMatch(/planned, not promised/)
+    expect(INTRO_TEXT.steps[2].body).toMatch(/no cash value/)
   })
 })

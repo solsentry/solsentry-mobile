@@ -213,7 +213,8 @@ export const ACCOUNT_TEXT = {
   redeemTitle: 'Redeem',
   redeemNote: 'Planned. Nothing can be redeemed yet and points have no set value.',
   redeemNoteSkr: 'Planned: more ways to use points besides SKR.',
-  redeemLine: 'Coming: SolSentry access, RPC credits and events for your points.',
+  redeemLine:
+    'Points have no cash value and are not a token. During the Seeker launch, Seeker Genesis wallets can turn them into SKR from a pool SolSentry funds, while it lasts. Other uses (SolSentry access, RPC credits, events) are planned, not promised, and these rules can change.',
   redeemItems: ['SolSentry access', 'RPC credits', 'Events'],
   rpcMenuTitle: 'RPC for the read',
 }
@@ -309,7 +310,7 @@ export const INTRO_TEXT = {
     },
     {
       title: 'Points turn into SKR',
-      body: 'During the Seeker launch, wallets that hold a Seeker Genesis Token get SKR from a public pool: 1 SKR per 40 points, up to a daily cap shown in the app. Claim sends it to your wallet.',
+      body: 'During the Seeker launch, wallets that hold a Seeker Genesis Token get SKR from a public pool: 1 SKR per 40 points, up to a daily cap shown in the app. Claim sends it to your wallet. Points have no cash value, and the pool and these rules can change.',
     },
   ],
   skip: 'Skip',
