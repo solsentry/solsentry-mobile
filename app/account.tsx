@@ -1,10 +1,11 @@
 import Ionicons from '@expo/vector-icons/Ionicons'
 import { useRouter } from 'expo-router'
-import React from 'react'
+import React, { useState } from 'react'
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
 import { Avatar } from '@/src/kyw/Avatar'
+import { ClaimSheet } from '@/src/kyw/ClaimSheet'
 import { SkrCard } from '@/src/kyw/SkrCard'
 import { ACCOUNT_TEXT as T, HOME_TEXT, TEXT } from '@/src/kyw/copy'
 import { formatServerPoints, skrClosed } from '@/src/kyw/server-points'
@@ -40,6 +41,7 @@ export default function AccountScreen() {
   )
   const now = multiplier(ctx)
   const skrOpen = server?.skr != null && !skrClosed(server.skr)
+  const [claimSheet, setClaimSheet] = useState(false)
   const signed = device?.kind === 'key'
   const rates: [string, string, boolean][] = [
     [T.rateGenesis, multiplierText(POINT_RULE.genesis), ctx.deviceVerified && ctx.genesis],
@@ -85,7 +87,14 @@ export default function AccountScreen() {
           {note && <Text style={styles.warn}>{note}</Text>}
         </FadeUp>
         <FadeUp order={1}>
-          <SkrCard account={account} server={server} />
+          <SkrCard
+            account={account}
+            server={server}
+            onClaim={() => {
+              account.resetClaim()
+              setClaimSheet(true)
+            }}
+          />
         </FadeUp>
         {!skrOpen && (
         <FadeUp order={1} style={styles.card}>
@@ -132,17 +141,20 @@ export default function AccountScreen() {
           )}
         </FadeUp>
 
-        <FadeUp order={3} style={styles.card}>
-          <Text style={styles.eyebrow}>{T.redeemTitle}</Text>
-          <Text style={styles.muted}>{server?.skr ? T.redeemNoteSkr : T.redeemNote}</Text>
-          {T.redeemItems.map((i) => (
-            <View key={i} style={styles.item}>
-              <Text style={[styles.text, styles.off]}>{i}</Text>
-              <Text style={styles.tag}>{T.planned}</Text>
-            </View>
-          ))}
-        </FadeUp>
+        <Text style={styles.footnote}>{T.redeemLine}</Text>
       </ScrollView>
+      {skrOpen && server?.skr && wallet && (
+        <ClaimSheet
+          visible={claimSheet}
+          onClose={() => setClaimSheet(false)}
+          amountRaw={server.skr.balanceRaw}
+          wallet={wallet.address}
+          walletName={skrName}
+          claiming={account.claiming}
+          outcome={account.claim}
+          onApprove={() => void account.claimSkr()}
+        />
+      )}
     </SafeAreaView>
   )
 }
@@ -150,6 +162,7 @@ export default function AccountScreen() {
 const useStyles = makeStyles((t) =>
   StyleSheet.create({
     safe: { flex: 1, backgroundColor: t.bg },
+    footnote: { color: t.muted, fontFamily: fonts.body, fontSize: 12, lineHeight: 17, paddingHorizontal: 4 },
     round: { width: 40, height: 40, borderRadius: 20, borderWidth: 1, borderColor: t.border2, alignItems: 'center', justifyContent: 'center' },
     body: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 24, gap: 10 },
     card: { backgroundColor: t.surface, borderWidth: 1, borderColor: t.border, borderRadius: 16, paddingHorizontal: 16, paddingVertical: 14, gap: 10 },

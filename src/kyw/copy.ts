@@ -206,6 +206,7 @@ export const ACCOUNT_TEXT = {
   redeemTitle: 'Redeem',
   redeemNote: 'Planned. Nothing can be redeemed yet and points have no set value.',
   redeemNoteSkr: 'Planned: more ways to use points besides SKR.',
+  redeemLine: 'Coming: SolSentry access, RPC credits and events for your points.',
   redeemItems: ['SolSentry access', 'RPC credits', 'Events'],
   rpcMenuTitle: 'RPC for the read',
 }

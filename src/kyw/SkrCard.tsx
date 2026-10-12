@@ -41,7 +41,7 @@ export function outcomeText(o: ClaimOutcome): { text: string; good: boolean; sig
 }
 
 /** SKR balance from SolSentry's ledger and the Claim button. Without the server's SKR field: points only, claim not offered. */
-export function SkrCard({ account, server }: { account: ReturnType<typeof useAccount>; server: ServerPoints | null }) {
+export function SkrCard({ account, server, onClaim }: { account: ReturnType<typeof useAccount>; server: ServerPoints | null; onClaim?: () => void }) {
   const theme = useTheme()
   const styles = useStyles()
   const skr = server?.skr ?? null
@@ -83,7 +83,7 @@ export function SkrCard({ account, server }: { account: ReturnType<typeof useAcc
       ) : (
         <>
           {skr.openClaim && <Text style={styles.muted}>{T.claimOpen}</Text>}
-          <Button title={T.claim} disabled={!enough && !skr.openClaim} onPress={() => void claimSkr()} />
+          <Button title={T.claim} disabled={!enough && !skr.openClaim} onPress={() => (onClaim ? onClaim() : void claimSkr())} />
           {!enough && !skr.openClaim && <Text style={styles.muted}>{T.claimMin(formatSkr(skr.minClaimRaw))}</Text>}
           {(enough || skr.openClaim) && <Text style={styles.muted}>{T.claimFee}</Text>}
         </>
