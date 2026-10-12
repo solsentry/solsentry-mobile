@@ -47,7 +47,7 @@ export const DEFAULT_SETTINGS: Settings = {
 }
 
 /** Bump to show the how-it-works steps once more after an update. */
-export const INTRO_VERSION = 2
+export const INTRO_VERSION = 3
 
 export const INTERVAL_CHOICES_S = [2, 5, 15, 60] as const
 
