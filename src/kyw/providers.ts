@@ -24,7 +24,7 @@ export const PROVIDERS: readonly ProviderInfo[] = [
     secretHint: 'https://<name>.solana-mainnet.quiknode.pro/<token>/',
   },
   { id: 'solami', label: 'Solami', beta: true, secretLabel: 'Solami API key', secretHint: 'Paste your API key' },
-  { id: 'custom', label: 'Your RPC', beta: false, secretLabel: 'Your RPC URL', secretHint: 'https://…' },
+  { id: 'custom', label: 'Your RPC', beta: false, secretLabel: 'RPC URL', secretHint: 'https://…' },
 ]
 
 /** What the app offers: SolSentry's read, or any Solana mainnet RPC URL the user owns. The named
@@ -54,7 +54,7 @@ const KEY_SHAPE = /^[A-Za-z0-9._-]{8,200}$/
 export function resolveEndpoint(id: ProviderId, secret: string, apiHost: string): Endpoint {
   if (id === 'solsentry') return { ok: true, kind: 'proxy', host: apiHost }
   const value = secret.trim()
-  if (!value) return { ok: false, problem: `Add your ${providerInfo(id).secretLabel} below.` }
+  if (!value) return { ok: false, problem: `Add your ${providerInfo(id).secretLabel} in Settings, RPC for the read.` }
   if (id === 'custom') {
     const host = rpcUrlHost(value)
     // Only the host is ever reported: a key in the path or the query stays in `url`.
