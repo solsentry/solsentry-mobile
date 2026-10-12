@@ -229,6 +229,9 @@ export default function ValidateScreen() {
               )
             )}
           </View>
+          {!skr && server && server.today.cap !== null && server.today.counted >= server.today.cap && (
+            <Text style={styles.capNote}>{HOME_TEXT.capReached}</Text>
+          )}
           {server && (
             <Text style={styles.muted}>
               {ACCOUNT_TEXT.pointsSplit(formatServerPoints(server.points), server.wallet?.points != null ? formatServerPoints(server.wallet.points) : null)}
@@ -380,6 +383,7 @@ const useStyles = makeStyles((theme) => StyleSheet.create({
   roundBtn: { width: 40, height: 40, borderRadius: 20, borderWidth: 1, borderColor: theme.border2, alignItems: 'center', justifyContent: 'center' },
   body: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 24, gap: 10 },
   muted: { ...sans, color: theme.muted, fontSize: 12, lineHeight: 17 },
+  capNote: { ...sans, color: theme.actionText, fontSize: 12, lineHeight: 17 },
   card: { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1, borderRadius: 16, paddingHorizontal: 16, paddingVertical: 14, gap: 12 },
   head: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
   eyebrow: { ...mono, color: theme.muted, fontSize: 10, letterSpacing: 1, textTransform: 'uppercase' },

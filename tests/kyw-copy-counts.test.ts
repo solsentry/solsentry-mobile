@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ACCOUNT_TEXT, INTRO_TEXT, switchProviderPrompt } from '../src/kyw/copy'
+import { ACCOUNT_TEXT, HOME_TEXT, INTRO_TEXT, switchProviderPrompt } from '../src/kyw/copy'
 
 describe('points and caps on screen', () => {
   it('says 1 point, and points for any other figure', () => {
@@ -19,7 +19,15 @@ describe('points and caps on screen', () => {
 describe('what points are worth', () => {
   it('says points have no cash value where the uses are listed and in how-it-works', () => {
     expect(ACCOUNT_TEXT.redeemLine).toMatch(/no cash value/)
-    expect(ACCOUNT_TEXT.redeemLine).toMatch(/planned, not promised/)
+    expect(ACCOUNT_TEXT.redeemLine).toMatch(/SolSentry access, wallet tracking and wallet attestation/)
+    expect(ACCOUNT_TEXT.redeemLine).toMatch(/depend on partners/)
     expect(INTRO_TEXT.steps[2].body).toMatch(/no cash value/)
+  })
+})
+
+describe('the daily cap on the Home', () => {
+  it('says tasks still run and gives no reset hour (the window length is a server setting)', () => {
+    expect(HOME_TEXT.capReached).toMatch(/Tasks still run/)
+    expect(HOME_TEXT.capReached).not.toMatch(/\d/)
   })
 })

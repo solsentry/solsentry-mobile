@@ -214,7 +214,7 @@ export const ACCOUNT_TEXT = {
   redeemNote: 'Planned. Nothing can be redeemed yet and points have no set value.',
   redeemNoteSkr: 'Planned: more ways to use points besides SKR.',
   redeemLine:
-    'Points have no cash value and are not a token. During the Seeker launch, Seeker Genesis wallets can turn them into SKR from a pool SolSentry funds, while it lasts. Other uses (SolSentry access, RPC credits, events) are planned, not promised, and these rules can change.',
+    'Points have no cash value and are not a token. SolSentry will let you use them for its own services: SolSentry access, wallet tracking and wallet attestation. RPC credits from other providers and events depend on partners. During the Seeker launch, Seeker Genesis wallets can also turn points into SKR from a pool SolSentry funds, while it lasts. Rates and rules can change.',
   redeemItems: ['SolSentry access', 'RPC credits', 'Events'],
   rpcMenuTitle: 'RPC for the read',
 }
@@ -229,6 +229,8 @@ export const HOME_TEXT = {
   statusOff: 'Paused',
   pace: (n: number) => `${n} tasks/h`,
   pointsUnit: 'pts',
+  /** Shown once SolSentry's count for the cap window reaches the cap: the phone keeps reading, points wait. */
+  capReached: "Today's cap is reached. Tasks still run; new points count again when the cap resets.",
   pointsCta: 'Your rewards',
   rate: 'Points per result',
   rateDevice: 'Attested',
@@ -310,7 +312,7 @@ export const INTRO_TEXT = {
     },
     {
       title: 'Points turn into SKR',
-      body: 'During the Seeker launch, wallets that hold a Seeker Genesis Token get SKR from a public pool: 1 SKR per 40 points, up to a daily cap shown in the app. Claim sends it to your wallet. Points have no cash value, and the pool and these rules can change.',
+      body: 'During the Seeker launch, wallets that hold a Seeker Genesis Token get SKR from a public pool: 1 SKR per 40 points, up to a daily cap shown in the app. Claim sends it to your wallet. Points have no cash value; SolSentry will open its own services for them (access, wallet tracking, wallet attestation). Rates and rules can change.',
     },
   ],
   skip: 'Skip',
