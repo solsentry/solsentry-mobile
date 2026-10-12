@@ -319,3 +319,12 @@ export const INTRO_TEXT = {
   next: 'Next',
   start: 'Start',
 } as const
+
+/** A newer build of the app is published (UpdateBanner). */
+export const UPDATE_TEXT = {
+  title: (name: string) => `Update available: ${name}`,
+  body: 'A newer version of SolSentry is out.',
+  how: 'Download opens the APK in your browser. Install it over this one: points, history and the wallet link stay.',
+  download: 'Download',
+  later: 'Later',
+}

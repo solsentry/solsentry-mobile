@@ -28,6 +28,8 @@ import { updateSettings } from '@/src/kyw/store'
 import { INTRO_VERSION, type Verdict } from '@/src/kyw/types'
 import { useKyw } from '@/src/kyw/useKyw'
 import { useSkrName } from '@/src/kyw/useSkrName'
+import { UpdateBanner } from '@/src/kyw/UpdateBanner'
+import { useUpdate } from '@/src/kyw/useUpdate'
 import { Bump, Fan, FadeUp, FlashText } from '@/src/ui/motion'
 import { figure, fonts, makeStyles, useTheme } from '@/src/ui/theme'
 
@@ -49,6 +51,7 @@ export default function ValidateScreen() {
   const colors = verdictColor(theme)
   const kyw = useKyw()
   const account = useAccount()
+  const update = useUpdate()
   const { settings, history, running, status } = kyw
   const server = account.server
   // Cap 0 = no SKR for this device now (Genesis only in the Seeker phase): points take the figure, no Claim.
@@ -173,6 +176,11 @@ export default function ValidateScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.body}>
+        {update.offer && (
+          <FadeUp order={0}>
+            <UpdateBanner offer={update.offer} onDownload={update.download} onLater={update.later} />
+          </FadeUp>
+        )}
         {!wallet && (
           <FadeUp order={0}>
             <WalletCard account={account} deviceVerified={ctx.deviceVerified} onOpen={() => router.push('/account')} />

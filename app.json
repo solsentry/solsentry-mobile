@@ -2,7 +2,7 @@
   "expo": {
     "name": "SolSentry",
     "slug": "solsentry-mobile",
-    "version": "0.1.0",
+    "version": "0.1.18",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "solsentry",
@@ -17,7 +17,7 @@
       },
       "predictiveBackGestureEnabled": false,
       "package": "app.solsentry.mobile",
-      "versionCode": 1,
+      "versionCode": 18,
       "blockedPermissions": [
         "android.permission.SYSTEM_ALERT_WINDOW",
         "android.permission.READ_EXTERNAL_STORAGE",
