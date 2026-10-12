@@ -14,6 +14,7 @@ vi.mock('@/modules/kyw-service', () => ({
   },
   isRunning: () => native.running,
   setText: () => {},
+  setWidget: () => {},
   powerState: () => null,
 }))
 vi.mock('../src/kyw/device-runtime', () => ({

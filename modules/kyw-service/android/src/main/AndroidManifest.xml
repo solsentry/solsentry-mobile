@@ -15,5 +15,16 @@
         android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
         android:value="Reads public Solana transactions and compares them with a reference while the user keeps verification switched on." />
     </service>
+    <receiver
+      android:name=".KywWidget"
+      android:exported="false"
+      android:label="SolSentry">
+      <intent-filter>
+        <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+      </intent-filter>
+      <meta-data
+        android:name="android.appwidget.provider"
+        android:resource="@xml/kyw_widget_info" />
+    </receiver>
   </application>
 </manifest>

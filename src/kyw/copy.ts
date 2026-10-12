@@ -245,6 +245,8 @@ export const HOME_TEXT = {
   badgeRpcDefault: 'SolSentry RPC',
   rateGenesis: 'Genesis',
   rateRpc: 'Own RPC',
+  /** Under the chips, on a verified phone still reading through SolSentry. */
+  rpcHint: (bonus: string) => `Use your own RPC: ${bonus} point on each matched result ›`,
   tasks: 'Recent tasks',
   walletOpen: 'Wallet and points',
   close: 'Close',

@@ -18,6 +18,7 @@ interface NativeKywService {
   stop(): void
   isRunning(): boolean
   setText(text: string): void
+  setWidget(state: string, status: string, figure: string | null, unit: string | null, today: string | null): void
   powerState(): NativePowerState
   requestBatteryExemption(): void
 }
@@ -44,6 +45,19 @@ export function isRunning(): boolean {
 
 export function setText(text: string): void {
   native?.setText(text)
+}
+
+/** What the home screen widget shows. Null keeps the value the widget already has; '' hides a line. */
+export interface WidgetContent {
+  state: 'on' | 'paused' | 'off'
+  status: string
+  figure: string | null
+  unit: string | null
+  today: string | null
+}
+
+export function setWidget(w: WidgetContent): void {
+  native?.setWidget(w.state, w.status, w.figure, w.unit, w.today)
 }
 
 export function powerState(): NativePowerState | null {

@@ -43,6 +43,10 @@ class KywServiceModule : Module() {
       }
     }
 
+    Function("setWidget") { state: String, status: String, figure: String?, unit: String?, today: String? ->
+      KywWidget.set(context, state, status, figure, unit, today)
+    }
+
     Function("powerState") {
       val battery = context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
       val level = battery?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1

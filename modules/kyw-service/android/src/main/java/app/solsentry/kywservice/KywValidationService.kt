@@ -54,6 +54,7 @@ class KywValidationService : HeadlessJsTaskService() {
   override fun onDestroy() {
     running = false
     taskStarted = false
+    KywWidget.markOff(this)
     super.onDestroy()
   }
 

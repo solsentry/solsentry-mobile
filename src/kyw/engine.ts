@@ -16,6 +16,7 @@ import { pacedWait, type CapState } from './pacing'
 import { HTTP_TIMEOUT_MS, runOneTask } from './run'
 import { fetchServerPoints } from './server-points'
 import { getState, load, recordResult, setRunning, setStatus, updateSettings } from './store'
+import { noteDeviceKind, noteServerPoints } from './widget-runtime'
 
 const KEEP_AWAKE_TAG = 'kyw-validation'
 const CLIENT_VERSION = Constants.expoConfig?.version ?? '0'
@@ -88,6 +89,7 @@ async function loop(): Promise<void> {
   try {
     await load()
     const device = await getDevice()
+    noteDeviceKind(device.kind)
     const signDevice = signWithDevice(device)
     const timedFetch = fetchWithTimeout(fetch, HTTP_TIMEOUT_MS, 'Request')
     // Only a hardware key has a server balance; a random id keeps the plain interval.
@@ -99,7 +101,10 @@ async function loop(): Promise<void> {
       capReadAt = Date.now()
       const p = await fetchServerPoints({ fetch: timedFetch, apiBase: KYW_API_BASE }, device.id)
       // A failed read keeps the last known state; none known means no pacing.
-      if (p) cap = p.today
+      if (p) {
+        cap = p.today
+        noteServerPoints(p)
+      }
       return cap
     }
     await runLoop({

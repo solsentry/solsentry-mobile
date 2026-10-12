@@ -353,6 +353,11 @@ export default function ValidateScreen() {
               ))}
             </View>
           </Pressable>
+          {ctx.deviceVerified && !ctx.independentRpc && (
+            <Pressable accessibilityRole="button" hitSlop={6} onPress={() => router.push('/rpc')}>
+              <Text style={styles.rpcHint}>{HOME_TEXT.rpcHint(bonusText(POINT_RULE.independentRpc))}</Text>
+            </Pressable>
+          )}
         </FadeUp>
 
         <Text style={styles.footer}>{TEXT.explain}</Text>
@@ -402,6 +407,7 @@ const useStyles = makeStyles((theme) => StyleSheet.create({
   body: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 24, gap: 10 },
   muted: { ...sans, color: theme.muted, fontSize: 12, lineHeight: 17 },
   capNote: { ...sans, color: theme.actionText, fontSize: 12, lineHeight: 17 },
+  rpcHint: { ...sans, color: theme.actionText, fontSize: 13, lineHeight: 18, marginTop: 10, paddingHorizontal: 4 },
   card: { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1, borderRadius: 16, paddingHorizontal: 16, paddingVertical: 14, gap: 12 },
   head: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
   eyebrow: { ...mono, color: theme.muted, fontSize: 10, letterSpacing: 1, textTransform: 'uppercase' },

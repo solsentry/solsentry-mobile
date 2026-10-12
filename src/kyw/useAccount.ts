@@ -14,6 +14,7 @@ import type { DeviceIdentity } from './device'
 import { getDevice } from './device-runtime'
 import { fetchServerPoints, type ServerPoints } from './server-points'
 import { useKyw } from './useKyw'
+import { noteDeviceKind, noteServerPoints } from './widget-runtime'
 
 /** How often an open screen re-reads the server balance. */
 const SERVER_POINTS_EVERY_MS = 60_000
@@ -34,7 +35,10 @@ export function useAccount() {
   useFocusEffect(
     useCallback(() => {
       let live = true
-      void getDevice().then((d) => live && setDevice(d))
+      void getDevice().then((d) => {
+        noteDeviceKind(d.kind)
+        if (live) setDevice(d)
+      })
       void loadLinkedWallet().then((w) => live && setWallet(w))
       setFocused(true)
       return () => {
@@ -66,6 +70,7 @@ export function useAccount() {
       const started = Date.now()
       lastRead.current = started
       void fetchServerPoints(deps, keyId).then((p) => {
+        if (p) noteServerPoints(p)
         if (!live || !p) return
         readStarted.current = started
         setServer(p)
