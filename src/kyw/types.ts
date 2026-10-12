@@ -33,6 +33,10 @@ export interface Settings {
   seenNoGenesis: string | null
   /** Version of the how-it-works steps last read or skipped; a newer INTRO_VERSION shows them again. */
   introSeen: number
+  /** Space tasks so today's cap lasts until SolSentry's window resets (needs the server's reset time). */
+  spread: boolean
+  /** Verification was on when the app last ran: opening the app turns it on again (after an update or a reboot). */
+  keepOn: boolean
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -44,6 +48,8 @@ export const DEFAULT_SETTINGS: Settings = {
   theme: 'dark',
   seenNoGenesis: null,
   introSeen: 0,
+  spread: false,
+  keepOn: false,
 }
 
 /** Bump to show the how-it-works steps once more after an update. */

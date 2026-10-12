@@ -48,6 +48,9 @@ export const TEXT = {
   batteryButton: 'Allow unrestricted battery use',
   wifiOnly: 'Only on Wi-Fi',
   chargingOnly: 'Only while charging',
+  spread: 'Spread tasks over the day',
+  spreadNote:
+    "Spaces tasks so today's cap lasts until SolSentry's window resets, to save battery and data. Until SolSentry shares that time, tasks only slow down once the cap is reached.",
   interval: 'Pause between tasks',
   clear: 'Clear history on this phone',
   about:

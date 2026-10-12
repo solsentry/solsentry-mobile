@@ -14,7 +14,7 @@ export type LoopStatus =
   | { kind: 'idle' }
   | { kind: 'requesting' }
   | { kind: 'reading'; short: string }
-  | { kind: 'waiting'; seconds: number; why: 'interval' | 'backoff' }
+  | { kind: 'waiting'; seconds: number; why: 'interval' | 'backoff' | 'capped' | 'spread' }
   | { kind: 'held'; why: 'wifi' | 'charging' | 'setup'; detail?: string }
   | { kind: 'stopping' }
 
@@ -33,6 +33,8 @@ export interface LoopDeps {
   onStatus: (status: LoopStatus) => void
   /** Resolves after `seconds`, or earlier when the loop is stopped. */
   sleep: (seconds: number) => Promise<void>
+  /** The wait after a good turn, from the user's interval and SolSentry's cap (pacing.ts). Absent: the interval. */
+  pace?: (intervalS: number) => Promise<{ seconds: number; why: 'interval' | 'capped' | 'spread' }>
   stopped: () => boolean
 }
 
@@ -67,14 +69,23 @@ export async function runLoop(deps: LoopDeps): Promise<void> {
     if (deps.stopped()) break
 
     let seconds = Math.max(settings.intervalS, 0.6)
-    let why: 'interval' | 'backoff' = 'interval'
+    let why: 'interval' | 'backoff' | 'capped' | 'spread' = 'interval'
     if (result.backoff) {
       backoff = nextBackoff(backoff)
       seconds = Math.max(seconds, backoff, result.retryAfterS ?? 0)
       why = 'backoff'
     } else {
       backoff = 0
+      if (deps.pace) {
+        const paced = await deps.pace(seconds).catch(() => null)
+        if (paced) {
+          seconds = Math.max(seconds, paced.seconds)
+          why = paced.why
+        }
+      }
     }
+    // A stop that came while pace() was reading the server has no sleep to wake yet.
+    if (deps.stopped()) break
     deps.onStatus({ kind: 'waiting', seconds, why })
     await deps.sleep(seconds)
   }

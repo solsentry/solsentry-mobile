@@ -138,6 +138,16 @@ export default function ValidateScreen() {
     await startValidation()
   }
 
+  // Verification the user left on comes back when the app opens again: an update or a reboot ends the
+  // service, and the phone should not sit paused until someone notices. Once per screen mount.
+  const resumed = useRef(false)
+  useEffect(() => {
+    if (resumed.current || !kyw.loaded) return
+    resumed.current = true
+    if (settings.keepOn && !running) void toggle(true)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [kyw.loaded])
+
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.appBar}>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { fetchServerPoints, formatServerPoints, parseServerPoints } from '../src/kyw/server-points'
+import { fetchServerPoints, formatServerPoints, parseResetsAt, parseServerPoints } from '../src/kyw/server-points'
 import { showNoGenesis, withServerClass } from '../src/kyw/points'
 
 const body = { points: 12, matched: 15, since: '2026-10-10T12:00:00Z', today: { counted: 12, cap: 200 }, user_class: 'unattested' }
@@ -12,7 +12,7 @@ const fakeFetch = (status: number, json: unknown, seen: string[] = []) =>
 
 describe('parseServerPoints', () => {
   it('reads its fields and ignores the rest; no link and no SKR block read as null', () => {
-    expect(parseServerPoints(body)).toEqual({ points: 12, matched: 15, since: '2026-10-10T12:00:00Z', today: { counted: 12, cap: 200 }, wallet: null, skr: null, userClass: 'unattested' })
+    expect(parseServerPoints(body)).toEqual({ points: 12, matched: 15, since: '2026-10-10T12:00:00Z', today: { counted: 12, cap: 200, resetsAt: null }, wallet: null, skr: null, userClass: 'unattested' })
   })
   it('accepts a device with no result yet and a device with no cap', () => {
     expect(parseServerPoints({ ...body, points: 0, matched: 0, since: null, today: { counted: 0, cap: null } })?.today.cap).toBeNull()
@@ -81,5 +81,18 @@ describe('no-Genesis notice', () => {
     expect(showNoGenesis(w(true, 'verified'), null)).toBe(false)
     expect(showNoGenesis(w(false, 'unknown'), null)).toBe(false)
     expect(showNoGenesis(null, null)).toBe(false)
+  })
+})
+
+describe('the cap window reset time', () => {
+  it('reads an ISO time or epoch seconds, and nothing else', () => {
+    expect(parseResetsAt('2026-10-13T00:00:00Z')).toBe(Date.parse('2026-10-13T00:00:00Z'))
+    expect(parseResetsAt(1_760_313_600)).toBe(1_760_313_600_000)
+    expect(parseResetsAt('tomorrow')).toBeNull()
+    expect(parseResetsAt(5)).toBeNull()
+    expect(parseResetsAt(null)).toBeNull()
+  })
+  it('comes through parseServerPoints', () => {
+    expect(parseServerPoints({ ...body, today: { counted: 1, cap: 200, resets_at: '2026-10-13T00:00:00Z' } })?.today.resetsAt).toBe(Date.parse('2026-10-13T00:00:00Z'))
   })
 })

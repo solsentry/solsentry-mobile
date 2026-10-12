@@ -106,6 +106,8 @@ export default function SettingsScreen() {
               />
             </>
           )}
+          <Toggle label={TEXT.spread} value={settings.spread} onChange={(v) => void updateSettings({ spread: v })} />
+          <Text style={styles.muted}>{TEXT.spreadNote}</Text>
           <Text style={styles.label}>{TEXT.interval}</Text>
           <View style={styles.chips}>
             {INTERVAL_CHOICES_S.map((s) => {

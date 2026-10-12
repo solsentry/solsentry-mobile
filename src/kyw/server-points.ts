@@ -8,8 +8,9 @@ export interface ServerPoints {
   matched: number
   /** ISO time of the first counted result, or null before any. */
   since: string | null
-  /** `cap` is null for a device the server does not cap. */
-  today: { counted: number; cap: number | null }
+  /** `cap` is null for a device the server does not cap. `resetsAt` (epoch ms) is when the cap window
+   * ends, null until the server sends `today.resets_at`. */
+  today: { counted: number; cap: number | null; resetsAt: number | null }
   /** The link SolSentry holds for this device (address abbreviated by the server), or null. */
   wallet: { address: string; linkId: number; points: number | null } | null
   /** SKR the server owes this device or its wallet (CONTRATO_APP_para_DEV_EXEC_skr_claim); null until the server sends it. */
@@ -70,11 +71,21 @@ export function parseServerPoints(body: unknown): ServerPoints | null {
     points: b.points,
     matched: b.matched,
     since: b.since,
-    today: { counted: today.counted, cap: today.cap },
+    today: { counted: today.counted, cap: today.cap, resetsAt: parseResetsAt(today.resets_at) },
     wallet: parseWallet(b.wallet),
     skr: parseSkr(b.skr),
     userClass: b.user_class === 'unattested' || b.user_class === 'attested' || b.user_class === 'attested_genesis' ? b.user_class : null,
   }
+}
+
+/** `resets_at` as an ISO time or as epoch seconds; anything else is "not known". */
+export function parseResetsAt(v: unknown): number | null {
+  if (typeof v === 'number' && Number.isFinite(v) && v > 1_600_000_000 && v < 4_000_000_000) return Math.round(v * 1000)
+  if (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(v)) {
+    const ms = Date.parse(v)
+    return Number.isFinite(ms) ? ms : null
+  }
+  return null
 }
 
 function parseWallet(v: unknown): ServerPoints['wallet'] {

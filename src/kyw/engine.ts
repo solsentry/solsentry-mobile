@@ -12,8 +12,10 @@ import { runLoop, type LoopStatus } from './loop'
 import { countedToday } from './history'
 import { earnedNow, toHalves } from './points'
 import { resolveEndpoint } from './providers'
+import { pacedWait, type CapState } from './pacing'
 import { HTTP_TIMEOUT_MS, runOneTask } from './run'
-import { getState, load, recordResult, setRunning, setStatus } from './store'
+import { fetchServerPoints } from './server-points'
+import { getState, load, recordResult, setRunning, setStatus, updateSettings } from './store'
 
 const KEEP_AWAKE_TAG = 'kyw-validation'
 const CLIENT_VERSION = Constants.expoConfig?.version ?? '0'
@@ -48,6 +50,14 @@ function endpoint() {
   return resolveEndpoint(settings.provider, secrets[settings.provider] ?? '', API_HOST)
 }
 
+/** "45 s", "5 min": minutes once the wait is long enough to read as one. */
+export function waitText(seconds: number): string {
+  return seconds < 90 ? `${Math.round(seconds)} s` : `${Math.round(seconds / 60)} min`
+}
+
+/** SolSentry's cap for this device, read at most once a minute while the loop runs. */
+const CAP_READ_EVERY_MS = 60_000
+
 export function statusText(status: LoopStatus): string {
   switch (status.kind) {
     case 'idle':
@@ -57,9 +67,10 @@ export function statusText(status: LoopStatus): string {
     case 'reading':
       return `Verifying ${status.short}`
     case 'waiting':
-      return status.why === 'backoff'
-        ? `Waiting ${Math.round(status.seconds)} s before the next try`
-        : `Next task in ${Math.round(status.seconds)} s`
+      if (status.why === 'backoff') return `Waiting ${Math.round(status.seconds)} s before the next try`
+      if (status.why === 'capped') return `Today's cap is reached · next task in ${waitText(status.seconds)}`
+      if (status.why === 'spread') return `Spread over the day · next task in ${waitText(status.seconds)}`
+      return `Next task in ${Math.round(status.seconds)} s`
     case 'stopping':
       return 'Stopping after the current task'
     case 'held':
@@ -79,6 +90,18 @@ async function loop(): Promise<void> {
     const device = await getDevice()
     const signDevice = signWithDevice(device)
     const timedFetch = fetchWithTimeout(fetch, HTTP_TIMEOUT_MS, 'Request')
+    // Only a hardware key has a server balance; a random id keeps the plain interval.
+    let cap: CapState | null = null
+    let capReadAt = 0
+    const readCap = async (): Promise<CapState | null> => {
+      if (device.kind !== 'key') return null
+      if (Date.now() - capReadAt < CAP_READ_EVERY_MS) return cap
+      capReadAt = Date.now()
+      const p = await fetchServerPoints({ fetch: timedFetch, apiBase: KYW_API_BASE }, device.id)
+      // A failed read keeps the last known state; none known means no pacing.
+      if (p) cap = p.today
+      return cap
+    }
     await runLoop({
       settings: () => getState().settings,
       power: async () => {
@@ -122,6 +145,7 @@ async function loop(): Promise<void> {
       onStatus: (status) => setStatus(stopRequested && status.kind !== 'idle' ? { kind: 'stopping' } : status),
       sleep,
       stopped: () => stopRequested,
+      pace: async (intervalS) => pacedWait(intervalS, await readCap(), Date.now(), getState().settings.spread),
     })
   } finally {
     // The service has nothing left to keep alive.
@@ -150,6 +174,8 @@ export async function validationTask(): Promise<void> {
 
 export async function startValidation(): Promise<void> {
   wanted = true
+  // Remembered so the next app start turns it on again (an update or a reboot stops the service).
+  if (!getState().settings.keepOn) void updateSettings({ keepOn: true }).catch(() => {})
   if (loopActive) return
   stopRequested = false
   if (mode() === 'service') {
@@ -171,6 +197,7 @@ export async function startValidation(): Promise<void> {
 
 export function stopValidation(): void {
   wanted = false
+  if (getState().settings.keepOn) void updateSettings({ keepOn: false }).catch(() => {})
   stopRequested = true
   wake?.()
   // If the task never started (service refused), make sure nothing is left behind.
