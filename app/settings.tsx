@@ -69,7 +69,7 @@ export default function SettingsScreen() {
   const service = mode() === 'service'
 
   const confirmClear = () =>
-    Alert.alert(TEXT.clear, 'The grid and the counters on this phone are reset.', [
+    Alert.alert(TEXT.clear, 'The grid and the counters on this phone are reset. Your points, SKR and wallet link stay on SolSentry.', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Clear', style: 'destructive', onPress: () => void clearHistory() },
     ])

@@ -253,6 +253,7 @@ export function deviceLines(d: { id: string; kind: 'key' | 'random'; check: stri
   // The start of every P-256 public key is the same DER header: show the end, which differs per install.
   lines.push(`Install ID: …${d.id.slice(-10)}`)
   lines.push('A new install gets a new ID. No wallet, serial or phone number is used.')
+  lines.push('After a reinstall, link your wallet again: its points and SKR stay on SolSentry and come back.')
   return lines
 }
 
