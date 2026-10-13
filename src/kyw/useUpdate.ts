@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Linking } from 'react-native'
 
 import { fetchWithTimeout } from '../net/fetch-timeout'
-import { LATEST_URL, parseLatest, updateToOffer, type LatestBuild } from './update'
+import { isAllowedDownloadUrl, LATEST_URL, parseLatest, updateToOffer, type LatestBuild } from './update'
 
 const DISMISSED_KEY = 'kyw:update-dismissed'
 
@@ -38,7 +38,7 @@ export function useUpdate(): { offer: LatestBuild | null; download: () => void; 
   }, [])
 
   const download = useCallback(() => {
-    if (offer) void Linking.openURL(offer.url).catch(() => undefined)
+    if (offer && isAllowedDownloadUrl(offer.url)) void Linking.openURL(offer.url).catch(() => undefined)
   }, [offer])
 
   const later = useCallback(() => {

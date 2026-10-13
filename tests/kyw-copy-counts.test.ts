@@ -42,7 +42,8 @@ describe('points and SKR are told apart', () => {
     expect(ACCOUNT_TEXT.redeemLine).toMatch(/test phase/)
     expect(INTRO_TEXT.steps[2].body).toMatch(/test phase and will change/)
   })
-  it('tells an updated phone to turn verification on again', () => {
-    expect(UPDATE_TEXT.how).toMatch(/turn it on again/)
+  it('tells an updated phone that verification it left on comes back by itself', () => {
+    expect(UPDATE_TEXT.how).toMatch(/If verification was on, it turns on again when you open the app/)
+    expect(UPDATE_TEXT.how).not.toMatch(/turn it on again after installing/)
   })
 })

@@ -21,6 +21,12 @@ export interface LatestBuild {
 /** Hosts a download link may point to: SolSentry's own, or a GitHub release. */
 const DOWNLOAD_HOSTS = /^(?:[a-z0-9-]+\.)*solsentry\.app$|^github\.com$/
 
+/** True for an https link on a host above; checked when the file is parsed and again before the link is opened. */
+export function isAllowedDownloadUrl(url: string): boolean {
+  const host = downloadHost(url)
+  return host !== null && DOWNLOAD_HOSTS.test(host)
+}
+
 function downloadHost(url: string): string | null {
   const m = /^https:\/\/([a-z0-9.-]+)(?::\d{1,5})?\//i.exec(url)
   return m ? m[1].toLowerCase() : null
@@ -34,8 +40,7 @@ export function parseLatest(body: unknown): LatestBuild | null {
   if (typeof code !== 'number' || !Number.isInteger(code) || code < 1) return null
   if (typeof b.name !== 'string' || !b.name.trim() || b.name.length > 40) return null
   if (typeof b.url !== 'string') return null
-  const host = downloadHost(b.url)
-  if (!host || !DOWNLOAD_HOSTS.test(host)) return null
+  if (!isAllowedDownloadUrl(b.url)) return null
   const sha256 = typeof b.sha256 === 'string' && /^[0-9a-f]{64}$/i.test(b.sha256) ? b.sha256.toLowerCase() : null
   const notes = typeof b.notes === 'string' && b.notes.trim() ? b.notes.trim().slice(0, 200) : null
   return { versionCode: code, name: b.name.trim(), url: b.url, sha256, notes }

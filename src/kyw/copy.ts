@@ -329,7 +329,7 @@ export const INTRO_TEXT = {
 export const UPDATE_TEXT = {
   title: (name: string) => `Update available: ${name}`,
   body: 'A newer version of SolSentry is out.',
-  how: 'Download opens the APK in your browser. Install it over this one: points, history and the wallet link stay. Verification turns off during the update; turn it on again after installing.',
+  how: 'Download opens the APK in your browser. Install it over this one: points, history and the wallet link stay. If verification was on, it turns on again when you open the app.',
   download: 'Download',
   later: 'Later',
 }

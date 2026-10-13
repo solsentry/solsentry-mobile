@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseLatest, updateToOffer } from '../src/kyw/update'
+import { isAllowedDownloadUrl, parseLatest, updateToOffer } from '../src/kyw/update'
 
 const good = {
   versionCode: 19,
@@ -49,5 +49,28 @@ describe('which build to offer', () => {
   it('hides a build the user set aside, and shows the next one', () => {
     expect(updateToOffer(18, latest, 19)).toBeNull()
     expect(updateToOffer(18, parseLatest({ ...good, versionCode: 20 }), 19)).not.toBeNull()
+  })
+})
+
+describe('the download link the app opens', () => {
+  it('accepts https on SolSentry hosts and GitHub', () => {
+    expect(isAllowedDownloadUrl('https://api.solsentry.app/app/solsentry-0.1.22.apk')).toBe(true)
+    expect(isAllowedDownloadUrl('https://solsentry.app/app/x.apk')).toBe(true)
+    expect(isAllowedDownloadUrl('https://github.com/solsentry/solsentry-mobile/releases/download/v1/x.apk')).toBe(true)
+  })
+
+  it('refuses other schemes and look-alike hosts', () => {
+    for (const url of [
+      'http://api.solsentry.app/app/x.apk',
+      'intent://scan#Intent;scheme=zxing;end',
+      'solsentry://account',
+      'https://solsentry.app.evil.example/x.apk',
+      'https://evilsolsentry.app/x.apk',
+      'https://github.com.evil.example/x.apk',
+      'https://api.solsentry.app@evil.example/x.apk',
+      'javascript:alert(1)',
+    ]) {
+      expect(isAllowedDownloadUrl(url)).toBe(false)
+    }
   })
 })

@@ -14,7 +14,8 @@ import { DEFAULT_SETTINGS, type Settings, type TaskRecord } from './types'
 const HISTORY_KEY = 'solsentry-kyw/history/v1'
 const SETTINGS_KEY = 'solsentry-kyw/settings/v1'
 const PROBE_KEY = 'solsentry-kyw/probe/v1'
-const secretKey = (id: ProviderId) => `solsentry-kyw.rpc.${id}`
+/** SecureStore entry for a provider's RPC credential (API key or endpoint URL); never a wallet key. */
+const rpcCredentialEntry = (id: ProviderId) => `solsentry-kyw.rpc.${id}`
 
 export type ProbeReports = Partial<Record<ProviderId, ProbeReport>>
 
@@ -147,7 +148,7 @@ export function load(): Promise<void> {
       for (const p of PROVIDERS) {
         if (!p.secretLabel) continue
         try {
-          const v = await SecureStore.getItemAsync(secretKey(p.id))
+          const v = await SecureStore.getItemAsync(rpcCredentialEntry(p.id))
           if (v) secrets[p.id] = v
         } catch {
           // A key that cannot be read is treated as not saved; the user pastes it again.
@@ -188,7 +189,7 @@ export async function clearHistory(): Promise<void> {
 
 async function forgetStoredSecrets(): Promise<void> {
   for (const p of PROVIDERS) {
-    if (p.secretLabel) await SecureStore.deleteItemAsync(secretKey(p.id)).catch(() => {})
+    if (p.secretLabel) await SecureStore.deleteItemAsync(rpcCredentialEntry(p.id)).catch(() => {})
   }
 }
 
@@ -204,8 +205,8 @@ function syncStoredSecrets(): Promise<void> {
     for (const p of PROVIDERS) {
       if (!p.secretLabel) continue
       const value = state.secrets[p.id]
-      if (value) await SecureStore.setItemAsync(secretKey(p.id), value).catch(() => {})
-      else await SecureStore.deleteItemAsync(secretKey(p.id)).catch(() => {})
+      if (value) await SecureStore.setItemAsync(rpcCredentialEntry(p.id), value).catch(() => {})
+      else await SecureStore.deleteItemAsync(rpcCredentialEntry(p.id)).catch(() => {})
     }
   })
   return secretQueue
