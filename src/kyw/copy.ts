@@ -164,7 +164,8 @@ export const ACCOUNT_TEXT = {
   laterNeedsWallet: 'Link a wallet to receive SKR. SKR accrues only to a linked wallet.',
   claimNeedsWallet: 'Link a wallet to claim SKR. SKR accrues only to a linked wallet.',
   claimMin: (min: string) => `You can claim from ${min} SKR.`,
-  claimOpen: 'A claim is open. Claim again to finish it.',
+  /** The server holds the claimed SKR for an open claim, so the balance reads lower until it is finished. */
+  claimOpen: 'Your last claim was not sent, so its SKR is held for it and not shown above. Nothing was paid. Claim again to finish it.',
   claimFee: 'Your wallet pays the network fee. The first claim also opens its SKR account, so keep ~0.003 SOL in it.',
   poolEmpty: 'Pool empty, refills soon.',
   needsSol: (sol: string) => `Needs ~${sol} SOL for network fees. Add SOL to the linked wallet and claim again.`,

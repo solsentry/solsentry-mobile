@@ -295,6 +295,7 @@ export default function ValidateScreen() {
             </View>
           )}
           {skr?.pool === 'empty' && <Text style={styles.warnLine}>{ACCOUNT_TEXT.poolEmpty}</Text>}
+          {skr?.openClaim && !account.claiming && <Text style={styles.warnLine}>{ACCOUNT_TEXT.claimOpen}</Text>}
           {claimHere ? (
             // The mockup's Claim: signs and sends from here; without a wallet or enough SKR it opens Points, which says why.
             <Pressable
