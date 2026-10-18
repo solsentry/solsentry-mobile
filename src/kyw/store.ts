@@ -126,6 +126,14 @@ export function subscribe(listener: () => void): () => void {
 
 let loading: Promise<void> | null = null
 
+/**
+ * A stored value that could not be read is not overwritten this run: the defaults stand in for it in
+ * memory only, so a failed read (a large AsyncStorage value can fail on Android) never wipes history,
+ * settings or saved RPC keys.
+ */
+let historyUnread = false
+let settingsUnread = false
+
 /** Load what was stored. Safe to call many times; a failed read leaves the defaults. */
 export function load(): Promise<void> {
   loading ??= (async () => {
@@ -134,9 +142,13 @@ export function load(): Promise<void> {
     let probeReports: ProbeReports = {}
     try {
       history = parsePersisted(await AsyncStorage.getItem(HISTORY_KEY))
+    } catch {
+      historyUnread = true
+    }
+    try {
       settings = parseSettings(await AsyncStorage.getItem(SETTINGS_KEY))
     } catch {
-      // Defaults.
+      settingsUnread = true
     }
     try {
       probeReports = parseProbeReports(await AsyncStorage.getItem(PROBE_KEY))
@@ -166,6 +178,7 @@ export function load(): Promise<void> {
 export async function recordResult(record: TaskRecord, earnedHalves = 0): Promise<void> {
   const history = addRecord(state.history, record, earnedHalves)
   set({ history })
+  if (historyUnread) return
   try {
     await AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(history))
   } catch {
@@ -183,6 +196,8 @@ export async function recordProbeReport(provider: ProviderId, report: ProbeRepor
 }
 
 export async function clearHistory(): Promise<void> {
+  // Asked for by the user: what could not be read may go too.
+  historyUnread = false
   set({ history: EMPTY })
   await AsyncStorage.removeItem(HISTORY_KEY).catch(() => {})
 }
@@ -201,6 +216,8 @@ let secretQueue: Promise<void> = Promise.resolve()
  */
 function syncStoredSecrets(): Promise<void> {
   secretQueue = secretQueue.then(async () => {
+    // saveKey is unknown: leave the Keystore as it is.
+    if (settingsUnread) return
     if (!state.settings.saveKey) return forgetStoredSecrets()
     for (const p of PROVIDERS) {
       if (!p.secretLabel) continue
@@ -216,6 +233,7 @@ export async function updateSettings(patch: Partial<Settings>): Promise<void> {
   const settings = { ...state.settings, ...patch }
   const saveKeyChanged = settings.saveKey !== state.settings.saveKey
   set({ settings })
+  if (settingsUnread) return
   await AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)).catch(() => {})
   // Off means gone from storage now; the typed value stays in memory until the app closes.
   if (saveKeyChanged) await syncStoredSecrets()

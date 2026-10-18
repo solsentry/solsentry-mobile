@@ -4,10 +4,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const disk = new Map<string, string>()
 const keystore = new Map<string, string>()
 let holdSecureWrites: Promise<void> | null = null
+const unreadable = new Set<string>()
 
 vi.mock('@react-native-async-storage/async-storage', () => ({
   default: {
-    getItem: vi.fn(async (k: string) => disk.get(k) ?? null),
+    getItem: vi.fn(async (k: string) => {
+      if (unreadable.has(k)) throw new Error('read failed')
+      return disk.get(k) ?? null
+    }),
     setItem: vi.fn(async (k: string, v: string) => void disk.set(k, v)),
     removeItem: vi.fn(async (k: string) => void disk.delete(k)),
   },
@@ -32,6 +36,26 @@ beforeEach(() => {
   disk.clear()
   keystore.clear()
   holdSecureWrites = null
+  unreadable.clear()
+})
+
+describe('a failed read', () => {
+  it('does not overwrite stored history, settings or saved keys', async () => {
+    const first = await freshStore()
+    await first.updateSettings({ saveKey: true, intervalS: 30 })
+    await first.setSecret('custom', 'https://rpc.example.com/k')
+    await first.recordResult({ id: 't1', at: 1000, short: 'a…b', verdict: 'accepted', reason: null, provider: 'custom', host: 'rpc.example.com', ms: 1, bytes: 1 })
+    const before = new Map(disk)
+    for (const k of disk.keys()) unreadable.add(k)
+
+    const second = await freshStore()
+    await second.recordResult({ id: 't2', at: 2000, short: 'c…d', verdict: 'accepted', reason: null, provider: 'solsentry', host: 'api.solsentry.app', ms: 1, bytes: 1 })
+    await second.updateSettings({ intervalS: 5 })
+    await second.setSecret('custom', '')
+
+    expect(disk).toEqual(before)
+    expect(keystore.get('solsentry-kyw.rpc.custom')).toBe('https://rpc.example.com/k')
+  })
 })
 
 describe('key storage', () => {
