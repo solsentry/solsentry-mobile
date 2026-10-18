@@ -91,6 +91,17 @@ describe('checkClaimTx', () => {
     const ixs = [ComputeBudgetProgram.setComputeUnitLimit({ units: 50_000 }), ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 100_000 }), transferChecked(AMOUNT)]
     expect(checkClaimTx(tx(ixs), E)).toEqual({ ok: true, feeLamports: 15_000n, createsAta: false })
   })
+  it('refuses a priority fee above the cap, with or without a unit limit', () => {
+    const at = (units: number | null, microLamports: number) =>
+      checkClaimTx(tx([...(units === null ? [] : [ComputeBudgetProgram.setComputeUnitLimit({ units })]), ComputeBudgetProgram.setComputeUnitPrice({ microLamports }), transferChecked(AMOUNT)]), E)
+    // 200k units * 5,000,000 µlamports = exactly the 1,000,000-lamport cap.
+    expect(at(200_000, 5_000_000).ok).toBe(true)
+    expect(at(200_000, 5_000_001).ok).toBe(false)
+    // 1 SOL of fee through the price alone.
+    expect(at(1_400_000, 714_285_715_000)).toEqual({ ok: false, why: 'priority fee is too high' })
+    // No limit instruction: the runtime's 200k units per instruction count.
+    expect(at(null, 5_000_001).ok).toBe(false)
+  })
   it('refuses another amount, another destination, another payer, the wallet own tokens and anything extra', () => {
     const bad = (t: VersionedTransaction) => checkClaimTx(t, E).ok
     expect(bad(tx([transferChecked(AMOUNT + 1n)]))).toBe(false)

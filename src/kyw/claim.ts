@@ -93,6 +93,13 @@ export function parseClaimAnswer(status: number, body: unknown): ClaimAnswer {
   }
 }
 
+/**
+ * Most priority fee a claim may ask the wallet to pay: 0.001 SOL. The server sends no compute budget
+ * today (two signatures, 0.00001 SOL); the room is for congestion, the cap is against a server that
+ * would drain SOL through the fee.
+ */
+export const MAX_PRIORITY_LAMPORTS = 1_000_000n
+
 export type TxCheck = { ok: true; feeLamports: bigint; createsAta: boolean } | { ok: false; why: string }
 
 const u64 = (d: Uint8Array, at: number) => new DataView(d.buffer, d.byteOffset + at, 8).getBigUint64(0, true)
@@ -156,6 +163,7 @@ export function checkClaimTx(tx: VersionedTransaction, expect: { wallet: string;
   // Without a limit instruction the runtime gives each instruction 200k units.
   const units = limit ?? BigInt(Math.min(1_400_000, 200_000 * others))
   const priority = (units * price + 999_999n) / 1_000_000n
+  if (priority > MAX_PRIORITY_LAMPORTS) return { ok: false, why: 'priority fee is too high' }
   return { ok: true, feeLamports: SIGNATURE_FEE * BigInt(msg.header.numRequiredSignatures) + priority, createsAta: creates === 1 }
 }
 
