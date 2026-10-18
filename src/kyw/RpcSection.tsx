@@ -10,7 +10,7 @@ import { TEXT, probeProblemText, probeReportLines, probeTestedText, switchProvid
 import { getDevice, signMessageWithDevice } from './device-runtime'
 import { chosenRpcProbeIsStale, probeChosenRpc, submitProbe } from './probe-client'
 import { PROVIDER_CHOICES, providerInfo, type ProviderId } from './providers'
-import { recordProbeReport, setSecret, updateSettings } from './store'
+import { getState, recordProbeReport, setSecret, updateSettings } from './store'
 import { useKyw } from './useKyw'
 
 export function RpcSection({ showTitle = true }: { showTitle?: boolean }) {
@@ -60,14 +60,17 @@ export function RpcSection({ showTitle = true }: { showTitle?: boolean }) {
     const id = provider.id
     setProbing(id)
     setProbeProblem(null)
+    const secret = kyw.secrets[id] ?? ''
     try {
       const result = await probeChosenRpc({
         fetch,
         apiBase: KYW_API_BASE,
         provider: id,
-        secret: kyw.secrets[id] ?? '',
+        secret,
         clientVersion: Constants.expoConfig?.version ?? '0',
       })
+      // The key or URL changed while the test ran: this result describes the old one.
+      if ((getState().secrets[id] ?? '') !== secret) return
       if (!result.ok) setProbeProblem({ provider: id, text: probeProblemText(result.problem) })
       else if (result.kind === 'report') {
         await recordProbeReport(id, result.report)
