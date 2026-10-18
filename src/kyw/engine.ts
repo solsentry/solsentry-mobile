@@ -124,6 +124,12 @@ async function loop(): Promise<void> {
     // longer anyway, so those keep their wait.
     let pace = { intervalS: getState().settings.intervalS, spread: getState().settings.spread }
     unsubscribe = subscribe(() => {
+      // The RPC lost its URL during a wait: end the wait, and the loop stops on the setup check
+      // without asking for a task.
+      if (!endpoint().ok) {
+        wake?.()
+        return
+      }
       const { intervalS, spread } = getState().settings
       if (intervalS === pace.intervalS && spread === pace.spread) return
       const faster = intervalS < pace.intervalS || (pace.spread && !spread)
