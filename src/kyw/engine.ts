@@ -120,13 +120,16 @@ async function loop(): Promise<void> {
       return cap
     }
     let held = false
-    // A new pace or spread takes effect now, not after a long wait already started.
-    const paceOf = () => `${getState().settings.intervalS}|${getState().settings.spread}`
-    let pace = paceOf()
+    // A faster pace ends a plain wait now. A backoff or cap wait is SolSentry's and a slower pace is
+    // longer anyway, so those keep their wait.
+    let pace = { intervalS: getState().settings.intervalS, spread: getState().settings.spread }
     unsubscribe = subscribe(() => {
-      if (paceOf() === pace) return
-      pace = paceOf()
-      wake?.()
+      const { intervalS, spread } = getState().settings
+      if (intervalS === pace.intervalS && spread === pace.spread) return
+      const faster = intervalS < pace.intervalS || (pace.spread && !spread)
+      pace = { intervalS, spread }
+      const now = getState().status
+      if (faster && now.kind === 'waiting' && (now.why === 'interval' || now.why === 'spread')) wake?.()
     })
     await runLoop({
       settings: () => getState().settings,

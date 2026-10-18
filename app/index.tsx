@@ -150,7 +150,8 @@ export default function ValidateScreen() {
   useEffect(() => {
     if (resumed.current || !kyw.loaded) return
     resumed.current = true
-    if (settings.keepOn && !running) void toggle(true)
+    // With the RPC not set up nothing would start; the notice says what to do instead.
+    if (settings.keepOn && !running && !problem) void toggle(true)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [kyw.loaded])
 

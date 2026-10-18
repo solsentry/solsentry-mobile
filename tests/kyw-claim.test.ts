@@ -97,8 +97,8 @@ describe('checkClaimTx', () => {
     // 200k units * 5,000,000 µlamports = exactly the 1,000,000-lamport cap.
     expect(at(200_000, 5_000_000).ok).toBe(true)
     expect(at(200_000, 5_000_001).ok).toBe(false)
-    // 1 SOL of fee through the price alone.
-    expect(at(1_400_000, 714_285_715_000)).toEqual({ ok: false, why: 'priority fee is too high' })
+    // About 1 SOL of fee through the price alone.
+    expect(at(1_400_000, 714_285_715)).toEqual({ ok: false, why: 'priority fee is too high' })
     // No limit instruction: the runtime's 200k units per instruction count.
     expect(at(null, 5_000_001).ok).toBe(false)
   })
