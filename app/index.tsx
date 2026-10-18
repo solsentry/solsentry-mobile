@@ -166,10 +166,8 @@ export default function ValidateScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [problem])
 
-  const readViaSolSentry = async () => {
-    await updateSettings({ provider: 'solsentry' })
-    await toggle(true)
-  }
+  // Starting is left to the effect above, so one tap never sends two start requests to the service.
+  const readViaSolSentry = () => updateSettings({ provider: 'solsentry', keepOn: true })
 
   return (
     <SafeAreaView style={styles.safe}>
