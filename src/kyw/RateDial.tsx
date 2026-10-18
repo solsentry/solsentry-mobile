@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react'
-import { StyleSheet, Text, View } from 'react-native'
+import { useFocusEffect } from 'expo-router'
+import React, { useCallback, useEffect, useState } from 'react'
+import { AppState, StyleSheet, Text, View } from 'react-native'
 import Animated, { cubicBezier, useReducedMotion } from 'react-native-reanimated'
 
 import { fonts, makeStyles, useTheme } from '../ui/theme'
@@ -34,11 +35,24 @@ export function RateDial({ rate, running }: { rate: number; running: boolean }) 
   const [tick, setTick] = useState(0)
   // With reduced motion the dial still rises while validating, but holds still: no jitter, no pulse.
   const reduced = useReducedMotion()
+  // No tick while the screen is covered or the app is in the background: nobody sees it.
+  const [focused, setFocused] = useState(true)
+  useFocusEffect(
+    useCallback(() => {
+      setFocused(true)
+      return () => setFocused(false)
+    }, []),
+  )
+  const [foreground, setForeground] = useState(AppState.currentState === 'active')
   useEffect(() => {
-    if (!running || reduced) return
+    const sub = AppState.addEventListener('change', (st) => setForeground(st === 'active'))
+    return () => sub.remove()
+  }, [])
+  useEffect(() => {
+    if (!running || reduced || !focused || !foreground) return
     const timer = setInterval(() => setTick((n) => n + 1), 1000)
     return () => clearInterval(timer)
-  }, [running, reduced])
+  }, [running, reduced, focused, foreground])
 
   const live = running && rate > 0
   const at = barOf(rate)
