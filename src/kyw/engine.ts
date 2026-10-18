@@ -15,7 +15,7 @@ import { resolveEndpoint, type ProviderId } from './providers'
 import { pacedWait, type CapState } from './pacing'
 import { HTTP_TIMEOUT_MS, runOneTask } from './run'
 import { fetchServerPoints } from './server-points'
-import { getState, load, recordResult, setRunning, setStatus, updateSettings } from './store'
+import { getState, load, recordResult, setRunning, setStatus, subscribe, updateSettings } from './store'
 import { noteDeviceKind, noteServerPoints } from './widget-runtime'
 
 const KEEP_AWAKE_TAG = 'kyw-validation'
@@ -57,6 +57,11 @@ export function setupProblem(provider: ProviderId, secrets: Partial<Record<Provi
   return e.ok ? null : e.problem
 }
 
+function onText(): string {
+  const { accepted, diverged, unknown } = getState().history.counters
+  return `Verification is on · ${accepted} matched · ${diverged} diverged · ${unknown} no result`
+}
+
 /** "45 s", "5 min": minutes once the wait is long enough to read as one. */
 export function waitText(seconds: number): string {
   return seconds < 90 ? `${Math.round(seconds)} s` : `${Math.round(seconds / 60)} min`
@@ -90,6 +95,7 @@ export function statusText(status: LoopStatus): string {
 /** The loop itself. Returns when validation is stopped. */
 async function loop(): Promise<void> {
   if (loopActive) return
+  let unsubscribe: (() => void) | null = null
   loopActive = true
   setRunning(true)
   try {
@@ -113,6 +119,15 @@ async function loop(): Promise<void> {
       }
       return cap
     }
+    let held = false
+    // A new pace or spread takes effect now, not after a long wait already started.
+    const paceOf = () => `${getState().settings.intervalS}|${getState().settings.spread}`
+    let pace = paceOf()
+    unsubscribe = subscribe(() => {
+      if (paceOf() === pace) return
+      pace = paceOf()
+      wake?.()
+    })
     await runLoop({
       settings: () => getState().settings,
       power: async () => {
@@ -150,15 +165,25 @@ async function loop(): Promise<void> {
           earned = toHalves(earnedNow({ signed: result.record.signed === true, matchedToday }))
         }
         await recordResult(result.record, earned)
-        const { accepted, diverged, unknown } = getState().history.counters
-        KywService.setText(`Verification is on · ${accepted} matched · ${diverged} diverged · ${unknown} no result`)
+        KywService.setText(onText())
       },
-      onStatus: (status) => setStatus(stopRequested && status.kind !== 'idle' ? { kind: 'stopping' } : status),
+      onStatus: (status) => {
+        setStatus(stopRequested && status.kind !== 'idle' ? { kind: 'stopping' } : status)
+        // The notification follows a hold, so it never says "on" while nothing is read.
+        if (status.kind === 'held') {
+          KywService.setText(statusText(status))
+          held = true
+        } else if (held && status.kind !== 'idle') {
+          KywService.setText(onText())
+          held = false
+        }
+      },
       sleep,
       stopped: () => stopRequested,
       pace: async (intervalS) => pacedWait(intervalS, await readCap(), Date.now(), getState().settings.spread),
     })
   } finally {
+    unsubscribe?.()
     // The service has nothing left to keep alive.
     KywService.stop()
     loopActive = false
