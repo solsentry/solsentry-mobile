@@ -230,6 +230,10 @@ export const HOME_TEXT = {
   approve: 'Approve in wallet',
   creditToast: 'MATCHED RESULTS',
   statusOff: 'Paused',
+  /** Own RPC chosen with no URL saved: nothing can be read until it is set up. */
+  statusSetup: 'Setup needed',
+  setupAddRpc: 'Add your RPC URL',
+  setupUseSolSentry: 'Use SolSentry RPC',
   pace: (n: number) => `${n} tasks/h`,
   pointsUnit: 'pts',
   /** Shown once SolSentry's count for the cap window reaches the cap: the phone keeps reading, points wait. */

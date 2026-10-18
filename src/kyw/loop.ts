@@ -1,5 +1,6 @@
 // The validation loop: one task at a time, a pause between tasks, a longer wait when the network,
 // the server or the RPC pushes back, and a hold while a user condition (Wi-Fi, charging) is not met.
+// A missing RPC setup ends the loop: holding would show "Verifying" while nothing is read.
 import type { RunResult } from './run'
 import type { Settings } from './types'
 
@@ -26,7 +27,7 @@ export interface PowerState {
 export interface LoopDeps {
   settings: () => Settings
   power: () => Promise<PowerState>
-  /** null: the chosen RPC is not usable yet (missing key); the string says why. */
+  /** null: the chosen RPC can read; otherwise why not (missing URL), and the loop ends. */
   ready: () => Promise<string | null>
   runOne: (onReading: (short: string) => void) => Promise<TurnResult>
   onResult: (result: TurnResult) => Promise<void> | void
@@ -59,8 +60,7 @@ export async function runLoop(deps: LoopDeps): Promise<void> {
     const problem = await deps.ready()
     if (problem) {
       deps.onStatus({ kind: 'held', why: 'setup', detail: problem })
-      await deps.sleep(HOLD_RECHECK_S)
-      continue
+      break
     }
 
     deps.onStatus({ kind: 'requesting' })

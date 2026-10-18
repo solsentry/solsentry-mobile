@@ -5,7 +5,7 @@ import { AppState, PermissionsAndroid, Platform, Pressable, ScrollView, StyleShe
 import { SafeAreaView } from 'react-native-safe-area-context'
 
 import { ACCOUNT_TEXT, HOME_TEXT, TEXT, VERDICT_LABEL, formatBytes, readingViaText, resultSentence } from '@/src/kyw/copy'
-import { mode, startValidation, statusText, stopValidation } from '@/src/kyw/engine'
+import { mode, setupProblem, startValidation, statusText, stopValidation } from '@/src/kyw/engine'
 import { Avatar } from '@/src/kyw/Avatar'
 import { ClaimSheet } from '@/src/kyw/ClaimSheet'
 import { DayGrid } from '@/src/kyw/DayGrid'
@@ -78,6 +78,8 @@ export default function ValidateScreen() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [details, setDetails] = useState(false)
   const provider = providerInfo(settings.provider)
+  // The chosen RPC cannot read (own RPC with no URL saved): verification stays off and says why.
+  const problem = kyw.loaded ? setupProblem(settings.provider, kyw.secrets) : null
   // The read's RPC is chosen in Settings; here it only sets the own-RPC multiplier and the status line.
   const report = kyw.probeReports[provider.id]
   const [probeNow, setProbeNow] = useState(Date.now)
@@ -148,6 +150,23 @@ export default function ValidateScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [kyw.loaded])
 
+  // Saving the missing RPC setup starts the verification the user had turned on.
+  const blocked = useRef(false)
+  useEffect(() => {
+    if (problem) {
+      blocked.current = true
+      return
+    }
+    if (blocked.current && settings.keepOn && !running) void toggle(true)
+    blocked.current = false
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [problem])
+
+  const readViaSolSentry = async () => {
+    await updateSettings({ provider: 'solsentry' })
+    await toggle(true)
+  }
+
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.appBar}>
@@ -216,7 +235,7 @@ export default function ValidateScreen() {
             style={styles.statusBtn}
           >
             <Fan running={running} color={running ? theme.action : theme.muted} />
-            <Text style={styles.statusText}>{running ? HOME_TEXT.statusOn : HOME_TEXT.statusOff}</Text>
+            <Text style={styles.statusText}>{running ? HOME_TEXT.statusOn : problem ? HOME_TEXT.statusSetup : HOME_TEXT.statusOff}</Text>
             <Text style={styles.statusPace}>{running && perHour !== null ? HOME_TEXT.pace(perHour) : ''}</Text>
             <Ionicons name={running ? 'pause' : 'play'} size={13} color={theme.muted} />
           </Pressable>
@@ -259,6 +278,19 @@ export default function ValidateScreen() {
           <Text accessibilityLiveRegion="polite" style={styles.muted}>
             {running ? statusText(status) : statusText({ kind: 'idle' })} · {readingViaText(provider.label)}
           </Text>
+          {!running && problem && (
+            <View style={styles.setupBox}>
+              <Text style={styles.warnLine}>{problem}</Text>
+              <View style={styles.setupRow}>
+                <Pressable accessibilityRole="button" onPress={() => router.push('/rpc')} style={({ pressed }) => [styles.setupBtn, pressed && { opacity: 0.85 }]}>
+                  <Text style={styles.setupBtnText}>{HOME_TEXT.setupAddRpc}</Text>
+                </Pressable>
+                <Pressable accessibilityRole="button" onPress={() => void readViaSolSentry()} style={({ pressed }) => [styles.setupBtn, pressed && { opacity: 0.85 }]}>
+                  <Text style={styles.setupBtnText}>{HOME_TEXT.setupUseSolSentry}</Text>
+                </Pressable>
+              </View>
+            </View>
+          )}
           {skr?.pool === 'empty' && <Text style={styles.warnLine}>{ACCOUNT_TEXT.poolEmpty}</Text>}
           {claimHere ? (
             // The mockup's Claim: signs and sends from here; without a wallet or enough SKR it opens Points, which says why.
@@ -455,6 +487,10 @@ const useStyles = makeStyles((theme) => StyleSheet.create({
   toastText: { ...mono, color: theme.ink, fontSize: 12, letterSpacing: 0.5 },
   toastChip: { ...mono, color: theme.ink, fontSize: 13, fontWeight: '500', height: 32, lineHeight: 32, paddingHorizontal: 12, borderRadius: 16, overflow: 'hidden', backgroundColor: 'rgba(23,16,10,0.14)' },
   warnLine: { ...sans, color: theme.actionText, fontSize: 12, lineHeight: 17, paddingHorizontal: 6 },
+  setupBox: { gap: 8 },
+  setupRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingHorizontal: 6 },
+  setupBtn: { height: 36, borderRadius: 8, borderWidth: 1, borderColor: theme.action, paddingHorizontal: 12, justifyContent: 'center' },
+  setupBtnText: { ...sans, color: theme.actionText, fontSize: 13, fontWeight: '600' },
   goodLine: { ...sans, color: theme.actionText, fontSize: 13, lineHeight: 18, paddingHorizontal: 6 },
   link: { ...mono, color: theme.actionText, fontSize: 12, textDecorationLine: 'underline', paddingHorizontal: 6 },
   rateTag: { ...mono, color: theme.actionText, fontSize: 11, marginBottom: 8 },

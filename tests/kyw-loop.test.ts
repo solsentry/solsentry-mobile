@@ -24,7 +24,7 @@ const record = (i: number, verdict: TaskRecord['verdict'] = 'accepted'): TaskRec
 
 const turn = (backoff: boolean, retryAfterS: number | null = null): TurnResult => ({ record: record(1), backoff, retryAfterS })
 
-function harness(turns: TurnResult[], settings: Partial<Settings> = {}, power = { wifi: true, charging: true }) {
+function harness(turns: TurnResult[], settings: Partial<Settings> = {}, power = { wifi: true, charging: true }, problem: string | null = null) {
   const sleeps: number[] = []
   const statuses: LoopStatus[] = []
   let ran = 0
@@ -32,7 +32,7 @@ function harness(turns: TurnResult[], settings: Partial<Settings> = {}, power = 
   const done = runLoop({
     settings: () => ({ ...DEFAULT_SETTINGS, ...settings }),
     power: async () => power,
-    ready: async () => null,
+    ready: async () => problem,
     runOne: async () => turns[ran++],
     onResult: () => {
       if (ran >= turns.length) stop = true
@@ -76,6 +76,14 @@ describe('validation loop', () => {
     const c = harness([turn(false)], { chargingOnly: true }, { wifi: true, charging: false })
     await c.done
     expect(c.statuses[0]).toEqual({ kind: 'held', why: 'charging' })
+  })
+
+  it('ends without asking for a task when the RPC is not set up', async () => {
+    const h = harness([turn(false)], {}, { wifi: true, charging: true }, 'Add your RPC URL in Settings, RPC for the read.')
+    await h.done
+    expect(h.ran()).toBe(0)
+    expect(h.sleeps).toEqual([])
+    expect(h.statuses[0]).toEqual({ kind: 'held', why: 'setup', detail: 'Add your RPC URL in Settings, RPC for the read.' })
   })
 })
 

@@ -11,7 +11,7 @@ import { getDevice, signWithDevice } from './device-runtime'
 import { runLoop, type LoopStatus } from './loop'
 import { countedToday } from './history'
 import { earnedNow, toHalves } from './points'
-import { resolveEndpoint } from './providers'
+import { resolveEndpoint, type ProviderId } from './providers'
 import { pacedWait, type CapState } from './pacing'
 import { HTTP_TIMEOUT_MS, runOneTask } from './run'
 import { fetchServerPoints } from './server-points'
@@ -49,6 +49,12 @@ function sleep(seconds: number): Promise<void> {
 function endpoint() {
   const { settings, secrets } = getState()
   return resolveEndpoint(settings.provider, secrets[settings.provider] ?? '', API_HOST)
+}
+
+/** Why the chosen RPC cannot read yet (no URL saved); null when it can. */
+export function setupProblem(provider: ProviderId, secrets: Partial<Record<ProviderId, string>>): string | null {
+  const e = resolveEndpoint(provider, secrets[provider] ?? '', API_HOST)
+  return e.ok ? null : e.problem
 }
 
 /** "45 s", "5 min": minutes once the wait is long enough to read as one. */
@@ -181,6 +187,9 @@ export async function startValidation(): Promise<void> {
   wanted = true
   // Remembered so the next app start turns it on again (an update or a reboot stops the service).
   if (!getState().settings.keepOn) void updateSettings({ keepOn: true }).catch(() => {})
+  // Nothing to read with: the home screen says what to set up, and saving it starts verification.
+  const { settings, secrets } = getState()
+  if (setupProblem(settings.provider, secrets)) return
   if (loopActive) return
   stopRequested = false
   if (mode() === 'service') {
