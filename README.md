@@ -3,6 +3,7 @@
 > **Hackathon snapshot.** The build submitted to Clock In on October 12, 2026 is tag
 > [`clockin-2026-10-12`](https://github.com/solsentry/solsentry-mobile/tree/clockin-2026-10-12) (commit `3540b80`, APK 0.1.22).
 > We keep fixing and improving the app on this branch after the deadline, so its tip may be ahead of the submitted build.
+> What changed in each version: [CHANGELOG.md](CHANGELOG.md). APKs for every version: [Releases](https://github.com/solsentry/solsentry-mobile/releases).
 
 Verify public Solana transactions on your phone.
 
