@@ -9,6 +9,8 @@
 set -euo pipefail
 variant="${1:?release or selftest}"
 out="$(realpath -m "${2:?output apk path}")"
+# A shipped APK is never replaced: every build gets a new file name.
+if [ -e "$out" ]; then echo "REFUSED: $out already exists; pick a new name" >&2; exit 1; fi
 mkdir -p "$(dirname "$out")"
 cd "$(dirname "$0")/.."
 : "${JAVA_HOME:?set JAVA_HOME}" "${ANDROID_HOME:?set ANDROID_HOME}"
@@ -32,5 +34,6 @@ if [ "$variant" = selftest ] && [ "$marks" = 0 ]; then
   echo "REFUSED: self-test build has no self-test content" >&2; exit 1
 fi
 cp "$apk" "$out"
+chmod a-w "$out"
 echo "VARIANT_OK $variant marks=$marks cleartext=$cleartext"
 sha256sum "$out"
