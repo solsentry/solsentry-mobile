@@ -70,7 +70,11 @@ export default function ValidateScreen() {
   useEffect(() => {
     const before = lastSkr.current
     lastSkr.current = skrBalance
-    if (before === null || skrBalance === null || skrBalance <= before) return
+    if (before === null || skrBalance === null || skrBalance <= before) {
+      // A drop inside the 2.4 s cancels the timer below, so the toast goes here.
+      setCredit(null)
+      return
+    }
     setCredit(skrBalance - before)
     const t = setTimeout(() => setCredit(null), 2_400)
     return () => clearTimeout(t)
