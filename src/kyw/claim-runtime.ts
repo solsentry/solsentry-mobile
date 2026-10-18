@@ -13,7 +13,8 @@ import { getDevice, signMessageWithDevice } from './device-runtime'
 export async function claimNow(wallet: LinkedWallet): Promise<ClaimOutcome> {
   const device = await getDevice()
   const http = fetchWithTimeout(fetch, 20_000, 'Request')
-  const connection = new Connection(RPC_URL, 'confirmed')
+  // A hung balance or account read must end, or the claim sheet stays on "claiming".
+  const connection = new Connection(RPC_URL, { commitment: 'confirmed', fetch: fetchWithTimeout(fetch) })
   return runClaim({
     deviceKeyId: device.id,
     wallet: wallet.address,
