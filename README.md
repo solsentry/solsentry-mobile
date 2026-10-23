@@ -1,8 +1,8 @@
 # SolSentry (Android)
 
-> **Clock In submission.** This branch is the build we submitted: release
+> **Submitted build.** This branch is the build we submitted for judging: release
 > [`clockin-2026-10-12`](https://github.com/solsentry/solsentry-mobile/releases/tag/clockin-2026-10-12)
-> (APK 0.1.22, commit `3540b80`). It is unchanged; this note is the only commit after the tag.
+> (APK 0.1.22, commit `3540b80`), unchanged. README notes are the only commits after the tag.
 >
 > **Work after the deadline** lives on [`feat/kyw-v0`](https://github.com/solsentry/solsentry-mobile/tree/feat/kyw-v0)
 > ([changelog](https://github.com/solsentry/solsentry-mobile/blob/feat/kyw-v0/CHANGELOG.md)). It is not part of
