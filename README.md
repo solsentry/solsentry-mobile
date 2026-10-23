@@ -1,5 +1,16 @@
 # SolSentry (Android)
 
+> **Clock In submission.** This branch is the build we submitted: release
+> [`clockin-2026-10-12`](https://github.com/solsentry/solsentry-mobile/releases/tag/clockin-2026-10-12)
+> (APK 0.1.22, commit `3540b80`). It is unchanged; this note is the only commit after the tag.
+>
+> **Work after the deadline** lives on [`feat/kyw-v0`](https://github.com/solsentry/solsentry-mobile/tree/feat/kyw-v0)
+> ([changelog](https://github.com/solsentry/solsentry-mobile/blob/feat/kyw-v0/CHANGELOG.md)). It is not part of
+> the submission.
+>
+> Exploratory branches from an earlier prototype (Guard) were moved to a private archive on Oct 23, 2026 to
+> keep this repo focused. The submitted build is unchanged.
+
 Verify public Solana transactions on your phone.
 
 Package id `app.solsentry.mobile`. The public name, slug, scheme and package id are set in `brand.json` only.
