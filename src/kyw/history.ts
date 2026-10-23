@@ -173,6 +173,7 @@ export function parseSettings(raw: string | null): Settings {
       introSeen: typeof v.introSeen === 'number' && Number.isInteger(v.introSeen) && v.introSeen >= 0 ? v.introSeen : 0,
       spread: v.spread === true,
       keepOn: v.keepOn === true,
+      widgetOffered: v.widgetOffered === true,
     }
   } catch {
     return DEFAULT_SETTINGS

@@ -37,6 +37,8 @@ export interface Settings {
   spread: boolean
   /** Verification was on when the app last ran: opening the app turns it on again (after an update or a reboot). */
   keepOn: boolean
+  /** The one-time "add the widget" card was shown (after the first claim or the first daily cap). */
+  widgetOffered: boolean
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -50,6 +52,7 @@ export const DEFAULT_SETTINGS: Settings = {
   introSeen: 0,
   spread: false,
   keepOn: false,
+  widgetOffered: false,
 }
 
 /** Bump to show the how-it-works steps once more after an update. */

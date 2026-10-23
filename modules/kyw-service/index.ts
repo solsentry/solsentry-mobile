@@ -21,6 +21,8 @@ interface NativeKywService {
   setWidget(state: string, status: string, figure: string | null, unit: string | null, today: string | null): void
   powerState(): NativePowerState
   requestBatteryExemption(): void
+  widgetInfo(): { pinSupported: boolean; count: number }
+  requestPinWidget(): boolean
 }
 
 // Optional: null on iOS, web or a build without the module. Callers must handle null.
@@ -66,4 +68,22 @@ export function powerState(): NativePowerState | null {
 
 export function requestBatteryExemption(): void {
   native?.requestBatteryExemption()
+}
+
+/** Whether the launcher takes an "add widget" request, and how many SolSentry widgets are placed. Null without the module. */
+export function widgetInfo(): { pinSupported: boolean; count: number } | null {
+  try {
+    return native ? native.widgetInfo() : null
+  } catch {
+    return null
+  }
+}
+
+/** Opens the launcher's own "add widget" dialog. False when the launcher or the build cannot. */
+export function requestPinWidget(): boolean {
+  try {
+    return native ? native.requestPinWidget() : false
+  } catch {
+    return false
+  }
 }

@@ -1,6 +1,8 @@
 package app.solsentry.kywservice
 
 import android.app.NotificationManager
+import android.appwidget.AppWidgetManager
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
@@ -67,6 +69,22 @@ class KywServiceModule : Module() {
         "powerSave" to power.isPowerSaveMode,
         "screenOn" to power.isInteractive,
       )
+    }
+
+    // Whether this launcher takes a pin request, and how many SolSentry widgets are placed now.
+    Function("widgetInfo") {
+      val manager = AppWidgetManager.getInstance(context)
+      mapOf(
+        "pinSupported" to manager.isRequestPinAppWidgetSupported,
+        "count" to manager.getAppWidgetIds(ComponentName(context, KywWidget::class.java)).size,
+      )
+    }
+
+    // Asks the launcher to show its own "add widget" dialog; the user confirms there. False when not supported.
+    Function("requestPinWidget") {
+      val manager = AppWidgetManager.getInstance(context)
+      manager.isRequestPinAppWidgetSupported &&
+        manager.requestPinAppWidget(ComponentName(context, KywWidget::class.java), null, null)
     }
 
     Function("requestBatteryExemption") {

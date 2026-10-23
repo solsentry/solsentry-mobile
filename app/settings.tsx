@@ -12,6 +12,7 @@ import type { DeviceIdentity } from '@/src/kyw/device'
 import { getDevice } from '@/src/kyw/device-runtime'
 import { mode } from '@/src/kyw/engine'
 import { IntroSheet } from '@/src/kyw/IntroSheet'
+import { WidgetCard, useWidgetInfo } from '@/src/kyw/WidgetCard'
 import { providerInfo } from '@/src/kyw/providers'
 import { clearHistory, updateSettings } from '@/src/kyw/store'
 import { INTERVAL_CHOICES_S } from '@/src/kyw/types'
@@ -66,6 +67,7 @@ export default function SettingsScreen() {
     }
   }, [])
   const power = usePower()
+  const widgetInfo = useWidgetInfo()
   const service = mode() === 'service'
 
   const confirmClear = () =>
@@ -133,6 +135,12 @@ export default function SettingsScreen() {
             </Text>
           )}
         </FadeUp>
+
+        {widgetInfo && (
+          <FadeUp order={2}>
+            <WidgetCard info={widgetInfo} />
+          </FadeUp>
+        )}
 
         <FadeUp order={2} style={styles.card}>
           <Text style={styles.eyebrow}>{TEXT.themeTitle}</Text>

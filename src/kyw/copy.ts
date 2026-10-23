@@ -338,3 +338,13 @@ export const UPDATE_TEXT = {
   download: 'Download',
   later: 'Later',
 }
+
+export const WIDGET_TEXT = {
+  title: 'Home screen widget',
+  offerTitle: 'Follow verification from your home screen',
+  body: "The widget shows whether verification is running, your SKR or points, and today's results against the daily cap, so you can see when the cap resets without opening the app. Its Start and Pause button opens SolSentry and switches verification, with the same checks as the switch here.",
+  add: 'Add widget',
+  notNow: 'Not now',
+  added: 'The widget is on your home screen.',
+  manual: 'This launcher cannot add a widget from an app. Long-press an empty spot on the home screen, tap Widgets and pick SolSentry.',
+}

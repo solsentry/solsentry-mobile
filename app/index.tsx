@@ -1,5 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons'
-import { useRouter } from 'expo-router'
+import { useLocalSearchParams, useRouter } from 'expo-router'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { AppState, PermissionsAndroid, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -16,6 +16,8 @@ import { countedToday, tasksPerHour } from '@/src/kyw/history'
 import { ownRpcActive } from '@/src/kyw/probe-client'
 import { useAccount } from '@/src/kyw/useAccount'
 import { WalletCard } from '@/src/kyw/WalletCard'
+import { WidgetCard, useWidgetInfo } from '@/src/kyw/WidgetCard'
+import { shouldOfferWidget, widgetAsk } from '@/src/kyw/widget-offer'
 import * as Linking from 'expo-linking'
 
 import { SKR_PAYOUT, solscanTx } from '@/src/config'
@@ -61,6 +63,17 @@ export default function ValidateScreen() {
   const claimHere = SKR_PAYOUT === 'claim' && skr !== null && skr.pool !== 'empty' && account.claim?.kind !== 'disabled'
   const claimReady = claimHere && account.wallet !== null && (skr.balanceRaw >= skr.minClaimRaw || skr.openClaim !== null)
   const claimOut = account.claim ? outcomeText(account.claim) : null
+  const widgetInfo = useWidgetInfo()
+  const offerWidget = shouldOfferWidget({
+    info: widgetInfo,
+    offered: settings.widgetOffered,
+    claimSent: claimOut?.good === true && claimOut.signature !== undefined,
+    server,
+  })
+  const markWidgetOffered = () => void updateSettings({ widgetOffered: true })
+  // The widget's Start/Pause button opens this screen with ?widget=start|stop&t=<id>; each tap acts once.
+  const ask = widgetAsk(useLocalSearchParams<{ widget?: string; t?: string }>())
+  const askedId = useRef<string | null>(null)
   const [claimSheet, setClaimSheet] = useState(false)
 
   // The mockup's credit toast: SKR the server added since the last read, shown for 2.4 s.
@@ -150,10 +163,23 @@ export default function ValidateScreen() {
   useEffect(() => {
     if (resumed.current || !kyw.loaded) return
     resumed.current = true
+    // A cold start from the widget's button: that tap decides, not keepOn. One start request either way.
+    if (ask) askedId.current = ask.id
+    const wantOn = ask ? ask.action === 'start' : settings.keepOn
     // With the RPC not set up nothing would start; the notice says what to do instead.
-    if (settings.keepOn && !running && !problem) void toggle(true)
+    if (wantOn && !running && !problem) void toggle(true)
+    else if (ask?.action === 'stop' && running) void toggle(false)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [kyw.loaded])
+
+  // A widget tap while this screen is already up.
+  useEffect(() => {
+    if (!kyw.loaded || !resumed.current || !ask || askedId.current === ask.id) return
+    askedId.current = ask.id
+    if (ask.action === 'start' && !running && !problem) void toggle(true)
+    if (ask.action === 'stop' && running) void toggle(false)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [kyw.loaded, ask?.id])
 
   // Saving the missing RPC setup starts the verification the user had turned on.
   const blocked = useRef(false)
@@ -211,6 +237,11 @@ export default function ValidateScreen() {
         {update.offer && (
           <FadeUp order={0}>
             <UpdateBanner offer={update.offer} onDownload={update.download} onLater={update.later} />
+          </FadeUp>
+        )}
+        {offerWidget && widgetInfo && (
+          <FadeUp order={0}>
+            <WidgetCard info={widgetInfo} offer onNotNow={markWidgetOffered} onAdd={markWidgetOffered} />
           </FadeUp>
         )}
         {!wallet && (

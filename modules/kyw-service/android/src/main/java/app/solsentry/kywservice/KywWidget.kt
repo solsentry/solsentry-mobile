@@ -5,13 +5,17 @@ import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.view.View
 import android.widget.RemoteViews
 
 /**
- * Home screen widget, read only: verification status, the balance and today's count against the cap.
+ * Home screen widget: verification status, the balance and today's count against the cap.
  * JavaScript sends finished strings (setWidget); they are kept in SharedPreferences
- * so the widget can draw itself while the app is not running. A tap opens the app.
+ * so the widget can draw itself while the app is not running. A tap opens the app. The Start/Pause
+ * button opens it too, with solsentry:///?widget=start|stop&t=<when drawn>; the home screen then does
+ * what its own switch does (same checks and prompts), so nothing starts behind the user's back.
  */
 class KywWidget : AppWidgetProvider() {
 
@@ -37,6 +41,8 @@ class KywWidget : AppWidgetProvider() {
     const val STATE_PAUSED = "paused"
     const val STATE_OFF = "off"
     private const val OFF_TEXT = "Verification is off"
+    private const val START_TEXT = "▶  Start"
+    private const val PAUSE_TEXT = "❚❚  Pause"
 
     private fun prefs(context: Context) = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
@@ -95,6 +101,14 @@ class KywWidget : AppWidgetProvider() {
         val open = PendingIntent.getActivity(context, 1, it, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         views.setOnClickPendingIntent(R.id.kyw_widget_root, open)
       }
+      val on = state != STATE_OFF
+      views.setTextViewText(R.id.kyw_widget_toggle, if (on) PAUSE_TEXT else START_TEXT)
+      val ask = Uri.parse("solsentry:///?widget=${if (on) "stop" else "start"}&t=${System.currentTimeMillis()}")
+      val toggle = Intent(Intent.ACTION_VIEW, ask).setPackage(context.packageName).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+      views.setOnClickPendingIntent(
+        R.id.kyw_widget_toggle,
+        PendingIntent.getActivity(context, 2, toggle, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE),
+      )
       return views
     }
   }

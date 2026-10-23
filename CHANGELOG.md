@@ -16,6 +16,9 @@ Optional update. The judged build 0.1.22 keeps working.
 
 - Points: with a wallet linked, the main figure is the wallet's total (your account), and this phone's own total
   follows it. Points never move between phone and wallet; this only changes which total leads.
+- Widget: Settings has an "Add widget" card that opens the launcher's own add dialog. The home screen offers it
+  once, after your first claim goes out or the first time you reach the daily cap. The widget now has a Start
+  and Pause button. It opens SolSentry and switches verification with the same checks as the in-app switch.
 - Device check: on first run the app also sends a SHA-256 of Android's `ANDROID_ID`. Android scopes that id to
   this app's signing key, so other apps cannot match it, and it stays the same across a reinstall on the same phone.
   The raw id never leaves the phone. SolSentry uses it only to tell a reinstall from a new phone. It blocks no one.
