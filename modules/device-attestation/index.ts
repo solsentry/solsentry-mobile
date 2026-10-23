@@ -33,6 +33,7 @@ interface NativeDeviceAttestation {
   hasKey(alias: string): boolean
   publicKey(alias: string): string | null
   sign(alias: string, dataB64: string): Promise<string>
+  deviceHint(): string | null
 }
 
 // Optional: null on iOS, web, Expo Go or a build without the module. Callers must handle null.
@@ -60,4 +61,13 @@ export function publicKey(alias: string): string | null {
 export async function sign(alias: string, dataB64: string): Promise<string> {
   if (!native) throw new Error('module unavailable')
   return native.sign(alias, dataB64)
+}
+
+/** SHA-256 hex of ANDROID_ID (scoped to our signing key, kept across reinstalls), or null. Self-reported. */
+export function deviceHint(): string | null {
+  try {
+    return native ? native.deviceHint() : null
+  } catch {
+    return null
+  }
 }

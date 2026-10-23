@@ -112,6 +112,12 @@ export async function fetchServerPoints(
   }
 }
 
+/** The points figure to headline: the linked wallet's total (the account), else this phone's.
+ * Points never move between phone and wallet; this only picks which total leads. */
+export function headlinePoints(s: ServerPoints): number {
+  return s.wallet?.points ?? s.points
+}
+
 /** Up to two decimals: whole while no multiplier applies, 1.1× results leave a fraction. */
 export function formatServerPoints(points: number): string {
   return points.toLocaleString('en-US', { maximumFractionDigits: 2 })

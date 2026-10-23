@@ -8,7 +8,7 @@ import { Avatar } from '@/src/kyw/Avatar'
 import { ClaimSheet } from '@/src/kyw/ClaimSheet'
 import { SkrCard } from '@/src/kyw/SkrCard'
 import { ACCOUNT_TEXT as T, HOME_TEXT, TEXT } from '@/src/kyw/copy'
-import { formatServerPoints, skrClosed } from '@/src/kyw/server-points'
+import { formatServerPoints, headlinePoints, skrClosed } from '@/src/kyw/server-points'
 import { POINT_RULE, bonusText, formatPoints, pointsPerResult, pointsText, withServerClass } from '@/src/kyw/points'
 import { ownRpcActive } from '@/src/kyw/probe-client'
 import { useAccount } from '@/src/kyw/useAccount'
@@ -103,7 +103,7 @@ export default function AccountScreen() {
           <Text style={styles.eyebrow}>{T.rewardsTitle}</Text>
           <View style={styles.value}>
             <FlashText value={server ? server.points * 2 : kyw.history.pointHalves} armed={kyw.loaded} color={theme.text} flash={theme.actionText} style={styles.points}>
-              {server ? formatServerPoints(server.points) : kyw.loaded ? formatPoints(kyw.history.pointHalves) : T.pointsUnknown}
+              {server ? formatServerPoints(headlinePoints(server)) : kyw.loaded ? formatPoints(kyw.history.pointHalves) : T.pointsUnknown}
             </FlashText>
             <Text style={styles.unit}>{HOME_TEXT.pointsUnit}</Text>
           </View>

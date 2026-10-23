@@ -155,9 +155,9 @@ export const ACCOUNT_TEXT = {
   rateAttested: 'Attested device: SolSentry checked this phone\'s hardware key',
   skrGenesisOnly: 'In this test phase of the Seeker launch, SKR rewards are for Seeker Genesis Token holders. Your points still count.',
   skrWindow: (earned: string, cap: string) => `${earned}/${cap} SKR today`,
-  /** The server's two totals: this phone's results, and those written under the linked wallet. */
+  /** The server's two totals; with a wallet linked its total leads (it is the account) and this phone's follows. */
   pointsSplit: (phone: string, wallet: string | null) =>
-    wallet === null ? `${pointsWord(phone)} on this phone.` : `${pointsWord(phone)} on this phone · ${wallet} with this wallet.`,
+    wallet === null ? `${pointsWord(phone)} on this phone.` : `${pointsWord(wallet)} with this wallet · ${phone} on this phone.`,
   skrSoon: 'Seeker Genesis wallets also earn SKR from a public pool. The SKR balance shows here once SolSentry turns it on.',
   claim: 'Claim SKR',
   claiming: 'Waiting for the wallet…',

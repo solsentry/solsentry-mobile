@@ -6,7 +6,7 @@ import { ACCOUNT_TEXT, HOME_TEXT } from './copy'
 import type { Persisted } from './history'
 import type { LoopStatus } from './loop'
 import { formatPoints } from './points'
-import { formatServerPoints, formatSkr, skrClosed, skrFigure, type ServerPoints } from './server-points'
+import { formatServerPoints, formatSkr, headlinePoints, skrClosed, skrFigure, type ServerPoints } from './server-points'
 
 export interface WidgetInput {
   loaded: boolean
@@ -49,7 +49,7 @@ export function widgetContent(input: WidgetInput): WidgetContent | null {
     const skr = server.skr && !skrClosed(server.skr) ? server.skr : null
     return {
       ...head,
-      figure: skr ? skrFigure(skr.balanceRaw).main : formatServerPoints(server.points),
+      figure: skr ? skrFigure(skr.balanceRaw).main : formatServerPoints(headlinePoints(server)),
       unit: skr ? ACCOUNT_TEXT.skrUnit : HOME_TEXT.pointsUnit,
       today: skr
         ? ACCOUNT_TEXT.skrWindow(formatSkr(skr.window.earnedRaw), formatSkr(skr.window.capRaw))

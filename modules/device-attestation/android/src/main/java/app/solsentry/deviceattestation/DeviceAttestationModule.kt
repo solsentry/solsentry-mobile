@@ -1,6 +1,7 @@
 package app.solsentry.deviceattestation
 
 import android.os.Build
+import android.provider.Settings
 import android.security.KeyStoreException
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
@@ -10,6 +11,7 @@ import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 import java.security.KeyPairGenerator
 import java.security.KeyStore
+import java.security.MessageDigest
 import java.security.ProviderException
 import java.security.Signature
 import java.security.spec.ECGenParameterSpec
@@ -22,7 +24,8 @@ import java.util.UUID
  * attestation certificate chain. The key is deleted afterwards, unless the caller passes keepAlias
  * (the KYW install key, which then signs results through sign()). Nothing else is touched:
  * no serial, no IMEI/MEID (setDevicePropertiesAttestationIncluded only covers brand,
- * device, product, manufacturer and model), no permissions.
+ * device, product, manufacturer and model), no permissions. deviceHint() reads ANDROID_ID, which
+ * Android scopes to our signing key and keeps across reinstalls, and returns only its SHA-256.
  */
 class DeviceAttestationModule : Module() {
   override fun definition() = ModuleDefinition {
@@ -39,6 +42,16 @@ class DeviceAttestationModule : Module() {
     // SubjectPublicKeyInfo (DER), base64; null when the key does not exist.
     Function("publicKey") { alias: String ->
       keyStore().getCertificate(alias)?.publicKey?.encoded?.let { Base64.encodeToString(it, Base64.NO_WRAP) }
+    }
+
+    // SHA-256 (lowercase hex) of ANDROID_ID, or null. The raw id never leaves this function.
+    // Lets SolSentry tell a reinstall on the same phone from a new phone; self-reported, measure-only.
+    Function("deviceHint") {
+      val ctx = appContext.reactContext ?: return@Function null
+      val id = Settings.Secure.getString(ctx.contentResolver, Settings.Secure.ANDROID_ID)
+      // 9774d56d682e549c: the shared value of an old emulator/firmware bug, not a device.
+      if (id.isNullOrBlank() || id == "9774d56d682e549c") return@Function null
+      MessageDigest.getInstance("SHA-256").digest(id.toByteArray()).joinToString("") { "%02x".format(it) }
     }
 
     // SHA256withECDSA over the given bytes, DER signature in base64.

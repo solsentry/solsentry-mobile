@@ -10,6 +10,16 @@ so a newer APK installs over an older one and keeps the phone's data.
 release never change. Later versions are optional updates: the app offers them on its home screen, and nobody has
 to install them.
 
+## 0.1.24 (pre-release, October 23, 2026)
+
+Optional update. The judged build 0.1.22 keeps working.
+
+- Points: with a wallet linked, the main figure is the wallet's total (your account), and this phone's own total
+  follows it. Points never move between phone and wallet; this only changes which total leads.
+- Device check: on first run the app also sends a SHA-256 of Android's `ANDROID_ID`. Android scopes that id to
+  this app's signing key, so other apps cannot match it, and it stays the same across a reinstall on the same phone.
+  The raw id never leaves the phone. SolSentry uses it only to tell a reinstall from a new phone. It blocks no one.
+
 ## 0.1.23 (October 18, 2026)
 
 Optional update. The judged build 0.1.22 keeps working.

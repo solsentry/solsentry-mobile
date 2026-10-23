@@ -20,7 +20,7 @@ import * as Linking from 'expo-linking'
 
 import { SKR_PAYOUT, solscanTx } from '@/src/config'
 import { outcomeText } from '@/src/kyw/SkrCard'
-import { formatServerPoints, formatSkr as formatSkrShort, skrClosed, skrFigure } from '@/src/kyw/server-points'
+import { formatServerPoints, formatSkr as formatSkrShort, headlinePoints, skrClosed, skrFigure } from '@/src/kyw/server-points'
 import { bonusText, formatPoints, pointsPerResult, pointsText, POINT_RULE, showNoGenesis, withServerClass } from '@/src/kyw/points'
 import { providerInfo } from '@/src/kyw/providers'
 import { RateDial } from '@/src/kyw/RateDial'
@@ -254,7 +254,7 @@ export default function ValidateScreen() {
                 </>
               ) : (
                 <FlashText value={server ? server.points * 2 : history.pointHalves} armed={kyw.loaded} color={theme.text} flash={theme.actionText} style={styles.valueMain}>
-                  {server ? formatServerPoints(server.points) : kyw.loaded ? formatPoints(history.pointHalves) : ACCOUNT_TEXT.pointsUnknown}
+                  {server ? formatServerPoints(headlinePoints(server)) : kyw.loaded ? formatPoints(history.pointHalves) : ACCOUNT_TEXT.pointsUnknown}
                 </FlashText>
               )}
               <Text style={styles.valueTail}>{skr ? ACCOUNT_TEXT.skrUnit : HOME_TEXT.pointsUnit}</Text>

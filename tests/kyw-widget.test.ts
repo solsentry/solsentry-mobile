@@ -56,6 +56,13 @@ describe('home screen widget content', () => {
     expect(widgetContent({ ...base, deviceKind: null })).toMatchObject({ figure: null, today: null })
   })
 
+  it('leads with the linked wallet total, not this phone', () => {
+    const linked = { ...server, wallet: { address: '8b67…', linkId: 16, points: 1778.7 } }
+    expect(widgetContent({ ...base, deviceKind: 'key', server: linked })).toMatchObject({ figure: '1,778.7', unit: 'pts' })
+    const unknown = { ...server, wallet: { address: '8b67…', linkId: 16, points: null } }
+    expect(widgetContent({ ...base, deviceKind: 'key', server: unknown })).toMatchObject({ figure: '81.5' })
+  })
+
   it('shows server points with today against the cap', () => {
     expect(widgetContent({ ...base, deviceKind: 'key', server })).toMatchObject({
       figure: '81.5',

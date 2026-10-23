@@ -34,6 +34,8 @@ export interface DeviceNative {
   publicKey: (alias: string) => string | null
   attestKey: (challengeB64: string, opts: { strongBox: boolean; includeDeviceIds: boolean; keepAlias?: string }) => Promise<AttestResult>
   sign: (alias: string, dataB64: string) => Promise<string>
+  /** SHA-256 hex of ANDROID_ID, or null; optional so older builds and fakes need not provide it. */
+  deviceHint?: () => string | null
 }
 
 export interface DeviceDeps {
@@ -133,7 +135,7 @@ export async function ensureDevice(deps: DeviceDeps): Promise<DeviceIdentity> {
       const outcome = await call(deps, VERIFY_PATH, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ challenge: serverChallenge, chain: result.chain }),
+        body: JSON.stringify({ challenge: serverChallenge, chain: result.chain, ...hintField(native) }),
       })
       const view = toDeviceCheckView(outcome, { claimed: result.claimed, idAttestation: result.idAttestation, idError: result.idError })
       check = view.status
@@ -145,6 +147,17 @@ export async function ensureDevice(deps: DeviceDeps): Promise<DeviceIdentity> {
   } catch {
     return randomIdentity(deps, stored).catch(() => ({ id: `r1:${hex(deps.randomBytes(16))}`, kind: 'random' as const, check: 'unavailable' as const, headline: null }))
   }
+}
+
+/** device_hint for verify: 64 lowercase hex chars, else nothing (the server treats it as measure-only). */
+export function hintField(native: DeviceNative): { device_hint?: string } {
+  let hint: string | null = null
+  try {
+    hint = native.deviceHint?.() ?? null
+  } catch {
+    hint = null
+  }
+  return hint !== null && /^[0-9a-f]{64}$/.test(hint) ? { device_hint: hint } : {}
 }
 
 /** The exact bytes device_sig covers (contract v0; the server does not check it yet). */

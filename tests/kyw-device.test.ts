@@ -71,6 +71,32 @@ describe('ensureDevice', () => {
     expect(parseIdentity(saved[0])).toEqual(id)
   })
 
+  it('sends device_hint on verify only when the native side gives 64 lowercase hex chars', async () => {
+    const bodyOf = async (hint?: () => string | null) => {
+      const { n } = nativeFake()
+      const native = hint ? { ...n, deviceHint: hint } : n
+      let body: Record<string, unknown> = {}
+      await ensureDevice(
+        deps(native, (url, init) => {
+          if (url.endsWith('/verify')) body = JSON.parse(String(init?.body))
+          return okServer()(url)
+        }).d,
+      )
+      return body
+    }
+    const good = 'a'.repeat(64)
+    expect((await bodyOf(() => good)).device_hint).toBe(good)
+    expect(await bodyOf()).not.toHaveProperty('device_hint')
+    expect(await bodyOf(() => null)).not.toHaveProperty('device_hint')
+    expect(await bodyOf(() => 'A'.repeat(64))).not.toHaveProperty('device_hint')
+    expect(await bodyOf(() => '7677aa06e997712c')).not.toHaveProperty('device_hint')
+    expect(
+      await bodyOf(() => {
+        throw new Error('no context')
+      }),
+    ).toMatchObject({ challenge: CHALLENGE })
+  })
+
   it('later runs reuse the key and make no server call', async () => {
     const first = await ensureDevice(deps(nativeFake().n, okServer()).d)
     const { n, attests } = nativeFake({ has: true })

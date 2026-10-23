@@ -4,7 +4,8 @@ import { ACCOUNT_TEXT, HOME_TEXT, INTRO_TEXT, UPDATE_TEXT, switchProviderPrompt 
 describe('points and caps on screen', () => {
   it('says 1 point, and points for any other figure', () => {
     expect(ACCOUNT_TEXT.pointsSplit('1', null)).toBe('1 point on this phone.')
-    expect(ACCOUNT_TEXT.pointsSplit('8.4', '1')).toBe('8.4 points on this phone · 1 with this wallet.')
+    expect(ACCOUNT_TEXT.pointsSplit('8.4', '1')).toBe('1 point with this wallet · 8.4 on this phone.')
+    expect(ACCOUNT_TEXT.pointsSplit('240', '1,778.7')).toBe('1,778.7 points with this wallet · 240 on this phone.')
     expect(ACCOUNT_TEXT.pointsSplit('0', null)).toBe('0 points on this phone.')
   })
   it('names the daily cap in results, not points', () => {
