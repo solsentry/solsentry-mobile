@@ -10,7 +10,7 @@ so a newer APK installs over an older one and keeps the phone's data.
 release never change. Later versions are optional updates: the app offers them on its home screen, and nobody has
 to install them.
 
-## 0.1.24 (pre-release, October 23, 2026)
+## 0.1.24 (October 24, 2026)
 
 Optional update. The judged build 0.1.22 keeps working.
 
