@@ -19,9 +19,6 @@ Optional update. The judged build 0.1.22 keeps working.
 - Widget: Settings has an "Add widget" card that opens the launcher's own add dialog. The home screen offers it
   once, after your first claim goes out or the first time you reach the daily cap. The widget now has a Start
   and Pause button. It opens SolSentry and switches verification with the same checks as the in-app switch.
-- Device check: on first run the app also sends a SHA-256 of Android's `ANDROID_ID`. Android scopes that id to
-  this app's signing key, so other apps cannot match it, and it stays the same across a reinstall on the same phone.
-  The raw id never leaves the phone. SolSentry uses it only to tell a reinstall from a new phone. It blocks no one.
 - Claim: after a claim is cancelled in the wallet, the SKR figure keeps the amount held for it and says so,
   instead of dropping to 0 until the hold is released. Claiming again shows and pays that held amount.
 - Wallet card: the title is "Your wallet" on any phone, with a line that the wallet holding the Seeker Genesis
@@ -36,6 +33,9 @@ Optional update. The judged build 0.1.22 keeps working.
   screen offers another URL or SolSentry's read. The test says what keeps a working RPC from the own-RPC bonus.
   After 5 tasks in a row with no result on your RPC, the home screen offers SolSentry's read.
 - While verification waits for Wi-Fi or the charger, the header says On hold.
+- Your RPC: with your own RPC, tests and results also carry a one-way fingerprint (SHA-256) of its URL, so the
+  own-RPC bonus counts for the exact URL you tested. SolSentry gets the host name and that fingerprint, never the URL
+  or any key in it.
 
 ## 0.1.23 (October 18, 2026)
 
