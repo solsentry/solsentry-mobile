@@ -22,6 +22,7 @@ const server: ServerPoints = {
   wallet: null,
   skr: null,
   userClass: null,
+  days: null,
 }
 
 describe('home screen widget content', () => {

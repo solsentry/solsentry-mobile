@@ -11,6 +11,7 @@ const server = (counted: number, cap: number | null): ServerPoints => ({
   wallet: null,
   skr: null,
   userClass: null,
+  days: null,
 })
 const info = { pinSupported: true, count: 0 }
 

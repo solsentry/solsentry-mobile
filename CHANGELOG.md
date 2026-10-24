@@ -26,6 +26,8 @@ Optional update. The judged build 0.1.22 keeps working.
   instead of dropping to 0 until the hold is released. Claiming again shows and pays that held amount.
 - Wallet card: the title is "Your wallet" on any phone, with a line that the wallet holding the Seeker Genesis
   Token is the one that earns SKR.
+- Last 28 days: with a wallet linked, the grid also shows the wallet's matched results from SolSentry, from every
+  phone, by your local day. A reinstall or a new phone no longer starts it empty.
 
 ## 0.1.23 (October 18, 2026)
 

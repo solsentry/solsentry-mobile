@@ -22,7 +22,7 @@ import * as Linking from 'expo-linking'
 
 import { SKR_PAYOUT, solscanTx } from '@/src/config'
 import { outcomeText } from '@/src/kyw/SkrCard'
-import { formatServerPoints, formatSkr as formatSkrShort, claimAmount, headlinePoints, heldSkr, skrClosed, skrFigure } from '@/src/kyw/server-points'
+import { formatServerPoints, formatSkr as formatSkrShort, claimAmount, headlinePoints, heldSkr, mergeDays, skrClosed, skrFigure } from '@/src/kyw/server-points'
 import { bonusText, formatPoints, pointsPerResult, pointsText, POINT_RULE, showNoGenesis, withServerClass } from '@/src/kyw/points'
 import { providerInfo } from '@/src/kyw/providers'
 import { RateDial } from '@/src/kyw/RateDial'
@@ -259,7 +259,7 @@ export default function ValidateScreen() {
         )}
 
         <FadeUp order={0}>
-          <DayGrid days={history.days} now={probeNow} running={running} />
+          <DayGrid days={mergeDays(history.days, server?.wallet ? server.days : null)} now={probeNow} running={running} />
         </FadeUp>
 
         <FadeUp order={1} style={styles.balance}>

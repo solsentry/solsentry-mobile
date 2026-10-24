@@ -17,6 +17,8 @@ export interface ServerPoints {
   skr: SkrBalance | null
   /** The class SolSentry holds for this key now; null when the server did not send a known one. */
   userClass: UserClass | null
+  /** Matched results of the linked wallet per local day (every key, last 28 days); null without a link or from an older server. */
+  days: Record<string, number> | null
 }
 
 export interface SkrBalance {
@@ -96,7 +98,35 @@ export function parseServerPoints(body: unknown): ServerPoints | null {
     wallet: parseWallet(b.wallet),
     skr: parseSkr(b.skr),
     userClass: b.user_class === 'unattested' || b.user_class === 'attested' || b.user_class === 'attested_genesis' ? b.user_class : null,
+    days: parseDays(b.days),
   }
+}
+
+const DAY_KEY = /^\d{4}-\d{2}-\d{2}$/
+
+/** `days` as the server sends it; a bad entry drops the whole field (the grid keeps the phone's history). */
+export function parseDays(v: unknown): Record<string, number> | null {
+  if (typeof v !== 'object' || v === null || Array.isArray(v)) return null
+  const out: Record<string, number> = {}
+  for (const [k, n] of Object.entries(v)) {
+    if (!DAY_KEY.test(k) || !count(n) || !Number.isInteger(n)) return null
+    out[k] = n
+  }
+  return out
+}
+
+/** Minutes to add to UTC for this phone's local time (Brazil: -180), as `/points` takes it. */
+export function tzOffsetMin(at: number): number {
+  const m = -new Date(at).getTimezoneOffset()
+  return Number.isInteger(m) && m >= -840 && m <= 840 ? m : 0
+}
+
+/** The grid's day counts: the wallet's (every phone) where they are higher than this phone's own. */
+export function mergeDays(local: Record<string, number>, wallet: Record<string, number> | null): Record<string, number> {
+  if (!wallet) return local
+  const out = { ...local }
+  for (const [k, n] of Object.entries(wallet)) out[k] = Math.max(out[k] ?? 0, n)
+  return out
 }
 
 /** `resets_at` as an ISO time or as epoch seconds; anything else is "not known". */
@@ -119,11 +149,12 @@ function parseWallet(v: unknown): ServerPoints['wallet'] {
 
 /** Null on any failure (route not deployed, network, bad body): the caller keeps the local estimate. */
 export async function fetchServerPoints(
-  deps: { fetch: typeof fetch; apiBase: string },
+  deps: { fetch: typeof fetch; apiBase: string; tzOffsetMin?: number },
   deviceKeyId: string,
 ): Promise<ServerPoints | null> {
   try {
-    const res = await deps.fetch(`${deps.apiBase}/v1/kyw/points?device_key_id=${encodeURIComponent(deviceKeyId)}`, {
+    const tz = deps.tzOffsetMin ?? tzOffsetMin(Date.now())
+    const res = await deps.fetch(`${deps.apiBase}/v1/kyw/points?device_key_id=${encodeURIComponent(deviceKeyId)}&tz_offset_min=${tz}`, {
       headers: { Accept: 'application/json' },
     })
     if (!res.ok) return null

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { fetchServerPoints, formatServerPoints, parseResetsAt, parseServerPoints } from '../src/kyw/server-points'
+import { fetchServerPoints, formatServerPoints, mergeDays, parseDays, parseResetsAt, parseServerPoints, tzOffsetMin } from '../src/kyw/server-points'
 import { showNoGenesis, withServerClass } from '../src/kyw/points'
 
 const body = { points: 12, matched: 15, since: '2026-10-10T12:00:00Z', today: { counted: 12, cap: 200 }, user_class: 'unattested' }
@@ -12,7 +12,7 @@ const fakeFetch = (status: number, json: unknown, seen: string[] = []) =>
 
 describe('parseServerPoints', () => {
   it('reads its fields and ignores the rest; no link and no SKR block read as null', () => {
-    expect(parseServerPoints(body)).toEqual({ points: 12, matched: 15, since: '2026-10-10T12:00:00Z', today: { counted: 12, cap: 200, resetsAt: null }, wallet: null, skr: null, userClass: 'unattested' })
+    expect(parseServerPoints(body)).toEqual({ points: 12, matched: 15, since: '2026-10-10T12:00:00Z', today: { counted: 12, cap: 200, resetsAt: null }, wallet: null, skr: null, userClass: 'unattested', days: null })
   })
   it('accepts a device with no result yet and a device with no cap', () => {
     expect(parseServerPoints({ ...body, points: 0, matched: 0, since: null, today: { counted: 0, cap: null } })?.today.cap).toBeNull()
@@ -26,9 +26,9 @@ describe('parseServerPoints', () => {
 describe('fetchServerPoints', () => {
   it('asks for this device and returns the balance', async () => {
     const seen: string[] = []
-    const r = await fetchServerPoints({ fetch: fakeFetch(200, body, seen), apiBase: 'https://api.test' }, 'k1:a+b/c')
+    const r = await fetchServerPoints({ fetch: fakeFetch(200, body, seen), apiBase: 'https://api.test', tzOffsetMin: -180 }, 'k1:a+b/c')
     expect(r?.points).toBe(12)
-    expect(seen[0]).toBe('https://api.test/v1/kyw/points?device_key_id=k1%3Aa%2Bb%2Fc')
+    expect(seen[0]).toBe('https://api.test/v1/kyw/points?device_key_id=k1%3Aa%2Bb%2Fc&tz_offset_min=-180')
   })
   it('is null while the route is not deployed, on a bad body and on a network error', async () => {
     expect(await fetchServerPoints({ fetch: fakeFetch(404, '404: Not Found'), apiBase: 'x' }, 'k1:a')).toBeNull()
@@ -94,5 +94,24 @@ describe('the cap window reset time', () => {
   })
   it('comes through parseServerPoints', () => {
     expect(parseServerPoints({ ...body, today: { counted: 1, cap: 200, resets_at: '2026-10-13T00:00:00Z' } })?.today.resetsAt).toBe(Date.parse('2026-10-13T00:00:00Z'))
+  })
+})
+
+describe('wallet days for the 28-day grid', () => {
+  it('parses the server days and drops the field on any bad entry', () => {
+    expect(parseDays({ '2026-10-23': 32, '2026-10-24': 86 })).toEqual({ '2026-10-23': 32, '2026-10-24': 86 })
+    expect(parseDays({})).toEqual({})
+    for (const bad of [null, [], 'x', { '2026-10-23': -1 }, { '2026-10-23': 1.5 }, { '23/10/2026': 3 }, { '2026-10-23': '3' }]) expect(parseDays(bad)).toBeNull()
+    expect(parseServerPoints({ ...body, days: { '2026-10-24': 2 } })?.days).toEqual({ '2026-10-24': 2 })
+    expect(parseServerPoints(body)?.days).toBeNull()
+  })
+  it('takes the higher count per day and keeps the phone history without wallet days', () => {
+    const local = { '2026-10-23': 5, '2026-10-24': 9 }
+    expect(mergeDays(local, null)).toBe(local)
+    expect(mergeDays(local, { '2026-10-01': 40, '2026-10-24': 3 })).toEqual({ '2026-10-01': 40, '2026-10-23': 5, '2026-10-24': 9 })
+  })
+  it('sends a whole-minute offset inside the server range', () => {
+    const m = tzOffsetMin(Date.UTC(2026, 9, 24))
+    expect(Number.isInteger(m) && m >= -840 && m <= 840).toBe(true)
   })
 })
