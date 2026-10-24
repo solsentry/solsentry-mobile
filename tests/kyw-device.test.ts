@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { DEVICE_ALIAS, ensureDevice, parseIdentity, resultSigningPayload, signResult, type DeviceDeps, type DeviceNative } from '../src/kyw/device'
+import { DEVICE_ALIAS, ensureDevice, hintField, parseIdentity, resultSigningPayload, signResult, type DeviceDeps, type DeviceNative } from '../src/kyw/device'
 
 const API = 'https://api.example.test'
 const CHALLENGE = 'A'.repeat(42) + 'A='
@@ -71,30 +71,36 @@ describe('ensureDevice', () => {
     expect(parseIdentity(saved[0])).toEqual(id)
   })
 
-  it('sends device_hint on verify only when the native side gives 64 lowercase hex chars', async () => {
-    const bodyOf = async (hint?: () => string | null) => {
-      const { n } = nativeFake()
-      const native = hint ? { ...n, deviceHint: hint } : n
-      let body: Record<string, unknown> = {}
-      await ensureDevice(
-        deps(native, (url, init) => {
-          if (url.endsWith('/verify')) body = JSON.parse(String(init?.body))
-          return okServer()(url)
-        }).d,
-      )
-      return body
-    }
+  it('device_hint off (this build): verify goes without it and ANDROID_ID is never read', async () => {
+    const { n } = nativeFake()
+    let hintCalls = 0
+    const native = { ...n, deviceHint: () => (hintCalls++, 'a'.repeat(64)) }
+    let body: Record<string, unknown> = {}
+    await ensureDevice(
+      deps(native, (url, init) => {
+        if (url.endsWith('/verify')) body = JSON.parse(String(init?.body))
+        return okServer()(url)
+      }).d,
+    )
+    expect(body).toMatchObject({ challenge: CHALLENGE })
+    expect(body).not.toHaveProperty('device_hint')
+    expect(hintCalls).toBe(0)
+  })
+
+  it('device_hint on: sent only when the native side gives 64 lowercase hex chars', () => {
+    const { n } = nativeFake()
+    const field = (hint?: () => string | null) => hintField(hint ? { ...n, deviceHint: hint } : n, true)
     const good = 'a'.repeat(64)
-    expect((await bodyOf(() => good)).device_hint).toBe(good)
-    expect(await bodyOf()).not.toHaveProperty('device_hint')
-    expect(await bodyOf(() => null)).not.toHaveProperty('device_hint')
-    expect(await bodyOf(() => 'A'.repeat(64))).not.toHaveProperty('device_hint')
-    expect(await bodyOf(() => '7677aa06e997712c')).not.toHaveProperty('device_hint')
+    expect(field(() => good)).toEqual({ device_hint: good })
+    expect(field()).toEqual({})
+    expect(field(() => null)).toEqual({})
+    expect(field(() => 'A'.repeat(64))).toEqual({})
+    expect(field(() => '7677aa06e997712c')).toEqual({})
     expect(
-      await bodyOf(() => {
+      field(() => {
         throw new Error('no context')
       }),
-    ).toMatchObject({ challenge: CHALLENGE })
+    ).toEqual({})
   })
 
   it('later runs reuse the key and make no server call', async () => {

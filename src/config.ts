@@ -32,6 +32,12 @@ export function solscanTx(signature: string): string {
 export const DEVICE_CHECK_ENABLED: boolean = true
 
 /**
+ * Send device_hint (a hash of ANDROID_ID) with the hardware key check. With false ANDROID_ID is never
+ * read; the server records the phone as "unknown". Off until the privacy policy states its retention.
+ */
+export const DEVICE_HINT_ENABLED: boolean = false
+
+/**
  * How SKR reaches the linked wallet. 'claim': the Claim button builds the transaction the wallet
  * signs and sends. 'later': no Claim; the balance accrues and is paid out from the ledger later.
  */

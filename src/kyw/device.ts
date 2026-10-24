@@ -11,6 +11,7 @@ import {
   type ServerOutcome,
 } from '../device/attest-logic'
 import type { AttestResultLike as AttestResult } from '../device/attest'
+import { DEVICE_HINT_ENABLED } from '../config'
 import { utf8 } from '../kyw-core'
 
 export const DEVICE_ALIAS = 'solsentry_kyw_device_v1'
@@ -149,8 +150,10 @@ export async function ensureDevice(deps: DeviceDeps): Promise<DeviceIdentity> {
   }
 }
 
-/** device_hint for verify: 64 lowercase hex chars, else nothing (the server treats it as measure-only). */
-export function hintField(native: DeviceNative): { device_hint?: string } {
+/** device_hint for verify: 64 lowercase hex chars, else nothing (the server treats it as measure-only).
+ * With `enabled` false the native side is not called, so ANDROID_ID is never read. */
+export function hintField(native: DeviceNative, enabled: boolean = DEVICE_HINT_ENABLED): { device_hint?: string } {
+  if (!enabled) return {}
   let hint: string | null = null
   try {
     hint = native.deviceHint?.() ?? null
