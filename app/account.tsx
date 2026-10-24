@@ -1,5 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons'
 import { useRouter } from 'expo-router'
+import { backOrHome } from '@/src/ui/nav'
 import React, { useState } from 'react'
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -55,7 +56,7 @@ export default function AccountScreen() {
     <SafeAreaView style={styles.safe}>
       <ScreenBar
         title={T.title}
-        onBack={() => router.back()}
+        onBack={backOrHome}
         right={
           <Pressable accessibilityRole="button" accessibilityLabel={TEXT.settings} onPress={() => router.push('/settings')} style={styles.round}>
             <Ionicons name="settings-outline" size={17} color={theme.text} />

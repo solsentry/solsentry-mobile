@@ -1,4 +1,4 @@
-import { useRouter } from 'expo-router'
+import { backOrHome } from '@/src/ui/nav'
 import React from 'react'
 import { ScrollView, StyleSheet } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -11,11 +11,10 @@ import { makeStyles } from '@/src/ui/theme'
 
 /** Where the reads go: SolSentry by default, or the user's own RPC URL (opened from the RPC badge or Settings). */
 export default function RpcScreen() {
-  const router = useRouter()
   const styles = useStyles()
   return (
     <SafeAreaView style={styles.safe}>
-      <ScreenBar title={TEXT.rpcTitle} onBack={() => router.back()} />
+      <ScreenBar title={TEXT.rpcTitle} onBack={backOrHome} />
       <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
         <FadeUp order={0} style={styles.card}>
           <RpcSection showTitle={false} />

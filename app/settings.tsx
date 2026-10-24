@@ -1,5 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons'
 import { useRouter } from 'expo-router'
+import { backOrHome } from '@/src/ui/nav'
 import React, { useEffect, useState } from 'react'
 import { Alert, AppState, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -78,7 +79,7 @@ export default function SettingsScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <ScreenBar title={TEXT.settings} onBack={() => router.back()} />
+      <ScreenBar title={TEXT.settings} onBack={backOrHome} />
       <ScrollView contentContainerStyle={styles.body}>
         <FadeUp order={0} style={styles.card}>
           <Text style={styles.eyebrow}>{TEXT.background}</Text>
