@@ -210,3 +210,11 @@ export function probeIsStale(report: ProbeReport | null, host: string, now: numb
   const at = Date.parse(report.measured_at)
   return !Number.isFinite(at) || now - at > PROBE_TTL_MS || at > now + 60_000
 }
+
+/** The probe found that this endpoint cannot read a recent transaction for a lasting reason (it does not
+ * keep it, refused the URL or key, or answered nonsense): every task would end with no result. A
+ * timeout or a network error is not lasting and does not count. */
+export function cannotVerify(report: ProbeReport | null | undefined): boolean {
+  const c = report?.capabilities.C1
+  return c?.class === 'none' && (c.reason === 'not_available' || c.reason === 'http_error' || c.reason === 'invalid_response')
+}

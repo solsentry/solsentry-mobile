@@ -6,9 +6,11 @@ import { Alert, AppState, Pressable, StyleSheet, Switch, Text, TextInput, View }
 import { Button } from '../ui/components'
 import { fonts, makeStyles, useTheme } from '../ui/theme'
 import { KYW_API_BASE } from './config'
-import { TEXT, probeProblemText, probeReportLines, probeTestedText, switchProviderPrompt } from './copy'
+import { TEXT, missingCapabilities, probeProblemText, probeReportLines, probeTestedText, switchProviderPrompt } from './copy'
 import { getDevice, signMessageWithDevice } from './device-runtime'
+import { cannotVerify } from './probe'
 import { chosenRpcProbeIsStale, probeChosenRpc, submitProbe } from './probe-client'
+import { isFullRpc } from './points'
 import { PROVIDER_CHOICES, providerInfo, type ProviderId } from './providers'
 import { getState, recordProbeReport, setSecret, updateSettings } from './store'
 import { useKyw } from './useKyw'
@@ -182,6 +184,11 @@ export function RpcSection({ showTitle = true }: { showTitle?: boolean }) {
                 {probeReportLines(report).map((line) => <Text key={line} style={styles.muted}>{line}</Text>)}
                 <Text style={styles.muted}>{probeTestedText(report.measured_at)}</Text>
                 {reportStale && <Text style={styles.label}>{TEXT.probeStale}</Text>}
+                {cannotVerify(report) ? (
+                  <Text style={styles.label}>{TEXT.probeCannotVerify}</Text>
+                ) : (
+                  !isFullRpc(report) && <Text style={styles.label}>{TEXT.probeNoBonus(missingCapabilities(report))}</Text>
+                )}
               </>
             )}
           </View>

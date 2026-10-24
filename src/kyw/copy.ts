@@ -29,6 +29,8 @@ export const TEXT = {
     'Each task is read from a Solana mainnet RPC. By default the read goes through SolSentry, nothing to set up. You can use your own RPC instead: paste its HTTPS URL below. Once "Test this RPC" passes every check, on a phone whose hardware key SolSentry has checked, each matched result gets +0.1 point.',
   probeButton: 'Test this RPC',
   probeStale: 'Out of date, test again',
+  probeCannotVerify: 'This RPC cannot read recent transactions, so it cannot verify. Verification stays paused while it is chosen.',
+  probeNoBonus: (missing: string) => `No own-RPC bonus with this RPC: ${missing}.`,
   probeNotSent: 'Tested here, but SolSentry did not receive the signed result. Test again to get the RPC bonus.',
   rpcNote:
     'Your URL stays on this phone. It goes only to that RPC. SolSentry receives its host name, never the URL or any key in it.',
@@ -65,6 +67,15 @@ export const PROBE_LABELS = {
   C5: 'Account state',
   C6: 'Safe pace',
 } as const
+
+/** What keeps a report from the own-RPC bonus, e.g. "old transactions, account state are not full". */
+export function missingCapabilities(report: ProbeReport | null | undefined): string {
+  if (!report) return 'not tested yet'
+  const c = report.capabilities
+  const missing = (['C1', 'C2', 'C3', 'C4', 'C5'] as const).filter((k) => c[k].class !== 'full').map((k) => PROBE_LABELS[k].toLowerCase())
+  if (c.C6.min_interval_ms === null) missing.push(PROBE_LABELS.C6.toLowerCase())
+  return missing.length ? `${missing.join(', ')} ${missing.length === 1 ? 'is' : 'are'} not full` : 'not tested yet'
+}
 
 export const PROBE_REASONS: Record<NonNullable<Capability['reason']>, string> = {
   rpc_error: 'network or RPC error',
@@ -228,6 +239,7 @@ export const ACCOUNT_TEXT = {
 /** Home screen blocks. */
 export const HOME_TEXT = {
   statusOn: 'Verifying',
+  statusHeld: 'On hold',
   claimCta: 'Claim',
   claimTo: '→ Your wallet',
   approve: 'Approve in wallet',
@@ -237,6 +249,8 @@ export const HOME_TEXT = {
   statusSetup: 'Setup needed',
   setupAddRpc: 'Add your RPC URL',
   setupUseSolSentry: 'Use SolSentry RPC',
+  setupChangeRpc: 'Change RPC URL',
+  ownRpcStreak: (n: number) => `Your RPC gave no result on the last ${n} tasks. Its results earn nothing until it reads again.`,
   pace: (n: number) => `${n} tasks/h`,
   pointsUnit: 'pts',
   /** Shown once SolSentry's count for the cap window reaches the cap: the phone keeps reading, points wait. */

@@ -190,3 +190,15 @@ export function tasksPerHour(records: TaskRecord[], now: number, windowMs = 60 *
   const span = recent[recent.length - 1].at - recent[0].at
   return span >= 120_000 ? Math.round(((recent.length - 1) * 3_600_000) / span) : null
 }
+
+/** Tasks in a row, newest first, that the user's own RPC (`provider`) ended with no result. */
+export function ownRpcNoResultStreak(records: readonly TaskRecord[], provider: string): number {
+  if (provider === 'solsentry') return 0
+  let n = 0
+  for (let i = records.length - 1; i >= 0; i--) {
+    const r = records[i]
+    if (r.provider !== provider || r.verdict !== 'unknown') break
+    n++
+  }
+  return n
+}

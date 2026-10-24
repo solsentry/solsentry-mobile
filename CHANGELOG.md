@@ -32,6 +32,10 @@ Optional update. The judged build 0.1.22 keeps working.
   task. Switching RPC ends a wait left by the previous one. A refused URL or key and an RPC that does not keep the
   transaction now say so.
 - Back goes to the home screen when a screen was opened by a link with nothing under it.
+- Your RPC: an RPC whose test shows it cannot read recent transactions keeps verification paused, and the home
+  screen offers another URL or SolSentry's read. The test says what keeps a working RPC from the own-RPC bonus.
+  After 5 tasks in a row with no result on your RPC, the home screen offers SolSentry's read.
+- While verification waits for Wi-Fi or the charger, the header says On hold.
 
 ## 0.1.23 (October 18, 2026)
 

@@ -11,11 +11,12 @@ import { getDevice, signWithDevice } from './device-runtime'
 import { runLoop, type LoopStatus } from './loop'
 import { countedToday } from './history'
 import { earnedNow, toHalves } from './points'
+import { cannotVerify } from './probe'
 import { resolveEndpoint, type ProviderId } from './providers'
 import { pacedWait, type CapState } from './pacing'
 import { HTTP_TIMEOUT_MS, runOneTask } from './run'
 import { fetchServerPoints } from './server-points'
-import { getState, load, ownRpcVia, recordResult, setRunning, setStatus, subscribe, updateSettings } from './store'
+import { getState, load, ownRpcVia, recordResult, setRunning, setStatus, subscribe, updateSettings, type ProbeReports } from './store'
 import { noteDeviceKind, noteServerPoints } from './widget-runtime'
 
 const KEEP_AWAKE_TAG = 'kyw-validation'
@@ -57,10 +58,20 @@ function endpointKey(): string {
   return `${settings.provider}\n${secrets[settings.provider] ?? ''}`
 }
 
-/** Why the chosen RPC cannot read yet (no URL saved); null when it can. */
-export function setupProblem(provider: ProviderId, secrets: Partial<Record<ProviderId, string>>): string | null {
+/** Why the chosen RPC cannot read (no URL saved, or its test found it cannot read recent transactions); null when it can. */
+export function setupProblem(provider: ProviderId, secrets: Partial<Record<ProviderId, string>>, reports: ProbeReports = {}): string | null {
   const e = resolveEndpoint(provider, secrets[provider] ?? '', API_HOST)
-  return e.ok ? null : e.problem
+  if (!e.ok) return e.problem
+  // A report is dropped when the URL changes, so this one describes the URL in use.
+  if (e.kind === 'direct' && cannotVerify(reports[provider])) return RPC_CANNOT_VERIFY
+  return null
+}
+
+const RPC_CANNOT_VERIFY = 'This RPC cannot read recent transactions, so it cannot verify. Use SolSentry RPC or another URL.'
+
+function currentProblem(): string | null {
+  const { settings, secrets, probeReports } = getState()
+  return setupProblem(settings.provider, secrets, probeReports)
 }
 
 function onText(): string {
@@ -131,9 +142,9 @@ async function loop(): Promise<void> {
     let pace = { intervalS: getState().settings.intervalS, spread: getState().settings.spread }
     let readsVia = endpointKey()
     unsubscribe = subscribe(() => {
-      // The RPC lost its URL during a wait: end the wait, and the loop stops on the setup check
-      // without asking for a task.
-      if (!endpoint().ok) {
+      // The RPC lost its URL, or its test found it cannot read, during a wait: end the wait, and the
+      // loop stops on the setup check without asking for a task.
+      if (currentProblem()) {
         wake?.()
         return
       }
@@ -158,10 +169,7 @@ async function loop(): Promise<void> {
         // Without the native module the conditions cannot be read: do not hold.
         return p ? { wifi: p.wifi, charging: p.charging } : { wifi: true, charging: true }
       },
-      ready: async () => {
-        const e = endpoint()
-        return e.ok ? null : e.problem
-      },
+      ready: async () => currentProblem(),
       runOne: (onReading) => {
         const e = endpoint()
         if (!e.ok) {
@@ -236,8 +244,7 @@ export async function startValidation(): Promise<void> {
   // Remembered so the next app start turns it on again (an update or a reboot stops the service).
   if (!getState().settings.keepOn) void updateSettings({ keepOn: true }).catch(() => {})
   // Nothing to read with: the home screen says what to set up, and saving it starts verification.
-  const { settings, secrets } = getState()
-  if (setupProblem(settings.provider, secrets)) return
+  if (currentProblem()) return
   if (loopActive) return
   stopRequested = false
   if (mode() === 'service') {

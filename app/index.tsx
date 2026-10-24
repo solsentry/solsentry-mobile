@@ -12,7 +12,7 @@ import { DayGrid } from '@/src/kyw/DayGrid'
 import { IntroSheet } from '@/src/kyw/IntroSheet'
 import { NoGenesisCard } from '@/src/kyw/NoGenesisCard'
 import { Grid, verdictColor } from '@/src/kyw/Grid'
-import { countedToday, tasksPerHour } from '@/src/kyw/history'
+import { countedToday, ownRpcNoResultStreak, tasksPerHour } from '@/src/kyw/history'
 import { ownRpcActive } from '@/src/kyw/probe-client'
 import { useAccount } from '@/src/kyw/useAccount'
 import { WalletCard } from '@/src/kyw/WalletCard'
@@ -35,6 +35,8 @@ import { useUpdate } from '@/src/kyw/useUpdate'
 import { Bump, Fan, FadeUp, FlashText } from '@/src/ui/motion'
 import { figure, fonts, makeStyles, useTheme } from '@/src/ui/theme'
 
+/** Own-RPC tasks in a row with no result before the home screen suggests SolSentry's read. */
+const OWN_RPC_STREAK = 5
 const short = (a: string) => `${a.slice(0, 4)}…${a.slice(-4)}`
 
 async function askNotificationPermission(): Promise<void> {
@@ -99,7 +101,7 @@ export default function ValidateScreen() {
   const [details, setDetails] = useState(false)
   const provider = providerInfo(settings.provider)
   // The chosen RPC cannot read (own RPC with no URL saved): verification stays off and says why.
-  const problem = kyw.loaded ? setupProblem(settings.provider, kyw.secrets) : null
+  const problem = kyw.loaded ? setupProblem(settings.provider, kyw.secrets, kyw.probeReports) : null
   // The read's RPC is chosen in Settings; here it only sets the own-RPC multiplier and the status line.
   const report = kyw.probeReports[provider.id]
   const [probeNow, setProbeNow] = useState(Date.now)
@@ -117,6 +119,9 @@ export default function ValidateScreen() {
   }, [])
 
   const records = history.records
+  const noResultStreak = ownRpcNoResultStreak(records, settings.provider)
+  // On, but waiting for Wi-Fi or the charger: the header must not say it is verifying.
+  const onHold = status.kind === 'held' && (status.why === 'wifi' || status.why === 'charging')
   const selected = useMemo(
     () => records.find((r) => r.id === selectedId) ?? records[records.length - 1] ?? null,
     [records, selectedId],
@@ -271,9 +276,9 @@ export default function ValidateScreen() {
             onPress={() => void toggle(!running)}
             style={styles.statusBtn}
           >
-            <Fan running={running} color={running ? theme.action : theme.muted} />
-            <Text style={styles.statusText}>{running ? HOME_TEXT.statusOn : problem ? HOME_TEXT.statusSetup : HOME_TEXT.statusOff}</Text>
-            <Text style={styles.statusPace}>{running && perHour !== null ? HOME_TEXT.pace(perHour) : ''}</Text>
+            <Fan running={running && !onHold} color={running && !onHold ? theme.action : theme.muted} />
+            <Text style={styles.statusText}>{running ? (onHold ? HOME_TEXT.statusHeld : HOME_TEXT.statusOn) : problem ? HOME_TEXT.statusSetup : HOME_TEXT.statusOff}</Text>
+            <Text style={styles.statusPace}>{running && !onHold && perHour !== null ? HOME_TEXT.pace(perHour) : ''}</Text>
             <Ionicons name={running ? 'pause' : 'play'} size={13} color={theme.muted} />
           </Pressable>
           <View style={styles.valueRow}>
@@ -320,8 +325,18 @@ export default function ValidateScreen() {
               <Text style={styles.warnLine}>{problem}</Text>
               <View style={styles.setupRow}>
                 <Pressable accessibilityRole="button" onPress={() => router.push('/rpc')} style={({ pressed }) => [styles.setupBtn, pressed && { opacity: 0.85 }]}>
-                  <Text style={styles.setupBtnText}>{HOME_TEXT.setupAddRpc}</Text>
+                  <Text style={styles.setupBtnText}>{kyw.secrets[settings.provider] ? HOME_TEXT.setupChangeRpc : HOME_TEXT.setupAddRpc}</Text>
                 </Pressable>
+                <Pressable accessibilityRole="button" onPress={() => void readViaSolSentry()} style={({ pressed }) => [styles.setupBtn, pressed && { opacity: 0.85 }]}>
+                  <Text style={styles.setupBtnText}>{HOME_TEXT.setupUseSolSentry}</Text>
+                </Pressable>
+              </View>
+            </View>
+          )}
+          {running && noResultStreak >= OWN_RPC_STREAK && (
+            <View style={styles.setupBox}>
+              <Text style={styles.warnLine}>{HOME_TEXT.ownRpcStreak(noResultStreak)}</Text>
+              <View style={styles.setupRow}>
                 <Pressable accessibilityRole="button" onPress={() => void readViaSolSentry()} style={({ pressed }) => [styles.setupBtn, pressed && { opacity: 0.85 }]}>
                   <Text style={styles.setupBtnText}>{HOME_TEXT.setupUseSolSentry}</Text>
                 </Pressable>
