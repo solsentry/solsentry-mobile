@@ -1,7 +1,9 @@
 // One validation: get a task, read the transaction, compute the fact, send the result.
 // Every failure ends as a record with verdict `unknown` and a reason; nothing here throws.
 import { READ_PARAMS, buildEnvelope, parseTask, readOutcome, shortId, utf8, type ReadOutcome, type Task } from '../kyw-core'
-import type { Endpoint, ProviderId } from './providers'
+import type { SignedResultFields } from './device'
+import { rpcUrlDigest, type Endpoint, type ProviderId } from './providers'
+import { RPC_URL_DIGEST } from '../config'
 import type { TaskRecord, Verdict } from './types'
 
 export const HTTP_TIMEOUT_MS = 10_000
@@ -19,7 +21,7 @@ export interface RunDeps {
   /** Install id sent with the task request and the result (null: none). */
   deviceKeyId?: string | null
   /** Signs the result (device_sig); null when the install has no key. */
-  signResult?: (r: { task_id: string; status: string; fact_digest: string | null; rpc_host: string }) => Promise<string | null>
+  signResult?: (r: SignedResultFields) => Promise<string | null>
 }
 
 export interface RunResult {
@@ -133,6 +135,7 @@ export async function runOneTask(deps: RunDeps): Promise<RunResult> {
     task,
     outcome: read.outcome,
     rpcHost: endpoint.host,
+    rpcUrlDigest: RPC_URL_DIGEST && endpoint.kind === 'direct' ? rpcUrlDigest(endpoint.url) : null,
     startedAt,
     endedAt,
     bytes: read.bytes,

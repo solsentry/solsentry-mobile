@@ -1,6 +1,8 @@
 // RPC choices for the validation read. No SolSentry key lives in the app: the default goes through
 // the SolSentry server (which only reads the open task); the others use a key the user pastes.
 // A key or endpoint token never leaves the phone except inside the request to that provider.
+import { sha256 } from '@noble/hashes/sha2.js'
+import { bytesToHex, utf8ToBytes } from '@noble/hashes/utils.js'
 
 export type ProviderId = 'solsentry' | 'custom' | 'helius' | 'quicknode' | 'solami'
 
@@ -56,6 +58,12 @@ export type Endpoint =
   | { ok: false; problem: string }
 
 const KEY_SHAPE = /^[A-Za-z0-9._-]{8,200}$/
+
+/** SHA-256 hex of the exact endpoint string the reads go to, domain-separated. SolSentry matches the
+ * probe and the results on it; the URL itself, and any key in it, never leave the phone. */
+export function rpcUrlDigest(url: string): string {
+  return bytesToHex(sha256(utf8ToBytes(`kyw-rpc-url-v0\n${url}`)))
+}
 
 /** Resolve where the read goes. `apiHost` is the host of the SolSentry API in this build. */
 export function resolveEndpoint(id: ProviderId, secret: string, apiHost: string): Endpoint {

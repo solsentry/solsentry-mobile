@@ -17,6 +17,8 @@ export interface ResultEnvelope {
   signatures: string[]
   reads: { method: string; target: string; ok: boolean; truncated: boolean }[]
   rpc_host: string
+  /** Set only when the read went to the user's own RPC and SolSentry takes the field (RPC_URL_DIGEST). */
+  rpc_url_digest?: string
   read_at: { start: string; end: string }
   metrics: { ms: number; bytes: number }
   client: { kind: string; version: string }
@@ -29,6 +31,8 @@ export interface EnvelopeInput {
   outcome: ReadOutcome
   /** Host only: never a URL, a path or a query string. */
   rpcHost: string
+  /** rpcUrlDigest of the endpoint, or null to leave the field out. */
+  rpcUrlDigest?: string | null
   startedAt: Date
   endedAt: Date
   bytes: number
@@ -49,6 +53,7 @@ export function buildEnvelope(input: EnvelopeInput): ResultEnvelope {
     signatures: [task.signature],
     reads: [{ method: 'getTransaction', target: task.signature, ok: outcome.status === 'ok', truncated: false }],
     rpc_host: input.rpcHost,
+    ...(input.rpcUrlDigest ? { rpc_url_digest: input.rpcUrlDigest } : {}),
     read_at: { start: input.startedAt.toISOString(), end: input.endedAt.toISOString() },
     metrics: {
       ms: Math.max(0, Math.round(input.endedAt.getTime() - input.startedAt.getTime())),

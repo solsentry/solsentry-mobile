@@ -15,7 +15,7 @@ import { resolveEndpoint, type ProviderId } from './providers'
 import { pacedWait, type CapState } from './pacing'
 import { HTTP_TIMEOUT_MS, runOneTask } from './run'
 import { fetchServerPoints } from './server-points'
-import { getState, load, recordResult, setRunning, setStatus, subscribe, updateSettings } from './store'
+import { getState, load, ownRpcVia, recordResult, setRunning, setStatus, subscribe, updateSettings } from './store'
 import { noteDeviceKind, noteServerPoints } from './widget-runtime'
 
 const KEEP_AWAKE_TAG = 'kyw-validation'
@@ -117,7 +117,7 @@ async function loop(): Promise<void> {
       if (device.kind !== 'key') return null
       if (Date.now() - capReadAt < CAP_READ_EVERY_MS) return cap
       capReadAt = Date.now()
-      const p = await fetchServerPoints({ fetch: timedFetch, apiBase: KYW_API_BASE }, device.id)
+      const p = await fetchServerPoints({ fetch: timedFetch, apiBase: KYW_API_BASE, via: ownRpcVia() }, device.id)
       // A failed read keeps the last known state; none known means no pacing.
       if (p) {
         cap = p.today

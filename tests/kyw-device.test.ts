@@ -146,6 +146,7 @@ describe('signResult', () => {
     const { n } = nativeFake({ has: true })
     const r = { task_id: 't1', status: 'ok', fact_digest: 'ab', rpc_host: 'mainnet.helius-rpc.com' }
     expect(resultSigningPayload(r)).toBe('kyw-result-v0\nt1\nok\nab\nmainnet.helius-rpc.com')
+    expect(resultSigningPayload({ ...r, rpc_url_digest: 'd'.repeat(64) })).toBe(`kyw-result-v0\nt1\nok\nab\nmainnet.helius-rpc.com\n${'d'.repeat(64)}`)
     const sig = await signResult(n, { id: 'k1:x', kind: 'key', check: 'verified', headline: null }, r)
     expect(sig).toBe(`sig(${Buffer.from(resultSigningPayload(r)).toString('base64')})`)
   })

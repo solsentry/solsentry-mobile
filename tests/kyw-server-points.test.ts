@@ -30,6 +30,11 @@ describe('fetchServerPoints', () => {
     expect(r?.points).toBe(12)
     expect(seen[0]).toBe('https://api.test/v1/kyw/points?device_key_id=k1%3Aa%2Bb%2Fc&tz_offset_min=-180')
   })
+  it('names the own RPC in use when the caller passes it, so the cap shown follows the award rule', async () => {
+    const seen: string[] = []
+    await fetchServerPoints({ fetch: fakeFetch(200, body, seen), apiBase: 'https://api.test', tzOffsetMin: 0, via: { host: 'rpc.example.com', digest: 'a'.repeat(64) } }, 'k1')
+    expect(seen[0]).toBe(`https://api.test/v1/kyw/points?device_key_id=k1&tz_offset_min=0&rpc_host=rpc.example.com&rpc_url_digest=${'a'.repeat(64)}`)
+  })
   it('is null while the route is not deployed, on a bad body and on a network error', async () => {
     expect(await fetchServerPoints({ fetch: fakeFetch(404, '404: Not Found'), apiBase: 'x' }, 'k1:a')).toBeNull()
     expect(await fetchServerPoints({ fetch: fakeFetch(200, 'not json'), apiBase: 'x' }, 'k1:a')).toBeNull()

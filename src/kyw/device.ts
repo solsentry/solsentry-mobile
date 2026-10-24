@@ -160,16 +160,20 @@ export function hintField(native: DeviceNative): { device_hint?: string } {
   return hint !== null && /^[0-9a-f]{64}$/.test(hint) ? { device_hint: hint } : {}
 }
 
-/** The exact bytes device_sig covers (contract v0; the server does not check it yet). */
-export function resultSigningPayload(r: { task_id: string; status: string; fact_digest: string | null; rpc_host: string }): string {
-  return ['kyw-result-v0', r.task_id, r.status, r.fact_digest ?? '', r.rpc_host].join('\n')
+/** The exact bytes device_sig covers (contract v0). A result with rpc_url_digest signs it as a 6th line. */
+export function resultSigningPayload(r: SignedResultFields): string {
+  const lines = ['kyw-result-v0', r.task_id, r.status, r.fact_digest ?? '', r.rpc_host]
+  if (r.rpc_url_digest) lines.push(r.rpc_url_digest)
+  return lines.join('\n')
 }
+
+export type SignedResultFields = { task_id: string; status: string; fact_digest: string | null; rpc_host: string; rpc_url_digest?: string }
 
 /** device_sig for a result, or null (random identity, no module, or the Keystore refused). */
 export async function signResult(
   native: DeviceNative | null,
   identity: DeviceIdentity | null,
-  r: { task_id: string; status: string; fact_digest: string | null; rpc_host: string },
+  r: SignedResultFields,
 ): Promise<string | null> {
   if (!native || identity?.kind !== 'key') return null
   try {

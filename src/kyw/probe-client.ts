@@ -5,7 +5,8 @@ import { bytesToBase64 } from '../device/attest-logic'
 import { fetchWithTimeout } from '../net/fetch-timeout'
 import { parseProbeTargets, probeIsStale, runProbe, type ProbeReport, type ProbeTargets } from './probe'
 import { independentRpc } from './points'
-import { resolveEndpoint, type ProviderId } from './providers'
+import { RPC_URL_DIGEST } from '../config'
+import { resolveEndpoint, rpcUrlDigest, type ProviderId } from './providers'
 
 export type ProbeTargetsProblem = 'no_targets' | 'network' | `http_${number}`
 export type ProbeTargetsResult = { ok: true; targets: ProbeTargets } | { ok: false; problem: ProbeTargetsProblem }
@@ -54,6 +55,7 @@ export async function probeChosenRpc(deps: ProbeChosenRpcDeps): Promise<ProbeCho
     fetch: fetchWithTimeout(deps.fetch, 10_000),
     url: endpoint.url,
     host: endpoint.host,
+    urlDigest: RPC_URL_DIGEST ? rpcUrlDigest(endpoint.url) : null,
     targets: targets.targets,
     clientVersion: deps.clientVersion,
     now: deps.now ?? Date.now,

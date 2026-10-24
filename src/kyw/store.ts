@@ -8,7 +8,8 @@ import * as SecureStore from 'expo-secure-store'
 import { EMPTY, addRecord, parsePersisted, parseSettings, type Persisted } from './history'
 import type { LoopStatus } from './loop'
 import { PROBE_VERSION, type Capability, type ProbeReport } from './probe'
-import { PROVIDERS, loadedProvider, type ProviderId } from './providers'
+import { RPC_URL_DIGEST } from '../config'
+import { PROVIDERS, loadedProvider, resolveEndpoint, rpcUrlDigest, type ProviderId } from './providers'
 import { DEFAULT_SETTINGS, type Settings, type TaskRecord } from './types'
 
 const HISTORY_KEY = 'solsentry-kyw/history/v1'
@@ -67,6 +68,7 @@ function parseReport(value: unknown, provider: ProviderId): ProbeReport | null {
   return {
     probe_version: PROBE_VERSION,
     rpc_host: r.rpc_host,
+    ...(typeof r.rpc_url_digest === 'string' && /^[0-9a-f]{64}$/.test(r.rpc_url_digest) ? { rpc_url_digest: r.rpc_url_digest } : {}),
     measured_at: new Date(r.measured_at).toISOString(),
     capabilities: { C1, C2, C3, C4, C5, C6: { min_interval_ms: C6.min_interval_ms } },
     client: { kind: 'android', version: client.version },
@@ -259,4 +261,12 @@ export function setRunning(running: boolean): void {
 
 export function setStatus(status: LoopStatus): void {
   set({ status })
+}
+
+/** Host and URL digest of the user's own RPC in use now, for GET /points; null on SolSentry's read or
+ * while SolSentry does not take the digest (RPC_URL_DIGEST off). */
+export function ownRpcVia(): { host: string; digest: string } | null {
+  if (!RPC_URL_DIGEST) return null
+  const e = resolveEndpoint(state.settings.provider, state.secrets[state.settings.provider] ?? '', '')
+  return e.ok && e.kind === 'direct' ? { host: e.host, digest: rpcUrlDigest(e.url) } : null
 }

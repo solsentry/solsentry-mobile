@@ -28,6 +28,7 @@ export interface Capability {
 export interface ProbeReport {
   probe_version: string
   rpc_host: string
+  rpc_url_digest?: string
   measured_at: string
   capabilities: {
     C1: Capability
@@ -47,6 +48,8 @@ export interface ProbeDeps {
   url: string
   /** What may be reported. */
   host: string
+  /** rpcUrlDigest of `url`, reported when SolSentry takes it (RPC_URL_DIGEST); never the URL. */
+  urlDigest?: string | null
   targets: ProbeTargets
   clientVersion: string
   now: () => number
@@ -171,6 +174,7 @@ export async function runProbe(deps: ProbeDeps): Promise<ProbeReport> {
   return {
     probe_version: PROBE_VERSION,
     rpc_host: deps.host,
+    ...(deps.urlDigest ? { rpc_url_digest: deps.urlDigest } : {}),
     measured_at: new Date(deps.now()).toISOString(),
     capabilities: { C1, C2, C3, C4, C5, C6: { min_interval_ms: minInterval } },
     client: { kind: 'android', version: deps.clientVersion },

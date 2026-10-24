@@ -12,6 +12,7 @@ import { KYW_API_BASE } from './config'
 import { ACCOUNT_TEXT as T } from './copy'
 import type { DeviceIdentity } from './device'
 import { getDevice } from './device-runtime'
+import { ownRpcVia } from './store'
 import { fetchServerPoints, type CancelledClaim, type ServerPoints } from './server-points'
 import { useKyw } from './useKyw'
 import { noteDeviceKind, noteServerPoints } from './widget-runtime'
@@ -72,7 +73,7 @@ export function useAccount() {
     const read = () => {
       const started = Date.now()
       lastRead.current = started
-      void fetchServerPoints(deps, keyId).then((p) => {
+      void fetchServerPoints({ ...deps, via: ownRpcVia() }, keyId).then((p) => {
         if (p) noteServerPoints(p)
         if (!live || !p) return
         readStarted.current = started

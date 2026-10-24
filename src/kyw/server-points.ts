@@ -149,12 +149,15 @@ function parseWallet(v: unknown): ServerPoints['wallet'] {
 
 /** Null on any failure (route not deployed, network, bad body): the caller keeps the local estimate. */
 export async function fetchServerPoints(
-  deps: { fetch: typeof fetch; apiBase: string; tzOffsetMin?: number },
+  deps: { fetch: typeof fetch; apiBase: string; tzOffsetMin?: number; via?: { host: string; digest: string } | null },
   deviceKeyId: string,
 ): Promise<ServerPoints | null> {
   try {
     const tz = deps.tzOffsetMin ?? tzOffsetMin(Date.now())
-    const res = await deps.fetch(`${deps.apiBase}/v1/kyw/points?device_key_id=${encodeURIComponent(deviceKeyId)}&tz_offset_min=${tz}`, {
+    // The RPC in use now, so the SKR cap shown follows the same rule as the award.
+    const via = deps.via ?? null
+    const viaQuery = via ? `&rpc_host=${encodeURIComponent(via.host)}&rpc_url_digest=${via.digest}` : ''
+    const res = await deps.fetch(`${deps.apiBase}/v1/kyw/points?device_key_id=${encodeURIComponent(deviceKeyId)}&tz_offset_min=${tz}${viaQuery}`, {
       headers: { Accept: 'application/json' },
     })
     if (!res.ok) return null

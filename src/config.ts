@@ -36,3 +36,8 @@ export const DEVICE_CHECK_ENABLED: boolean = true
  * signs and sends. 'later': no Claim; the balance accrues and is paid out from the ledger later.
  */
 export const SKR_PAYOUT: 'claim' | 'later' = 'claim'
+
+/** Send `rpc_url_digest` with probes and results, which ties the own-RPC bonus to the exact URL and not
+ * just its host. Off until SolSentry accepts the field: an older server checks a 5-line result
+ * signature, and a 6-line one would fail there. */
+export const RPC_URL_DIGEST = false
