@@ -33,7 +33,7 @@ export const TEXT = {
   probeNoBonus: (missing: string) => `No own-RPC bonus with this RPC: ${missing}.`,
   probeNotSent: 'Tested here, but SolSentry did not receive the signed result. Test again to get the RPC bonus.',
   rpcNote:
-    'Your URL stays on this phone. It goes only to that RPC. SolSentry receives its host name, never the URL or any key in it.',
+    'Your URL stays on this phone. It goes only to that RPC. SolSentry receives its host name and a one-way fingerprint of the URL, never the URL or any key in it.',
   saveKey: 'Save it on this phone',
   saveKeyOn: 'Stored encrypted on this phone (Android Keystore).',
   saveKeyOff: 'Kept only until you close the app.',

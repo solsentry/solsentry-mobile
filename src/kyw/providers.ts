@@ -72,7 +72,7 @@ export function resolveEndpoint(id: ProviderId, secret: string, apiHost: string)
   if (!value) return { ok: false, problem: `Add your ${providerInfo(id).secretLabel} in Settings, RPC for the read.` }
   if (id === 'custom') {
     const host = rpcUrlHost(value)
-    // Only the host is ever reported: a key in the path or the query stays in `url`.
+    // Only the host and rpcUrlDigest(url) are reported: a key in the path or the query stays in `url`.
     return host ? { ok: true, kind: 'direct', url: value, host } : { ok: false, problem: 'Paste the HTTPS URL of your Solana mainnet RPC.' }
   }
   if (id === 'helius') {

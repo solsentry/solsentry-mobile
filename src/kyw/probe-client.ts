@@ -78,7 +78,7 @@ export type SubmitProbeResult = { ok: true; signed: boolean } | { ok: false; pro
 
 /**
  * Send the report to SolSentry (POST /v1/kyw/probe) under this phone's key: only a signed, valid probe
- * lets the server count the own-RPC bonus. The report holds the host only, never the URL or a key.
+ * lets the server count the own-RPC bonus. The report holds the host and the URL digest, never the URL or a key.
  */
 export async function submitProbe(deps: {
   fetch: typeof fetch
