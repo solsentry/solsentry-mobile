@@ -22,7 +22,7 @@ import * as Linking from 'expo-linking'
 
 import { SKR_PAYOUT, solscanTx } from '@/src/config'
 import { outcomeText } from '@/src/kyw/SkrCard'
-import { formatServerPoints, formatSkr as formatSkrShort, headlinePoints, skrClosed, skrFigure } from '@/src/kyw/server-points'
+import { formatServerPoints, formatSkr as formatSkrShort, claimAmount, headlinePoints, heldSkr, skrClosed, skrFigure } from '@/src/kyw/server-points'
 import { bonusText, formatPoints, pointsPerResult, pointsText, POINT_RULE, showNoGenesis, withServerClass } from '@/src/kyw/points'
 import { providerInfo } from '@/src/kyw/providers'
 import { RateDial } from '@/src/kyw/RateDial'
@@ -63,6 +63,9 @@ export default function ValidateScreen() {
   const claimHere = SKR_PAYOUT === 'claim' && skr !== null && skr.pool !== 'empty' && account.claim?.kind !== 'disabled'
   const claimReady = claimHere && account.wallet !== null && (skr.balanceRaw >= skr.minClaimRaw || skr.openClaim !== null)
   const claimOut = account.claim ? outcomeText(account.claim) : null
+  // SKR held by an unsent claim still belongs to the wallet: the figure keeps it and the line below says so.
+  const held = skr ? heldSkr(skr, account.cancelled) : null
+  const shownSkr = skr ? skr.balanceRaw + (held ?? 0n) : null
   const widgetInfo = useWidgetInfo()
   const offerWidget = shouldOfferWidget({
     info: widgetInfo,
@@ -79,7 +82,7 @@ export default function ValidateScreen() {
   // The mockup's credit toast: SKR the server added since the last read, shown for 2.4 s.
   const [credit, setCredit] = useState<bigint | null>(null)
   const lastSkr = useRef<bigint | null>(null)
-  const skrBalance = skr?.balanceRaw ?? null
+  const skrBalance = shownSkr
   useEffect(() => {
     const before = lastSkr.current
     lastSkr.current = skrBalance
@@ -278,10 +281,10 @@ export default function ValidateScreen() {
               {skr ? (
                 // SKR as SolSentry's ledger states it; points stay a detail below.
                 <>
-                  <FlashText value={Number(skr.balanceRaw)} armed={kyw.loaded} color={theme.text} flash={theme.actionText} style={styles.valueMain}>
-                    {skrFigure(skr.balanceRaw).main}
+                  <FlashText value={Number(shownSkr)} armed={kyw.loaded} color={theme.text} flash={theme.actionText} style={styles.valueMain}>
+                    {skrFigure(shownSkr!).main}
                   </FlashText>
-                  <Text style={styles.valueSmall}>{skrFigure(skr.balanceRaw).tail}</Text>
+                  <Text style={styles.valueSmall}>{skrFigure(shownSkr!).tail}</Text>
                 </>
               ) : (
                 <FlashText value={server ? server.points * 2 : history.pointHalves} armed={kyw.loaded} color={theme.text} flash={theme.actionText} style={styles.valueMain}>
@@ -326,7 +329,9 @@ export default function ValidateScreen() {
             </View>
           )}
           {skr?.pool === 'empty' && <Text style={styles.warnLine}>{ACCOUNT_TEXT.poolEmpty}</Text>}
-          {skr?.openClaim && !account.claiming && <Text style={styles.warnLine}>{ACCOUNT_TEXT.claimOpen}</Text>}
+          {skr?.openClaim && !account.claiming && (
+            <Text style={styles.warnLine}>{held !== null ? ACCOUNT_TEXT.claimHeld(formatSkrShort(held)) : ACCOUNT_TEXT.claimOpen}</Text>
+          )}
           {claimHere ? (
             // The mockup's Claim: signs and sends from here; without a wallet or enough SKR it opens Points, which says why.
             <Pressable
@@ -436,7 +441,7 @@ export default function ValidateScreen() {
         <ClaimSheet
           visible={claimSheet}
           onClose={() => setClaimSheet(false)}
-          amountRaw={skr.balanceRaw}
+          amountRaw={claimAmount(skr, account.cancelled)}
           wallet={wallet.address}
           walletName={skrName}
           claiming={account.claiming}

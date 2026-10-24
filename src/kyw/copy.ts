@@ -165,7 +165,8 @@ export const ACCOUNT_TEXT = {
   claimNeedsWallet: 'Link a wallet to claim SKR. SKR accrues only to a linked wallet.',
   claimMin: (min: string) => `You can claim from ${min} SKR.`,
   /** The server holds the claimed SKR for an open claim, so the balance reads lower until it is finished. */
-  claimOpen: 'Your last claim was not sent, so its SKR is held for it and not shown above. Nothing was paid. Claim again to finish it.',
+  claimOpen: 'Your last claim was not sent, so its SKR is held for it and not shown above. Nothing was paid. Claim again to finish it, or it comes back here within a few minutes.',
+  claimHeld: (amount: string) => `${amount} SKR of this is held for your last claim, which was not sent. Nothing was paid. Claim again to finish it, or it is released within a few minutes.`,
   claimFee: 'Your wallet pays the network fee. The first claim also opens its SKR account, so keep ~0.003 SOL in it.',
   poolEmpty: 'Pool empty, refills soon.',
   needsSol: (sol: string) => `Needs ~${sol} SOL for network fees. Add SOL to the linked wallet and claim again.`,
@@ -195,9 +196,10 @@ export const ACCOUNT_TEXT = {
   /** The daily cap counts results, not points, so the line says so next to the points figure. */
   today: (n: number, cap: number) => `${Math.min(n, cap)}/${cap} results today`,
   link: 'Link wallet',
-  connectTitle: 'Your Seeker wallet',
+  connectTitle: 'Your wallet',
   connect: 'Connect wallet',
   connectNote: 'Opens the wallet on this phone and asks you to sign one message. No transaction, nothing to pay.',
+  connectGenesis: 'Use the wallet that holds your Seeker Genesis Token to earn SKR.',
   badgeGenesis: 'Genesis',
   badgeDevice: 'Verified device',
   linking: 'Waiting for the wallet…',

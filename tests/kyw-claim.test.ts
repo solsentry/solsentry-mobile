@@ -23,7 +23,7 @@ import {
   solNeeded,
 } from '../src/kyw/claim'
 import { runClaim, WrongWalletError, type ClaimDeps } from '../src/kyw/claim-flow'
-import { formatSkr, parseServerPoints, parseSkr, skrClosed, skrFigure } from '../src/kyw/server-points'
+import { formatSkr, parseServerPoints, claimAmount, heldSkr, parseSkr, skrClosed, skrFigure } from '../src/kyw/server-points'
 
 const TOKEN = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA')
 const ATA_PROGRAM = new PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL')
@@ -147,13 +147,28 @@ describe('claim answers and amounts', () => {
     expect(parseServerPoints(base)).toMatchObject({ skr: null, wallet: null })
     const skr = { decimals: 6, balance: 3550000, window: { earned: 6000000, cap: 5000000 }, claim_min: 1000000, pool: 'ok', open_claim: null }
     expect(parseServerPoints({ ...base, skr, wallet: { address: 'Abcd…wxyz', points: 71, link_id: 7 } })).toMatchObject({
-      skr: { balanceRaw: AMOUNT, window: { earnedRaw: 6_000_000n, capRaw: 5_000_000n }, minClaimRaw: 1_000_000n, pool: 'ok', openClaim: null },
+      skr: { balanceRaw: AMOUNT, window: { earnedRaw: 6_000_000n, capRaw: 5_000_000n }, minClaimRaw: 1_000_000n, pool: 'ok', openClaim: null, openClaimRaw: null },
       wallet: { address: 'Abcd…wxyz', linkId: 7 },
     })
     expect(parseSkr({ ...skr, pool: 'unknown', open_claim: 'c1' })).toMatchObject({ pool: 'unknown', openClaim: 'c1' })
+    expect(parseSkr({ ...skr, open_claim: 'c1', open_claim_amount: 1425000 })).toMatchObject({ openClaim: 'c1', openClaimRaw: 1_425_000n })
+    expect(parseSkr({ ...skr, open_claim: 'c1', open_claim_amount: -1 })).toMatchObject({ openClaim: 'c1', openClaimRaw: null })
+    expect(parseSkr({ ...skr, open_claim: null, open_claim_amount: 1425000 })).toMatchObject({ openClaim: null, openClaimRaw: null })
     expect(parseSkr({ ...skr, balance: '3550000' })).toBeNull()
     expect(parseSkr({ ...skr, decimals: 9 })).toBeNull()
     expect(parseSkr({ ...skr, pool: 'full' })).toBeNull()
+  })
+  it('SKR held by an unsent claim: the server figure first, the cancelled claim as fallback, none without an open claim', () => {
+    const skr = parseSkr({ decimals: 6, balance: 0, window: { earned: 0, cap: 8000000 }, claim_min: 1000000, pool: 'ok', open_claim: 'c1', open_claim_amount: 1425000 })!
+    const mine = { claimId: 'c1', amountRaw: 999n }
+    expect(heldSkr(skr, mine)).toBe(1_425_000n)
+    expect(heldSkr({ ...skr, openClaimRaw: null }, mine)).toBe(999n)
+    expect(heldSkr({ ...skr, openClaimRaw: null }, { claimId: 'other', amountRaw: 999n })).toBeNull()
+    expect(heldSkr({ ...skr, openClaimRaw: null }, null)).toBeNull()
+    expect(heldSkr({ ...skr, openClaim: null }, mine)).toBeNull()
+    expect(claimAmount({ ...skr, balanceRaw: 50_000n, openClaimRaw: null }, mine)).toBe(999n)
+    expect(claimAmount({ ...skr, balanceRaw: 50_000n }, null)).toBe(1_425_000n)
+    expect(claimAmount({ ...skr, balanceRaw: 50_000n, openClaim: null }, null)).toBe(50_000n)
   })
   it('a window cap of 0 closes SKR for the device (Genesis only in the Seeker phase); the shape still parses', () => {
     const skr = { decimals: 6, balance: 0, window: { earned: 0, cap: 0 }, claim_min: 1000000, pool: 'ok', open_claim: null }
@@ -232,7 +247,7 @@ describe('runClaim', () => {
   })
   it('expired blockhash, cancel and the wrong wallet', async () => {
     expect(await runClaim(deps({ signAndSend: async () => Promise.reject(new Error('Blockhash not found')) }).d)).toEqual({ kind: 'expired' })
-    expect(await runClaim(deps({ signAndSend: async () => Promise.reject(new Error('User declined')) }).d)).toEqual({ kind: 'cancelled' })
+    expect(await runClaim(deps({ signAndSend: async () => Promise.reject(new Error('User declined')) }).d)).toEqual({ kind: 'cancelled', claimId: 'c1', amountRaw: AMOUNT })
     expect(await runClaim(deps({ signAndSend: async () => Promise.reject(new WrongWalletError()) }).d)).toEqual({ kind: 'wrong_wallet' })
     expect(await runClaim(deps({ confirms: ['released'] }).d)).toEqual({ kind: 'expired' })
   })

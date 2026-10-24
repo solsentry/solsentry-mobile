@@ -41,7 +41,8 @@ export type ClaimOutcome =
   | { kind: 'below_minimum' }
   | { kind: 'not_linked' }
   | { kind: 'expired' }
-  | { kind: 'cancelled' }
+  /** `amountRaw` stays held for the claim until it is finished or expires. */
+  | { kind: 'cancelled'; claimId: string; amountRaw: bigint }
   | { kind: 'wrong_wallet' }
   | { kind: 'refused'; why: string }
   | { kind: 'error'; detail: string }
@@ -116,7 +117,7 @@ export async function runClaim(deps: ClaimDeps): Promise<ClaimOutcome> {
   } catch (e) {
     if (e instanceof WrongWalletError) return { kind: 'wrong_wallet' }
     if (isExpiredBlockhash(e)) return { kind: 'expired' }
-    if (isCancel(e)) return { kind: 'cancelled' }
+    if (isCancel(e)) return { kind: 'cancelled', claimId: answer.claimId, amountRaw: answer.amountRaw }
     return { kind: 'error', detail: String(e).slice(0, 200) }
   }
 

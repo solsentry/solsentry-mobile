@@ -22,6 +22,10 @@ Optional update. The judged build 0.1.22 keeps working.
 - Device check: on first run the app also sends a SHA-256 of Android's `ANDROID_ID`. Android scopes that id to
   this app's signing key, so other apps cannot match it, and it stays the same across a reinstall on the same phone.
   The raw id never leaves the phone. SolSentry uses it only to tell a reinstall from a new phone. It blocks no one.
+- Claim: after a claim is cancelled in the wallet, the SKR figure keeps the amount held for it and says so,
+  instead of dropping to 0 until the hold is released. Claiming again shows and pays that held amount.
+- Wallet card: the title is "Your wallet" on any phone, with a line that the wallet holding the Seeker Genesis
+  Token is the one that earns SKR.
 
 ## 0.1.23 (October 18, 2026)
 

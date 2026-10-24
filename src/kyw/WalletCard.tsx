@@ -38,6 +38,7 @@ export function WalletCard({
       <View style={styles.card}>
         <Text style={styles.title}>{T.connectTitle}</Text>
         <Text style={styles.muted}>{T.connectNote}</Text>
+        <Text style={styles.muted}>{T.connectGenesis}</Text>
         {busy ? (
           <View style={styles.row}>
             <ActivityIndicator color={t.action} />

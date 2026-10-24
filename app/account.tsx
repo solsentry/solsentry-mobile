@@ -8,7 +8,7 @@ import { Avatar } from '@/src/kyw/Avatar'
 import { ClaimSheet } from '@/src/kyw/ClaimSheet'
 import { SkrCard } from '@/src/kyw/SkrCard'
 import { ACCOUNT_TEXT as T, HOME_TEXT, TEXT } from '@/src/kyw/copy'
-import { formatServerPoints, headlinePoints, skrClosed } from '@/src/kyw/server-points'
+import { claimAmount, formatServerPoints, headlinePoints, skrClosed } from '@/src/kyw/server-points'
 import { POINT_RULE, bonusText, formatPoints, pointsPerResult, pointsText, withServerClass } from '@/src/kyw/points'
 import { ownRpcActive } from '@/src/kyw/probe-client'
 import { useAccount } from '@/src/kyw/useAccount'
@@ -150,7 +150,7 @@ export default function AccountScreen() {
         <ClaimSheet
           visible={claimSheet}
           onClose={() => setClaimSheet(false)}
-          amountRaw={server.skr.balanceRaw}
+          amountRaw={claimAmount(server.skr, account.cancelled)}
           wallet={wallet.address}
           walletName={skrName}
           claiming={account.claiming}

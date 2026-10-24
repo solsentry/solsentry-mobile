@@ -28,6 +28,8 @@ export interface SkrBalance {
   /** unknown = SolSentry has not read the pool yet. */
   pool: 'ok' | 'empty' | 'unknown'
   openClaim: string | null
+  /** SKR held by `openClaim`, left out of `balanceRaw`; null when there is none or the server does not send it. */
+  openClaimRaw: bigint | null
 }
 
 const count = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v) && v >= 0
@@ -50,7 +52,26 @@ export function parseSkr(v: unknown): SkrBalance | null {
   if (s.decimals !== 6 || balanceRaw === null || minClaimRaw === null || earnedRaw === null || capRaw === null) return null
   if (s.pool !== 'ok' && s.pool !== 'empty' && s.pool !== 'unknown') return null
   if (s.open_claim !== null && typeof s.open_claim !== 'string') return null
-  return { balanceRaw, window: { earnedRaw, capRaw }, minClaimRaw, pool: s.pool, openClaim: s.open_claim }
+  // Optional field: an older server leaves it out, and a bad value only loses the held figure.
+  const openClaimRaw = s.open_claim === null ? null : rawAmount(s.open_claim_amount)
+  return { balanceRaw, window: { earnedRaw, capRaw }, minClaimRaw, pool: s.pool, openClaim: s.open_claim, openClaimRaw }
+}
+
+/** A claim this phone cancelled in the wallet, kept until the server stops holding that claim id. */
+export interface CancelledClaim {
+  claimId: string
+  amountRaw: bigint
+}
+
+/** SKR held by an unsent claim: the server's figure, else the amount of that same claim if this phone cancelled it. */
+export function heldSkr(s: SkrBalance, cancelled: CancelledClaim | null): bigint | null {
+  if (!s.openClaim) return null
+  return s.openClaimRaw ?? (cancelled?.claimId === s.openClaim ? cancelled.amountRaw : null)
+}
+
+/** What Claim pays: an open claim is carried on for its own amount, else the whole balance. */
+export function claimAmount(s: SkrBalance, cancelled: CancelledClaim | null): bigint {
+  return heldSkr(s, cancelled) ?? s.balanceRaw
 }
 
 /** Cap 0 = this device earns no SKR now (Seeker phase: Genesis wallets only); points still count. */

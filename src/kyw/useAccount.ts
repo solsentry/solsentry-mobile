@@ -12,7 +12,7 @@ import { KYW_API_BASE } from './config'
 import { ACCOUNT_TEXT as T } from './copy'
 import type { DeviceIdentity } from './device'
 import { getDevice } from './device-runtime'
-import { fetchServerPoints, type ServerPoints } from './server-points'
+import { fetchServerPoints, type CancelledClaim, type ServerPoints } from './server-points'
 import { useKyw } from './useKyw'
 import { noteDeviceKind, noteServerPoints } from './widget-runtime'
 
@@ -20,6 +20,8 @@ import { noteDeviceKind, noteServerPoints } from './widget-runtime'
 const SERVER_POINTS_EVERY_MS = 60_000
 /** A new matched result re-reads it sooner, but not more often than this. */
 const SERVER_POINTS_MIN_GAP_MS = 10_000
+/** Shared by every screen's hook, so Home and Account show the same held figure. */
+let lastCancelled: CancelledClaim | null = null
 
 export function useAccount() {
   const [device, setDevice] = useState<DeviceIdentity | null>(null)
@@ -30,6 +32,7 @@ export function useAccount() {
   const [focused, setFocused] = useState(false)
   const [claiming, setClaiming] = useState(false)
   const [claim, setClaim] = useState<ClaimOutcome | null>(null)
+  const [cancelled, setCancelled] = useState<CancelledClaim | null>(lastCancelled)
 
   // Re-read on focus: the wallet can be linked or unlinked on another screen.
   useFocusEffect(
@@ -142,6 +145,11 @@ export function useAccount() {
     setClaim(null)
     const out = await claimNow(wallet).catch((e): ClaimOutcome => ({ kind: 'error', detail: String(e).slice(0, 200) }))
     setClaiming(false)
+    // Outlives the result line (a new sheet clears that): the figure keeps the held SKR while this claim is open.
+    if (out.kind === 'cancelled') {
+      lastCancelled = { claimId: out.claimId, amountRaw: out.amountRaw }
+      setCancelled(lastCancelled)
+    }
     setClaim(out)
     if (out.kind === 'error' || out.kind === 'refused') console.warn('claim:', out.kind, 'detail' in out ? out.detail : out.why)
     readServer.current?.()
@@ -150,5 +158,5 @@ export function useAccount() {
   const status = device ? pointsStatus({ deviceCheck: device.check, deviceKind: device.kind, wallet }) : null
   /** A new claim starts with no result on screen (the sheet opens on Approve, not on the last receipt). */
   const resetClaim = () => setClaim(null)
-  return { device, wallet, busy, note, link, unlink, status, server, claiming, claim, claimSkr, resetClaim }
+  return { device, wallet, busy, note, link, unlink, status, server, claiming, claim, cancelled, claimSkr, resetClaim }
 }

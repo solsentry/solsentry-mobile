@@ -73,7 +73,7 @@ describe('home screen widget content', () => {
   })
 
   it('shows SKR when the server sends a balance', () => {
-    const skr = { balanceRaw: 12_345_678n, window: { earnedRaw: 250_000n, capRaw: 1_000_000n }, minClaimRaw: 1_000_000n, pool: 'ok' as const, openClaim: null }
+    const skr = { balanceRaw: 12_345_678n, window: { earnedRaw: 250_000n, capRaw: 1_000_000n }, minClaimRaw: 1_000_000n, pool: 'ok' as const, openClaim: null, openClaimRaw: null }
     expect(widgetContent({ ...base, deviceKind: 'key', server: { ...server, skr } })).toMatchObject({
       figure: '12.34',
       unit: 'SKR',
@@ -82,7 +82,7 @@ describe('home screen widget content', () => {
   })
 
   it('shows points, not SKR, while the SKR window is closed (cap 0)', () => {
-    const skr = { balanceRaw: 0n, window: { earnedRaw: 0n, capRaw: 0n }, minClaimRaw: 1_000_000n, pool: 'ok' as const, openClaim: null }
+    const skr = { balanceRaw: 0n, window: { earnedRaw: 0n, capRaw: 0n }, minClaimRaw: 1_000_000n, pool: 'ok' as const, openClaim: null, openClaimRaw: null }
     expect(widgetContent({ ...base, deviceKind: 'key', server: { ...server, skr } })).toMatchObject({ figure: '81.5', unit: 'pts', today: '30/50 results today' })
   })
 })
