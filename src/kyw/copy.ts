@@ -68,9 +68,9 @@ export const PROBE_LABELS = {
 
 export const PROBE_REASONS: Record<NonNullable<Capability['reason']>, string> = {
   rpc_error: 'network or RPC error',
-  http_error: 'HTTP error',
+  http_error: 'the RPC refused the request: check the URL or key',
   timeout: 'request timed out',
-  not_available: 'no data returned',
+  not_available: 'this RPC does not keep it',
   empty_page: 'empty page',
   invalid_response: 'unusable response',
   rate_limited: 'rate limited',

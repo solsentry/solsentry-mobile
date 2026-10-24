@@ -28,6 +28,10 @@ Optional update. The judged build 0.1.22 keeps working.
   Token is the one that earns SKR.
 - Last 28 days: with a wallet linked, the grid also shows the wallet's matched results from SolSentry, from every
   phone, by your local day. A reinstall or a new phone no longer starts it empty.
+- Your RPC: the URL counts only once you test it, finish editing or leave the screen. A half-typed URL never reads a
+  task. Switching RPC ends a wait left by the previous one. A refused URL or key and an RPC that does not keep the
+  transaction now say so.
+- Back goes to the home screen when a screen was opened by a link with nothing under it.
 
 ## 0.1.23 (October 18, 2026)
 

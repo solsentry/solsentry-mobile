@@ -209,7 +209,7 @@ describe('probe presentation', () => {
     r.capabilities.C6.min_interval_ms = 600
     expect(probeReportLines(r)).toEqual([
       'Recent transactions: full',
-      'Old transactions: not available (no data returned)',
+      'Old transactions: not available (this RPC does not keep it)',
       'Address history (first page): limited (314 entries per page)',
       'Old address history: full',
       'Account state: full',

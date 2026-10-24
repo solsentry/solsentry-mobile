@@ -51,6 +51,12 @@ function endpoint() {
   return resolveEndpoint(settings.provider, secrets[settings.provider] ?? '', API_HOST)
 }
 
+/** Which RPC and URL the reads use now, to tell a switch from any other settings change. */
+function endpointKey(): string {
+  const { settings, secrets } = getState()
+  return `${settings.provider}\n${secrets[settings.provider] ?? ''}`
+}
+
 /** Why the chosen RPC cannot read yet (no URL saved); null when it can. */
 export function setupProblem(provider: ProviderId, secrets: Partial<Record<ProviderId, string>>): string | null {
   const e = resolveEndpoint(provider, secrets[provider] ?? '', API_HOST)
@@ -123,12 +129,20 @@ async function loop(): Promise<void> {
     // A faster pace ends a plain wait now. A backoff or cap wait is SolSentry's and a slower pace is
     // longer anyway, so those keep their wait.
     let pace = { intervalS: getState().settings.intervalS, spread: getState().settings.spread }
+    let readsVia = endpointKey()
     unsubscribe = subscribe(() => {
       // The RPC lost its URL during a wait: end the wait, and the loop stops on the setup check
       // without asking for a task.
       if (!endpoint().ok) {
         wake?.()
         return
+      }
+      // Another RPC (or URL) now: a backoff earned by the previous one does not hold it back.
+      const via = endpointKey()
+      if (via !== readsVia) {
+        readsVia = via
+        const now = getState().status
+        if (now.kind === 'waiting' && now.why === 'backoff') wake?.()
       }
       const { intervalS, spread } = getState().settings
       if (intervalS === pace.intervalS && spread === pace.spread) return

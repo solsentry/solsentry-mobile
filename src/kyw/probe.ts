@@ -83,6 +83,8 @@ async function call(deps: ProbeDeps, method: string, params: unknown[]): Promise
   }
   const ms = Math.max(0, Math.round(deps.now() - started))
   if (res.status === 429) return { kind: 'fail', capability: { class: 'rate_limited', reason: 'rate_limited' } }
+  // A refused URL or key often comes with a JSON error body too: the status says more than its text.
+  if (res.status === 401 || res.status === 403) return { kind: 'fail', capability: { class: 'none', reason: 'http_error' } }
   let body: { error?: { code?: unknown; message?: unknown }; result?: unknown } | null = null
   try {
     const parsed: unknown = JSON.parse(text)
@@ -94,6 +96,8 @@ async function call(deps: ProbeDeps, method: string, params: unknown[]): Promise
     const message = typeof body.error.message === 'string' ? body.error.message.toLowerCase() : ''
     if (body.error.code === 429 || message.includes('rate')) return { kind: 'fail', capability: { class: 'rate_limited', reason: 'rate_limited' } }
     if (message.includes('version')) return { kind: 'fail', capability: { class: 'version', reason: 'version' } }
+    // e.g. "Transaction not available in cache": the endpoint keeps only recent data.
+    if (message.includes('not available')) return { kind: 'fail', capability: { class: 'none', reason: 'not_available' } }
     return { kind: 'fail', capability: { class: 'none', reason: 'rpc_error' } }
   }
   if (!res.ok) return { kind: 'fail', capability: { class: 'none', reason: 'http_error' } }

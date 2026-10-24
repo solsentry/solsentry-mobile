@@ -119,6 +119,17 @@ describe('capability probe', () => {
     expect(c.C5).toEqual({ class: 'none', reason: 'http_error' })
   })
 
+  it('a refused key reads as http_error even with a JSON error body; a cache-only endpoint reads as not_available', async () => {
+    const h = harness((method, params) => {
+      if (method === 'getTransaction') return { status: 401, body: { error: { code: -32600, message: 'Must be authenticated!' } } }
+      if (method === 'getSignaturesForAddress') return { body: { error: { code: -32017, message: 'Transaction not available in cache' } } }
+      return healthy(method, params, 0)
+    })
+    const { capabilities: c } = await runProbe(h.deps)
+    expect(c.C1).toEqual({ class: 'none', reason: 'http_error' })
+    expect(c.C3).toEqual({ class: 'none', reason: 'not_available' })
+  })
+
   it('timeouts and network failures are none with a fixed reason code, never the error text', async () => {
     const h = harness((method) =>
       method === 'getTransaction'

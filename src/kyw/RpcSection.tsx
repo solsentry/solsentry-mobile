@@ -24,6 +24,24 @@ export function RpcSection({ showTitle = true }: { showTitle?: boolean }) {
   const [probeProblem, setProbeProblem] = useState<{ provider: ProviderId; text: string } | null>(null)
   const [now, setNow] = useState(Date.now)
   const report = kyw.probeReports[provider.id]
+  // The field is a draft: tasks read only what was committed (end of editing, Test, leaving the screen),
+  // never a half-typed URL.
+  const saved = kyw.secrets[provider.id] ?? ''
+  const [draft, setDraft] = useState(saved)
+  const draftRef = useRef({ id: provider.id, value: saved })
+  useEffect(() => {
+    setDraft(saved)
+    draftRef.current = { id: provider.id, value: saved }
+    // Only when the provider changes: a commit of this draft must not reset it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [provider.id])
+  const commit = async (): Promise<string> => {
+    const { id, value } = draftRef.current
+    if ((getState().secrets[id] ?? '') !== value) await setSecret(id, value)
+    return value
+  }
+  // Leaving the screen commits what was typed.
+  useEffect(() => () => void commit(), [])
   const reportStale = chosenRpcProbeIsStale(report ?? null, provider.id, kyw.secrets[provider.id] ?? '', now)
 
   useEffect(() => {
@@ -60,7 +78,7 @@ export function RpcSection({ showTitle = true }: { showTitle?: boolean }) {
     const id = provider.id
     setProbing(id)
     setProbeProblem(null)
-    const secret = kyw.secrets[id] ?? ''
+    const secret = await commit()
     try {
       const result = await probeChosenRpc({
         fetch,
@@ -121,8 +139,13 @@ export function RpcSection({ showTitle = true }: { showTitle?: boolean }) {
           <TextInput
             key={provider.id}
             style={styles.input}
-            defaultValue={kyw.secrets[provider.id] ?? ''}
-            onChangeText={(v) => void setSecret(provider.id, v)}
+            value={draft}
+            onChangeText={(v) => {
+              setDraft(v)
+              draftRef.current = { id: provider.id, value: v }
+            }}
+            onEndEditing={() => void commit()}
+            onSubmitEditing={() => void commit()}
             placeholder={provider.secretHint ?? ''}
             placeholderTextColor={theme.muted}
             secureTextEntry
