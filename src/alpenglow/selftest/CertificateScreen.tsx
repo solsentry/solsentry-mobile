@@ -1,5 +1,5 @@
 // Manual phone integration, bundled only in a self-test build.
-import React, { useRef, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { Button, ScrollView, StyleSheet, Text, TextInput } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { artifactReader } from '../artifact-reader'
@@ -14,7 +14,18 @@ export default function CertificateScreen() {
   const [result, setResult] = useState<CheckResult | null>(null)
   const [elapsed, setElapsed] = useState<number | null>(null)
   const cache = useRef<{ key: string; client: CertificateClient } | null>(null)
+  const request = useRef<AbortController | null>(null)
+  useEffect(
+    () => () => {
+      request.current?.abort()
+      request.current = null
+    },
+    [],
+  )
   const check = async () => {
+    request.current?.abort()
+    const controller = new AbortController()
+    request.current = controller
     setBusy(true)
     setResult(null)
     const start = Date.now()
@@ -31,18 +42,23 @@ export default function CertificateScreen() {
             pin ? [{ epoch, sha256: pin.trim() }] : [],
           ),
         }
-      const value = await cache.current.client.check(target, undefined, 60000)
+      const value = await cache.current.client.check(target, undefined, 60000, controller.signal)
+      if (request.current !== controller) return
       setResult(value)
       console.log(`ALPENGLOW_SELFTEST ${JSON.stringify({ ...value, ms: Date.now() - start })}`)
     } catch (error) {
+      if (request.current !== controller) return
       setResult({
         status: 'unavailable',
         signatureValid: false,
         reason: error instanceof Error ? error.message : 'Invalid input',
       })
     } finally {
-      setElapsed(Date.now() - start)
-      setBusy(false)
+      if (request.current === controller) {
+        setElapsed(Date.now() - start)
+        setBusy(false)
+        request.current = null
+      }
     }
   }
   return (
@@ -67,6 +83,7 @@ export default function CertificateScreen() {
           its validator table.
         </Text>
         <Button title={busy ? 'Checking…' : 'Check certificate'} disabled={busy} onPress={() => void check()} />
+        {busy && <Button title="Cancel check" onPress={() => request.current?.abort()} />}
         {result && (
           <>
             <Text style={styles.title}>

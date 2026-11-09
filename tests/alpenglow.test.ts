@@ -202,6 +202,26 @@ describe('Stake thresholds, bitmap formats and malformed inputs', () => {
 })
 
 describe('Phone integration with a bounded artifact transport', () => {
+  it('cancels an uncooperative transport and never starts a pre-cancelled request', async () => {
+    const controller = new AbortController()
+    let transportSignal: AbortSignal | undefined
+    let reads = 0
+    const client = new CertificateClient(async (_path, { signal }) => {
+      reads++
+      transportSignal = signal
+      return new Promise<Uint8Array>(() => {})
+    }, MAINNET_POLICY)
+    const pending = client.check(467424001, undefined, 30000, controller.signal)
+    controller.abort()
+    expect(await pending).toMatchObject({ status: 'unavailable', reason: 'Certificate request cancelled' })
+    expect(transportSignal?.aborted).toBe(true)
+    expect(await client.check(467424001, undefined, 30000, controller.signal)).toMatchObject({
+      status: 'unavailable',
+      reason: 'Certificate request cancelled',
+    })
+    expect(reads).toBe(1)
+  })
+
   it('fetches the certificate target epoch, caches its table and checks the next epoch separately', async () => {
     const calls: string[] = []
     const fixtures = [1081, 1082].map((e) => json(`certificates-${e}.json`))

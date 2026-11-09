@@ -19,6 +19,31 @@ from urllib.parse import urlsplit
 from archive import archive_certificate, bind_archive, canonical, immutable, require
 
 
+def table_coverage(output, epochs, snapshot_url, cluster, shred):
+    """Record acquisition failures without losing the capture's final report.
+
+    Presence means retained bytes only, never authentication or verification.
+    """
+    required = sorted(epochs | ({max(epochs) + 1} if epochs else set()))
+    preserved, errors = [], []
+    if snapshot_url and required:
+        from snapshot import fetch_bank, preserve
+        try:
+            bank = fetch_bank(snapshot_url, output)
+        except Exception as error:
+            # URL/library messages can contain credentials; persist types only.
+            errors.append({'stage': 'snapshot', 'error_type': type(error).__name__})
+        else:
+            for epoch in required:
+                try:
+                    preserved.extend(preserve(bank, output, [epoch], cluster, shred))
+                except Exception as error:
+                    errors.append({'stage': 'table', 'epoch': epoch, 'error_type': type(error).__name__})
+    present = [epoch for epoch in required if (Path(output) / 'epochs' / str(epoch) / 'table.bin').is_file()]
+    return {'tables_preserved': [t['epoch'] for t in preserved], 'tables_present': present,
+            'missing_epochs': sorted(set(required) - set(present)), 'table_errors': errors}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--proto-dir', required=True)
@@ -62,6 +87,9 @@ def main():
     def aggregate(a):
         return {'kind': a.signature_kind, 'sig': base64.b64encode(a.signature).decode(),
                 'block_id': base64.b64encode(a.block_id).decode(), 'bitmap': base64.b64encode(a.signer_bitmap).decode()} if a.ByteSize() else None
+    # Setup/import time must not extend the provider access window.
+    remaining = cutoff.timestamp() - time.time()
+    require(remaining > 0, 'Capture access cutoff reached; no connection opened')
     channel = grpc.secure_channel(target, grpc.ssl_channel_credentials(), compression=grpc.Compression.Gzip,
                                   options=[('grpc.max_receive_message_length', 1 << 20)])
     count = 0
@@ -91,19 +119,12 @@ def main():
     finally:
         stop.set()
         channel.close()
-    tables = []
-    if args.snapshot_url and epochs:
-        from snapshot import fetch_bank, preserve
-        bank = fetch_bank(args.snapshot_url, args.output)
-        # One observed epoch at a time, so a missing older epoch does not discard others.
-        for epoch in sorted(epochs | {max(epochs) + 1}):
-            try:
-                tables.extend(preserve(bank, args.output, [epoch], args.cluster, args.shred_version))
-            except ValueError:
-                status = 'table-unavailable'
+    coverage = table_coverage(args.output, epochs, args.snapshot_url, args.cluster, args.shred_version)
+    if status == 'ok' and (coverage['missing_epochs'] or coverage['table_errors']):
+        status = 'table-unavailable'
     report = {'schema': 1, 'cluster': args.cluster, 'shred_version': args.shred_version,
               'observations': count, 'epochs': sorted(epochs), 'status': status,
-              'elapsed_seconds': round(time.monotonic() - start, 3), 'tables_preserved': [t['epoch'] for t in tables],
+              'elapsed_seconds': round(time.monotonic() - start, 3), **coverage,
               'table_trust': 'unverified-source', 'not_after': args.not_after}
     name = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S.%fZ')
     immutable(Path(args.output) / 'capture-reports' / f'{name}.json', canonical(report))

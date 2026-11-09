@@ -23,19 +23,27 @@ export class CertificateClient {
     this.pins = Object.freeze(pins.map((pin) => Object.freeze({ ...pin })))
   }
 
-  async check(slot: number, blockId?: string, timeoutMs = 30000): Promise<CheckResult> {
+  async check(slot: number, blockId?: string, timeoutMs = 30000, signal?: AbortSignal): Promise<CheckResult> {
     const controller = new AbortController()
     let timer: ReturnType<typeof setTimeout> | undefined
+    let cancel = () => {}
     // Promise.race also bounds a transport that fails to honor cancellation.
     const deadline = new Promise<never>((_, reject) => {
       timer = setTimeout(() => {
         controller.abort()
         reject(new Error('Certificate request timed out'))
       }, timeoutMs)
+      cancel = () => {
+        controller.abort()
+        reject(new Error('Certificate request cancelled'))
+      }
+      signal?.addEventListener('abort', cancel, { once: true })
+      if (signal?.aborted) cancel()
     })
     const operation = async (): Promise<CheckResult> => {
       integer(timeoutMs, 'Timeout', 120000)
       requireValue(timeoutMs > 0, 'Timeout')
+      requireValue(!controller.signal.aborted, 'Certificate request cancelled')
       const epoch = epochForSlot(slot, this.policy)
       const certBytes = await this.read(`certificates/${slot}.json`, { maxBytes: 8192, signal: controller.signal })
       requireValue(!controller.signal.aborted, 'Request cancelled')
@@ -75,6 +83,7 @@ export class CertificateClient {
       }
     } finally {
       clearTimeout(timer)
+      signal?.removeEventListener('abort', cancel)
       controller.abort()
     }
   }

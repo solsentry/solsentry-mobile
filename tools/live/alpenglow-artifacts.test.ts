@@ -1,5 +1,5 @@
 // Explicit local integration check; never opens a provider connection.
-import { readFileSync, readdirSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { expect, it } from 'vitest'
 import { CertificateClient } from '../../src/alpenglow/client'
@@ -7,17 +7,26 @@ import { MAINNET_POLICY } from '../../src/alpenglow/verifier'
 
 it('verifies retained live and historical artifacts through the phone client', async () => {
   const root = resolve(process.env.ALPENGLOW_ARCHIVE ?? 'dist/alpenglow-archive')
+  let selected: Uint8Array
   const client = new CertificateClient(async (path, { maxBytes }) => {
-    const data = readFileSync(resolve(root, path))
+    const data = path.startsWith('certificates/') ? selected : readFileSync(resolve(root, path))
     expect(data.length).toBeLessThanOrEqual(maxBytes)
     return new Uint8Array(data)
   }, MAINNET_POLICY)
-  const files = readdirSync(resolve(root, 'certificates')).filter((f) => /^\d+\.json$/.test(f))
+  const variants = resolve(root, 'certificate-variants')
+  const files = existsSync(variants)
+    ? readdirSync(variants, { recursive: true })
+        .filter((f) => /^\d+\/[a-f0-9]{64}\.json$/.test(String(f)))
+        .map((f) => resolve(variants, String(f)))
+    : readdirSync(resolve(root, 'certificates'))
+        .filter((f) => /^\d+\.json$/.test(f))
+        .map((f) => resolve(root, 'certificates', f))
   expect(files.length).toBeGreaterThan(0)
   for (const file of files) {
-    const slot = Number(file.replace('.json', ''))
+    selected = new Uint8Array(readFileSync(file))
+    const slot = JSON.parse(Buffer.from(selected).toString('utf8')).slot
     const result = await client.check(slot)
     expect(result, `slot ${slot}`).toMatchObject({ status: 'untrusted-table', signatureValid: true })
   }
   console.log(`ALPENGLOW_ARCHIVE_VERIFIED ${files.length}`)
-}, 30000)
+}, 120000)

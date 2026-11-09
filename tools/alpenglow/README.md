@@ -130,8 +130,10 @@ is extracted. A stalled socket can take up to 20 seconds beyond the logical
 deadline to return its timeout.
 
 `capture.py --snapshot-url PUBLIC_SNAPSHOT_URL` also tries to preserve each observed
-epoch and the successor. An unavailable table is an explicit nonzero result, with
-certificates retained for later retry. A stale snapshot can lack the next epoch;
+epoch and the successor. Missing observed or next-epoch tables produce an explicit nonzero result, even
+without `--snapshot-url`, with certificates retained for later retry. Reports list
+`tables_present`, `missing_epochs` and sanitized `table_errors`; presence indicates
+retained bytes, not authentication. Snapshot download failures also retain a report. A stale snapshot can lack the next epoch;
 do not infer availability from the RPC node's version. `--from-slot` requests
 bounded provider replay when supported. Replay retention is not assumed.
 
@@ -140,7 +142,7 @@ cannot extend beyond it. The conservative example cutoff precedes the stated tri
 end. Changing it does not confirm billing terms or enable a paid add-on. No scheduler
 or persistent process is installed. A deployment scheduler should run bounded
 captures repeatedly, alert on failures/missing epochs, enforce its credit budget,
-and stop at the approved cutoff. This lane does not deploy the server.
+and stop at the approved cutoff. This tool does not deploy a server.
 
 HTTP artifact serving is read-only. A relay can expose the two phone paths above,
 using HTTPS, without exposing source tables, banks, reports or provider credentials.
@@ -148,6 +150,8 @@ The native reader aborts oversized responses through XHR progress events; it als
 checks headers, body size, redirects, HTTP status and caller cancellation. The
 client limits requests to 30 seconds by default and caches at most two prepared
 tables. Table preparation yields between four-key batches and supports cancellation.
+Caller cancellation propagates through the client and table preparation, even if
+a transport ignores abort. The screen offers cancellation and aborts on unmount.
 Single signature checks still run synchronously; no new phone timings are claimed.
 
 ## Phone screen
@@ -172,7 +176,8 @@ python -m unittest discover -s tools/alpenglow -p 'test_*.py' -v
 npx vitest run --config tools/live/vitest.config.ts tools/live/alpenglow-artifacts.test.ts
 ```
 
-Fixtures cover 92 captured mainnet observations (epochs 1080–1082) and 40 devnet
+Fixtures cover 88 distinct aggregate signatures (92 footers) from mainnet
+(epochs 1080–1082: 12, 38 and 38 distinct signatures) and 40 devnet
 observations (1204, including four slow-path certificates). Synthetic signatures
 are generated independently by py_ecc 8, including exact 60/80% thresholds,
 mixed-message Base3 and fallback-only signers. Tests also cover integer precision,
@@ -182,3 +187,5 @@ cancellation, epoch-boundary caching and release-screen exclusion.
 No APK, store release, production collector, authenticated epoch checkpoint or
 server deployment is included. Battery, native XHR behavior and the new async
 preparation path still require a new authorized phone build/test.
+
+See [OPERATIONS.md](OPERATIONS.md) for the operator handoff and device test matrix.

@@ -6,9 +6,11 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from archive import archive_certificate, archive_table, bind_archive, canonical, digest, immutable, table_bytes
 from snapshot import extract_tables
+from capture import table_coverage
 
 ROOT = Path(__file__).resolve().parents[2]
 FIXTURES = ROOT / 'tests/fixtures/alpenglow'
@@ -118,6 +120,33 @@ class ArchiveTests(unittest.TestCase):
         self.assertEqual(result.returncode, 1)
         self.assertEqual(json.loads(result.stderr), {'status': 'capture-failed', 'error_type': 'ValueError'})
         self.assertFalse((self.root / 'no-archive').exists())
+
+    def test_missing_current_and_future_tables_alert_without_snapshot_source(self):
+        result = table_coverage(self.root, {1081, 1082}, None, 'mainnet-beta', 50093)
+        self.assertEqual(result['missing_epochs'], [1081, 1082, 1083])
+        path = self.root / 'epochs/1082/table.bin'
+        path.parent.mkdir(parents=True)
+        path.write_bytes((FIXTURES / 'table-1082.bin').read_bytes())
+        result = table_coverage(self.root, {1082}, None, 'mainnet-beta', 50093)
+        self.assertEqual(result['tables_present'], [1082])
+        self.assertEqual(result['missing_epochs'], [1083])
+
+    def test_snapshot_failure_is_sanitized_and_preserves_capture_report_data(self):
+        with patch('snapshot.fetch_bank', side_effect=TimeoutError('https://secret/token')):
+            result = table_coverage(self.root, {1082}, 'https://example.com', 'mainnet-beta', 50093)
+        self.assertEqual(result['missing_epochs'], [1082, 1083])
+        self.assertEqual(result['table_errors'], [{'stage': 'snapshot', 'error_type': 'TimeoutError'}])
+        self.assertNotIn('secret', json.dumps(result))
+
+    def test_table_failure_does_not_skip_other_epochs(self):
+        def preserve(_bank, _output, epochs, _cluster, _shred):
+            if epochs == [1082]:
+                raise ValueError('missing layout')
+            return [{'epoch': epochs[0]}]
+        with patch('snapshot.fetch_bank', return_value='bank.bin'), patch('snapshot.preserve', side_effect=preserve):
+            result = table_coverage(self.root, {1081, 1082}, 'https://example.com', 'mainnet-beta', 50093)
+        self.assertEqual(result['tables_preserved'], [1081, 1083])
+        self.assertEqual(result['table_errors'], [{'stage': 'table', 'epoch': 1082, 'error_type': 'ValueError'}])
 
 
 if __name__ == '__main__':

@@ -15,7 +15,9 @@ Mainnet tables were extracted from the public bank component at slot 467382140,
 SHA-256 `561f5bf9aee295729a1a506d9650dae80ee0a10d42d7ca83db1261ca211b37d0`.
 Devnet table came from public RPC vote accounts. The independent Python research
 verifier accepted every aggregate before these fixtures were converted for the
-TypeScript verifier. Counts represent observations; a slot can occur more than once.
+TypeScript verifier. Counts represent observations; a slot can occur more than once. Mainnet contains
+88 distinct aggregate signatures (92 footers): 12 in epoch 1080, 38 in 1081 and
+38 in 1082, deduplicated by (certificate slot, final aggregate signature).
 
 Each JSON fixture records the SHA-256 of its original capture, original account
 table and SSET binary. Capture metadata unrelated to verification is omitted.
