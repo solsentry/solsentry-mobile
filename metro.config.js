@@ -7,7 +7,7 @@ const config = getDefaultConfig(__dirname)
 const selftest = process.env.EXPO_PUBLIC_KYW_SELFTEST === '1'
 
 config.resolver.resolveRequest = (context, moduleName, platform) => {
-  if (!selftest && /selftest\/SelfTestScreen$/.test(moduleName)) return { type: 'empty' }
+  if (!selftest && /selftest\/(SelfTestScreen|CertificateScreen)$/.test(moduleName)) return { type: 'empty' }
   if (selftest && /(^|\/)build-flags$/.test(moduleName)) {
     return context.resolveRequest(context, `${moduleName}.selftest`, platform)
   }

@@ -1,0 +1,5 @@
+py-ecc==8.0.0
+grpcio==1.85.1
+grpcio-tools==1.85.1
+protobuf==7.36.2
+zstandard==0.25.0
