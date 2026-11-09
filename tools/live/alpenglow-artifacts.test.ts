@@ -3,7 +3,7 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { expect, it } from 'vitest'
 import { CertificateClient } from '../../src/alpenglow/client'
-import { MAINNET_POLICY } from '../../src/alpenglow/verifier'
+import { EpochTable, MAINNET_POLICY } from '../../src/alpenglow/verifier'
 
 it('verifies retained live and historical artifacts through the phone client', async () => {
   const root = resolve(process.env.ALPENGLOW_ARCHIVE ?? 'dist/alpenglow-archive')
@@ -30,3 +30,16 @@ it('verifies retained live and historical artifacts through the phone client', a
   }
   console.log(`ALPENGLOW_ARCHIVE_VERIFIED ${files.length}`)
 }, 120000)
+
+it('prepares the next archived epoch table without claiming a certificate for that epoch', async () => {
+  const root = resolve(process.env.ALPENGLOW_ARCHIVE ?? 'dist/alpenglow-archive')
+  const slots = readdirSync(resolve(root, 'certificates'))
+    .filter((file) => /^\d+\.json$/.test(file))
+    .map((file) => Number(file.replace('.json', '')))
+  expect(slots.length).toBeGreaterThan(0)
+  const nextEpoch = Math.floor(Math.max(...slots) / MAINNET_POLICY.slotsPerEpoch) + 1
+  const raw = new Uint8Array(readFileSync(resolve(root, `epochs/${nextEpoch}/table.bin`)))
+  const table = await EpochTable.loadAsync(raw, MAINNET_POLICY)
+  expect(table.info).toMatchObject({ epoch: nextEpoch, trust: 'untrusted' })
+  console.log(`ALPENGLOW_NEXT_TABLE_PREPARED ${nextEpoch} ${table.info.sha256}`)
+}, 30000)

@@ -23,6 +23,27 @@ const synthetic = json('synthetic.json') as {
 const syntheticTable = () => EpochTable.load(bytes('table-synthetic.bin'), MAINNET_POLICY)
 
 describe('Alpenglow public captures, independent py_ecc reference', () => {
+  it('loads the retained epoch 1083 table without claiming a live 1083 certificate', () => {
+    const metadata = json('table-1083.json')
+    const table = EpochTable.load(bytes('table-1083.bin'), MAINNET_POLICY)
+    expect(table.info).toMatchObject({
+      epoch: 1083,
+      validators: 668,
+      sha256: metadata.tableSha256,
+      trust: 'untrusted',
+    })
+    expect(metadata.certificateObservations).toBe(0)
+    const old = json('certificates-1082.json').certificates[0]
+    expect(table.verifyFinality(old, old.slot)).toMatchObject({ status: 'invalid', signatureValid: false })
+    // Relabelling an old signature with the next epoch's first slot cannot authenticate it.
+    const firstSlot = 1083 * MAINNET_POLICY.slotsPerEpoch
+    expect(table.verifyFinality({ ...old, slot: firstSlot }, firstSlot).status).toBe('invalid')
+    expect(
+      EpochTable.load(bytes('table-1082.bin'), MAINNET_POLICY).verifyFinality({ ...old, slot: firstSlot }, firstSlot)
+        .status,
+    ).toBe('invalid')
+  }, 30000)
+
   for (const epoch of [1080, 1081, 1082, 1204]) {
     it(`verifies every captured certificate in epoch ${epoch}`, () => {
       const fixture = json(`certificates-${epoch}.json`)

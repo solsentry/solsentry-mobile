@@ -130,6 +130,11 @@ class ArchiveTests(unittest.TestCase):
         result = table_coverage(self.root, {1082}, None, 'mainnet-beta', 50093)
         self.assertEqual(result['tables_present'], [1082])
         self.assertEqual(result['missing_epochs'], [1083])
+        future = self.root / 'epochs/1083/table.bin'
+        future.parent.mkdir(parents=True)
+        future.write_bytes((FIXTURES / 'table-1083.bin').read_bytes())
+        self.assertEqual(table_coverage(self.root, {1082}, None, 'mainnet-beta', 50093)['missing_epochs'], [])
+        self.assertEqual(table_coverage(self.root, {1083}, None, 'mainnet-beta', 50093)['missing_epochs'], [1084])
 
     def test_snapshot_failure_is_sanitized_and_preserves_capture_report_data(self):
         with patch('snapshot.fetch_bank', side_effect=TimeoutError('https://secret/token')):

@@ -24,6 +24,15 @@ table and SSET binary. Capture metadata unrelated to verification is omitted.
 The binary tables contain rank-ordered compressed BLS public keys and exact stakes.
 Signatures are unmodified.
 
+`table-1083.bin` and `table-1083.json` retain the following epoch's table from
+public snapshot bank slot 467482256, SHA-256
+`de376fcb26cfcd43f2089a1683c3b9cf523017fa0cf8ee9295104f6e1da9e630`.
+It has 668 validators and SHA-256
+`6ac124ae35a3672d9a93fa526f737d34f7893454d10ea7b6392cec1e3d3a88e1`.
+The same bank reproduces the existing epoch-1082 table byte-for-byte. This is
+corroboration, not authentication. No epoch-1083 certificate has been captured:
+the added test checks parsing and rejection of old/relabelled signatures only.
+
 `synthetic.json` contains independently generated py_ecc 8 signatures for explicit
 protocol edge cases, using fixed **test-only** scalars. `table-synthetic.bin` is
 their artificial stake table. These keys have no wallet or on-chain role.

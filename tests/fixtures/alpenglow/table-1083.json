@@ -1,0 +1,13 @@
+{
+  "epoch": 1083,
+  "cluster": "mainnet-beta",
+  "shredVersion": 50093,
+  "bankSlot": 467482256,
+  "bankSha256": "de376fcb26cfcd43f2089a1683c3b9cf523017fa0cf8ee9295104f6e1da9e630",
+  "tableSha256": "6ac124ae35a3672d9a93fa526f737d34f7893454d10ea7b6392cec1e3d3a88e1",
+  "validators": 668,
+  "certificateObservations": 0,
+  "trust": "unverified-source",
+  "sourceTableSha256": "b1e2829624fcb0c19b10830534920f2b99518b61e015ff5b335c4cf39ff58666",
+  "parser": "agave-v4.4-observed-layout-v1"
+}

@@ -178,7 +178,9 @@ npx vitest run --config tools/live/vitest.config.ts tools/live/alpenglow-artifac
 
 Fixtures cover 88 distinct aggregate signatures (92 footers) from mainnet
 (epochs 1080–1082: 12, 38 and 38 distinct signatures) and 40 devnet
-observations (1204, including four slow-path certificates). Synthetic signatures
+observations (1204, including four slow-path certificates). A separate epoch-1083
+table fixture covers preparation and rejection of old/relabelled signatures; no
+live epoch-1083 certificate is claimed. Synthetic signatures
 are generated independently by py_ecc 8, including exact 60/80% thresholds,
 mixed-message Base3 and fallback-only signers. Tests also cover integer precision,
 altered signatures/roots/slots, corrupt tables/bitmaps, low stake, network failures,
@@ -189,3 +191,7 @@ server deployment is included. Battery, native XHR behavior and the new async
 preparation path still require a new authorized phone build/test.
 
 See [OPERATIONS.md](OPERATIONS.md) for the operator handoff and device test matrix.
+
+The explicit archive integration also prepares the table after the newest retained
+certificate epoch. This checks next-table readiness; it does not claim a signature
+from that future epoch, and fails if that required table is missing.

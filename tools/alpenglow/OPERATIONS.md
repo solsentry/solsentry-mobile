@@ -27,10 +27,78 @@ Sources checked 2026-11-09:
 - https://github.com/anza-xyz/agave/blob/v4.4.0/rpc/src/rpc.rs
 - https://github.com/anza-xyz/agave/blob/master/rpc/src/rpc.rs
 
-The retained public bank covers epochs 1078–1082. It cannot produce epoch 1083.
+The original retained public bank covers epochs 1078–1082 and cannot produce epoch
+1083. A later public bank at slot 467482256 supplied the epoch-1083 table on
+2026-11-09 and reproduced the epoch-1082 table byte-for-byte. No epoch-1083
+certificate was available during that acquisition. Both banks remain untrusted.
 Current/future public snapshot availability is not an authenticated table service.
 Do not reconstruct a substitute from current vote balances or rounded stake data:
 those candidate reconstructions failed the retained mainnet signatures.
+
+## Repeatable next-epoch routine
+
+1. Read finalized `getEpochInfo` from a public RPC and verify the cluster/schedule
+   against operator configuration. Let its current epoch be E. Check retained table
+   coverage for E and E+1 before opening any certificate stream. Do not request E+2
+   merely because an E+1 table has been retained; advance the requirement when the
+   observed certificate epoch advances.
+2. After an epoch starts, obtain a full snapshot with a bank slot at or after that
+   epoch's first slot. Resolve the public RPC's `/snapshot.tar.bz2` alias with a bounded
+   HEAD request before downloading. The filename provides a freshness filter only;
+   the parser must still find exactly one valid layout for each requested epoch.
+   If known aliases remain old, discover advertised public RPCs via `getClusterNodes`,
+   use only globally routable addresses, bound concurrency/timeouts, and retain probe
+   results. Successful HEAD/modern node version alone does not prove table availability.
+3. Fetch only the bank prefix using `snapshot.py`, not the full advertised archive.
+   Extract E and E+1. If E already exists, require identical table bytes; archive
+   conflict is a hard failure, not a reason to replace the old table or its pin.
+   Keep source bank digest/slot, parser revision, source-table digest and manifests.
+   Keep the resulting next-epoch table even if its certificates do not yet exist.
+4. Repeat only when coverage is missing, a source changes, or a conflicting result
+   needs investigation. Operational monitoring should check on epoch change and
+   periodically before the boundary (for example every 30 minutes); this document
+   does not install a scheduler. Alert if freshness/acquisition fails or the next
+   table is still absent before the boundary; use another advertised source without
+   silently extending caps or provider access. A previously successful IP is not a
+   permanently maintained source.
+5. A public bank remains untrusted. Matching E against retained verified-signature
+   inputs is useful corroboration but cannot authenticate E+1. For production pins,
+   repeat the export on an operator's validated/replayed bank, review the network,
+   epoch and canonical SSET digest, then deliver the digest through authenticated
+   operator release/configuration. Never take the pin from the relay or promote a
+   public fixture digest to production trust. A conflicting source or changed pin
+   requires review; keep historical bytes immutable.
+6. Re-read the live epoch/slot and time before a transition capture. A rate-based
+   boundary estimate changes with the network and is not a scheduled wakeup. If the
+   next epoch has not started, spend the stream window only close enough to observe
+   the boundary within the authorized total duration. Stop at the explicit UTC cutoff
+   even if the epoch has not advanced. Keep a ledger of stream durations across runs;
+   a per-run timeout is not an aggregate budget. If the available window cannot cover
+   the boundary, report the real certificate test as pending.
+7. After observing E+1, preserve every certificate variant and run the archive/client
+   integration with both tables. Require actual certificate slots on each side of the
+   boundary. Then check coverage for E+1 and E+2; acquiring E+1 does not establish E+2.
+   Table parsing, synthetic tests and rejection of an old relabelled signature do not
+   substitute for a real new-epoch signature verification.
+
+Example extraction (operator-supplied public source and observed epoch numbers):
+
+```bash
+timeout 150s nice -n 19 ionice -c3 dist/b4_epoch/venv/bin/python tools/alpenglow/snapshot.py \
+  --url "$PUBLIC_SNAPSHOT_URL" --output dist/alpenglow-archive \
+  --epochs 1082 1083 --cluster mainnet-beta --shred-version 50093
+```
+
+Keep a protected record of the configured source; never put a provider token into a
+snapshot URL. Acquisition uses public HTTP/RPC, with no paid service enabled by the
+tool. Bandwidth and host resources still matter: the 2026-11-09 successful new-bank
+extraction read **74,712,750 compressed bytes** and retained **169,132,871 bank bytes**;
+it did not download the advertised roughly 126 GB full archive. These are measured
+sample sizes, not a fixed per-epoch forecast. Hard limits remain 256 MiB compressed,
+512 MiB expanded TAR prefix, 256 MiB bank and a 120-second logical deadline (a socket
+timeout can return up to 20 seconds later). A second corroboration source consumes
+another bounded prefix download. Keep actual download counts and sizes in the report.
+Certificate traffic and trial access are separate from public snapshot bandwidth.
 
 ## Server contract and capture monitoring
 
@@ -73,8 +141,9 @@ timeout 60s nice -n 19 ionice -c3 dist/b4_epoch/venv/bin/python -m unittest disc
 timeout 150s nice -n 19 ionice -c3 npx vitest run --config tools/live/vitest.config.ts tools/live/alpenglow-artifacts.test.ts
 ```
 
-The last command uses the retained local archive, opens no provider connection, and
-verifies all variants against their epoch tables. It intentionally expects an
+The last command uses the retained local archive, opens no provider connection,
+verifies all variants against their epoch tables, and prepares the following epoch's
+table. Table preparation alone does not verify a future certificate. It intentionally expects an
 `untrusted-table` result with valid signatures when no operator pin is provisioned.
 
 ## Seeker validation after the specific build order
