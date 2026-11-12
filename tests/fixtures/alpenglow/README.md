@@ -40,3 +40,18 @@ their artificial stake table. These keys have no wallet or on-chain role.
 Reproduce with `tools/alpenglow/make_fixtures.py RESEARCH_ROOT OUTPUT_DIRECTORY`
 using the retained captures named in that script. The public fixtures themselves
 are sufficient to run the repository's offline tests without those large captures.
+
+`epoch-pins-v1.json` is the unchanged signed-policy reference dataset from commit
+`9af8753ca0df064d311c295e70a9248919bfafdf`, file
+`golden/epoch_tables_v1/vectors.json`. SHA-256:
+`c94ea53987a6d9026377e24a0ae6a2d2f453cf07b944aa4d96f0bba19d1a07b1`.
+It contains all 75 policy cases and 35 cross-feed cases. Its five `seed_hex` values
+are PUBLIC test material from the five Ed25519 examples in RFC 8032 section 7.1, never real wallet/operator keys.
+They must not be used for production signing or as production trust anchors.
+
+The signed policy schema in these vectors has no `keyId` member: the reader checks
+the signature against verified `use: epoch_tables` delegations. Synthetic trust
+bridges in some cross-feed cases deliberately delegate a test root to itself or
+use the test table public key as a floor anchor, to test schema refusal after a
+valid signature. Normal root/receipt-key cases retain their ordinary trust context.
+No production delegation or bank-validation evidence appears in these fixtures.

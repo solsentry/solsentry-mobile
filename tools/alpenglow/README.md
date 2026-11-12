@@ -195,3 +195,44 @@ See [OPERATIONS.md](OPERATIONS.md) for the operator handoff and device test matr
 The explicit archive integration also prepares the table after the newest retained
 certificate epoch. This checks next-table readiness; it does not claim a signature
 from that future epoch, and fails if that required table is missing.
+
+## Signed epoch-policy verifier
+
+`src/alpenglow/epoch-pins.ts` implements the accepted exact-byte policy format.
+`verifyEpochPolicy(trust, input)` takes a caller-owned root public key and complete
+network configuration, a key directory, contiguous signed history from revision 1,
+and caller-supplied UTC time. Pass directory/history as raw `Uint8Array` bytes when
+reading a transport: already-parsed JSON cannot preserve duplicate-key/number-token
+evidence. Object inputs exist for callers that have already applied the strict profile.
+
+The result contains the reference-compatible `verdict` and, only on success,
+immutable `accepted` metadata (rev/digest/window/network, table pins and observed
+revocations). Only `operator-replayed-bank` entries yield pins; diagnostic tables
+never do. Supply the accepted pins explicitly to the existing certificate client.
+A valid signature is the operator's attestation; the phone does not replay the bank.
+
+Checks follow the reference order: directory, authorized file signer, strict schema,
+delegation window/revocation, equivocation, contiguous rev/hash chain, permanent
+digest revocations, current time, then pin selection. Caller-owned network binding
+is additionally required before returning pins. File signatures use the existing
+Ed25519 dependency with canonical prime-subgroup point checks and ZIP-215 disabled.
+No signing API, network request or storage is added.
+
+Resource limits are 32 KiB/policy, depth 8, 32 tables/revocations, 256 KiB/128 total
+key-directory entries, 4 MiB/64 history entries and 512 signature checks per call.
+These bounds supplement the reference's policy-schema bounds. The reader has no
+`keyId` field and no direct-root signing shortcut. Delegation authorization checks
+`issuedAt` inside its signed window, as the reference does; it does not add the
+previous design proposal that file expiry must precede delegation expiry.
+
+All 75 reference policy vectors and 35 cross-feed cases run offline in
+`tests/alpenglow-pins.test.ts`, with unchanged fixture bytes/hash and public RFC 8032
+keys. Additional tests cover raw transport JSON, caller network, low-order points
+and a test policy feeding a real captured BLS certificate to the existing client.
+The K3 cross-feed reader is a test-only floor-contract harness with positive controls;
+this change does not add a floor policy to the app.
+
+This is a verifier module, not a deployed policy manager. Production root/network
+configuration, trusted time, fetch/caching, persistent antirollback state, fresh
+bootstrap, revoked-key history recovery and in-flight revocation handling remain
+integration gates. Do not activate test pins or infer freshness from signatures.
